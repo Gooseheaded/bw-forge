@@ -50,6 +50,12 @@ function state(partial: Partial<AnalysisRunState>): AnalysisRunState {
     status: "idle",
     jobs: [],
     logs: [],
+    queueProgress: {
+      completed: 0,
+      total: 0,
+      percent: 0
+    },
+    currentJobId: null,
     ...partial
   };
 }

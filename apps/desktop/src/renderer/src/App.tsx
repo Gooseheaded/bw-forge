@@ -10,6 +10,7 @@ import type {
   RuntimeValidation
 } from "../../shared/contracts";
 import { getAnalysisCompletionEffects } from "./analysis-completion";
+import { getAnalysisPrimaryProgressView } from "./analysis-progress-view";
 
 type View = "analyze" | "library" | "mcp" | "settings";
 
@@ -345,12 +346,11 @@ function AnalyzeView(props: {
   onOpenSettings: () => void;
 }): React.JSX.Element {
   const active = ["running", "ingesting", "cancelling"].includes(props.analysis.status);
-  const completed = props.analysis.jobs.filter((job) =>
-    ["succeeded", "failed", "cancelled"].includes(job.status)
-  ).length;
-  const progress = props.analysis.jobs.length
-    ? Math.round((completed / props.analysis.jobs.length) * 100)
-    : 0;
+  const primaryProgress = getAnalysisPrimaryProgressView(props.analysis);
+  const queueProgress = props.analysis.queueProgress;
+  const doneCount = props.analysis.jobs.filter((job) => job.status === "succeeded").length;
+  const failedCount = props.analysis.jobs.filter((job) => job.status === "failed").length;
+  const inProgressCount = props.analysis.jobs.filter((job) => job.status === "running").length;
 
   return (
     <div className="stack">
@@ -438,17 +438,40 @@ function AnalyzeView(props: {
           <div className="panel-heading">
             <div>
               <p className="eyebrow">CURRENT PROGRESS</p>
-              <h2>{runLabel(props.analysis.status)}</h2>
+              <h2>{primaryProgress.label}</h2>
             </div>
             <span className={`state-pill state-${props.analysis.status}`}>{props.analysis.status}</span>
           </div>
-          <div className="progress-track" aria-label={`${progress}% complete`}>
-            <div style={{ width: `${progress}%` }} />
+          <div className="progress-meta">
+            <div>
+              <strong>{primaryProgress.currentReplayName ?? runLabel(props.analysis.status)}</strong>
+              <span>{primaryProgress.detail}</span>
+            </div>
+            {primaryProgress.mode === "estimated" ? (
+              <span className="progress-badge">Estimated</span>
+            ) : null}
+          </div>
+          <ProgressBar
+            label={primaryProgress.percent === null ? primaryProgress.label : `${primaryProgress.percent}% complete`}
+            percent={primaryProgress.percent}
+          />
+          <div className="sub-progress">
+            <div className="sub-progress-row">
+              <strong>Queue progress</strong>
+              <span>
+                {queueProgress.completed} of {queueProgress.total} replay{queueProgress.total === 1 ? "" : "s"} finished
+              </span>
+            </div>
+            <ProgressBar
+              compact
+              label={`${queueProgress.percent}% of selected replays complete`}
+              percent={queueProgress.percent}
+            />
           </div>
           <div className="metric-row">
-            <Metric value={props.analysis.jobs.filter((job) => job.status === "succeeded").length} label="Done" />
-            <Metric value={props.analysis.jobs.filter((job) => job.status === "failed").length} label="Failed" />
-            <Metric value={props.analysis.jobs.filter((job) => job.status === "running").length} label="In progress" />
+            <Metric value={doneCount} label="Done" />
+            <Metric value={failedCount} label="Failed" />
+            <Metric value={inProgressCount} label="In progress" />
           </div>
           <div className="job-list">
             {props.analysis.jobs.map((job) => (
@@ -456,7 +479,7 @@ function AnalyzeView(props: {
                 <StatusDot status={job.status === "succeeded" ? "ready" : job.status === "failed" ? "blocked" : "working"} />
                 <div>
                   <strong>{job.filename}</strong>
-                  <span>{job.error ?? job.status}</span>
+                  <span>{job.error ?? job.progress?.detail ?? job.progress?.label ?? job.status}</span>
                 </div>
               </div>
             ))}
@@ -467,7 +490,7 @@ function AnalyzeView(props: {
         </section>
       </div>
 
-      <LogPanel title="Activity log" logs={props.analysis.logs} />
+      <LogPanel title="Activity log" logs={props.analysis.logs} collapsedByDefault />
     </div>
   );
 }
@@ -740,12 +763,49 @@ function Metric(props: { value: number; label: string }): React.JSX.Element {
   return <div className="metric"><strong>{props.value}</strong><span>{props.label}</span></div>;
 }
 
+function ProgressBar(props: {
+  label: string;
+  percent: number | null;
+  compact?: boolean;
+}): React.JSX.Element {
+  const className = [
+    "progress-track",
+    props.compact ? "progress-track-compact" : "",
+    props.percent === null ? "progress-track-indeterminate" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return (
+    <div className={className} aria-label={props.label}>
+      <div style={props.percent === null ? undefined : { width: `${props.percent}%` }} />
+    </div>
+  );
+}
+
 function StatusDot(props: { status: "ready" | "blocked" | "working" }): React.JSX.Element {
   return <span className={`status-dot status-${props.status}`} aria-hidden="true" />;
 }
 
-function LogPanel(props: { title: string; logs: AnalysisRunState["logs"] | McpState["logs"] }): React.JSX.Element {
+function LogPanel(props: {
+  title: string;
+  logs: AnalysisRunState["logs"] | McpState["logs"];
+  collapsedByDefault?: boolean;
+}): React.JSX.Element {
   const visibleLogs = props.logs.slice(-250);
+  if (props.collapsedByDefault) {
+    return (
+      <details className="panel log-panel">
+        <summary className="panel-heading log-summary">
+          <div><p className="eyebrow">DETAILS</p><h2>{props.title}</h2></div>
+          <span className="muted">{props.logs.length} lines</span>
+        </summary>
+        <div className="logs" role="log" aria-live="polite">
+          {visibleLogs.map((log) => <div className={`log-line log-${log.stream}`} key={log.id}><time>{formatTime(log.timestamp)}</time><span>{log.source}</span><code>{log.message}</code></div>)}
+          {!visibleLogs.length ? <span className="muted">Progress details will appear here.</span> : null}
+        </div>
+      </details>
+    );
+  }
   return (
     <section className="panel log-panel">
       <div className="panel-heading"><div><p className="eyebrow">DETAILS</p><h2>{props.title}</h2></div><span className="muted">{props.logs.length} lines</span></div>

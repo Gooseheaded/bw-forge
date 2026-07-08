@@ -10,8 +10,8 @@
 
 ## 3. Analysis screen refresh
 
-- [ ] 3.1 Replace the current count-only analysis bar with primary per-replay progress and secondary queue progress UI
-- [ ] 3.2 Collapse raw analysis logs behind a details section and add renderer coverage for the new progress presentation
+- [x] 3.1 Replace the current count-only analysis bar with primary per-replay progress and secondary queue progress UI
+- [x] 3.2 Collapse raw analysis logs behind a details section and add renderer coverage for the new progress presentation
 
 ## 4. Finish and verify
 
