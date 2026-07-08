@@ -1,12 +1,23 @@
 import { randomUUID } from "node:crypto";
 import { basename } from "node:path";
 import type {
+  AnalysisPhase,
   AnalysisRunState,
   AnalysisStartRequest,
   AppSettings,
   ProcessLogEntry,
+  ProgressMode,
+  ProgressSnapshot,
   ReplayJob
 } from "../shared/contracts";
+import {
+  type AnalysisOutputProgressEvent,
+  estimateReplayExportPercent,
+  finalizingReplayProgressPercent,
+  parseAnalysisOutputProgress,
+  replayProgressFromAnalysisPercent,
+  replayProgressFromExactExportPercent
+} from "./analysis-progress";
 import { buildAnalyzeCommand, buildIngestCommand } from "./commands";
 import {
   startChildProcess,
@@ -58,7 +69,13 @@ export class AnalysisManager {
         filename: basename(replayPath),
         status: "queued"
       })),
-      logs: []
+      logs: [],
+      queueProgress: {
+        completed: 0,
+        total: request.replayPaths.length,
+        percent: 0
+      },
+      currentJobId: null
     };
     this.addLog("system", "info", `Queued ${this.state.jobs.length} replay(s).`);
     this.emit();
@@ -72,6 +89,13 @@ export class AnalysisManager {
     }
     this.cancelRequested = true;
     this.state.status = "cancelling";
+    this.state.primaryProgress = this.createProgressSnapshot(
+      "cancelling",
+      "Stopping safely",
+      "Waiting for the current process to stop",
+      null,
+      "indeterminate"
+    );
     this.addLog("system", "info", "Cancellation requested.");
     for (const job of this.state.jobs) {
       if (job.status === "queued") {
@@ -119,12 +143,18 @@ export class AnalysisManager {
   private async runReplay(job: ReplayJob, settings: AppSettings): Promise<void> {
     job.status = "running";
     job.startedAt = new Date().toISOString();
+    this.state.currentJobId = job.id;
+    this.setReplayProgress(job, "replay_export", "Playing the replay", "Starting replay playback", 0, "estimated");
     this.addLog("analyze", "info", `Analyzing ${job.filename}`, job.replayPath);
     this.emit();
 
     const command = buildAnalyzeCommand(settings, job.replayPath);
     this.activeChild = this.startProcess(command, (output) => {
       this.addLog("analyze", output.stream, output.message, job.replayPath);
+      const progressEvent = parseAnalysisOutputProgress(output.message);
+      if (progressEvent) {
+        this.applyReplayProgressEvent(job, progressEvent);
+      }
       this.emit();
     });
     const result = await this.activeChild.completion;
@@ -141,23 +171,46 @@ export class AnalysisManager {
       this.addLog("analyze", "stderr", result.spawnError, job.replayPath);
     } else if (result.code === 0) {
       job.status = "succeeded";
+      this.setReplayProgress(job, "finalizing_replay", "Saving replay results", "Replay finished", 100, "exact");
       this.addLog("analyze", "info", `Completed ${job.filename}`, job.replayPath);
     } else {
       job.status = "failed";
       job.error = `Analysis exited with code ${String(result.code)}${result.signal ? ` (${result.signal})` : ""}.`;
       this.addLog("analyze", "stderr", job.error, job.replayPath);
     }
+    if (this.state.currentJobId === job.id) {
+      this.state.currentJobId = null;
+      this.state.primaryProgress = undefined;
+    }
+    this.updateQueueProgress();
     this.emit();
   }
 
   private async runIngest(settings: AppSettings): Promise<void> {
     this.state.status = "ingesting";
+    this.state.primaryProgress = this.createProgressSnapshot(
+      "ingest",
+      "Updating your library",
+      "Starting library update",
+      0,
+      "indeterminate"
+    );
     this.addLog("ingest", "info", "Ingesting analyzed replay output into the corpus.");
     this.emit();
 
     const command = buildIngestCommand(settings);
     this.activeChild = this.startProcess(command, (output) => {
       this.addLog("ingest", output.stream, output.message);
+      const progressEvent = parseAnalysisOutputProgress(output.message);
+      if (progressEvent?.kind === "ingest_progress") {
+        this.state.primaryProgress = this.createProgressSnapshot(
+          "ingest",
+          "Updating your library",
+          progressEvent.detail,
+          progressEvent.total > 0 ? Math.round((progressEvent.processed / progressEvent.total) * 100) : 0,
+          "exact"
+        );
+      }
       this.emit();
     });
     const result = await this.activeChild.completion;
@@ -190,6 +243,7 @@ export class AnalysisManager {
         this.addLog("system", "stderr", `Library refresh failed: ${formatError(error)}`);
       }
     }
+    this.state.primaryProgress = undefined;
     this.state.finishedAt = new Date().toISOString();
     this.emit();
   }
@@ -202,6 +256,9 @@ export class AnalysisManager {
       }
     }
     this.state.status = "cancelled";
+    this.state.currentJobId = null;
+    this.state.primaryProgress = undefined;
+    this.updateQueueProgress();
     this.state.finishedAt = new Date().toISOString();
     this.addLog("system", "info", "Analysis run cancelled.");
     this.emit();
@@ -229,6 +286,120 @@ export class AnalysisManager {
     if (this.state.logs.length > MAX_LOG_ENTRIES) {
       this.state.logs.splice(0, this.state.logs.length - MAX_LOG_ENTRIES);
     }
+  }
+
+  private applyReplayProgressEvent(
+    job: ReplayJob,
+    progressEvent: AnalysisOutputProgressEvent
+  ): void {
+    switch (progressEvent.kind) {
+      case "replay_export_exact":
+        this.setReplayProgress(
+          job,
+          "replay_export",
+          "Playing the replay",
+          progressEvent.detail,
+          replayProgressFromExactExportPercent(progressEvent.percent),
+          "exact"
+        );
+        break;
+      case "replay_export_heartbeat":
+        if (job.progress?.phase === "replay_export" && job.progress.mode === "exact") {
+          return;
+        }
+        this.setReplayProgress(
+          job,
+          "replay_export",
+          "Playing the replay",
+          `${progressEvent.detail} • Estimated`,
+          estimateReplayExportPercent(progressEvent.elapsedSeconds),
+          "estimated"
+        );
+        break;
+      case "replay_export_stage_complete":
+        this.setReplayProgress(
+          job,
+          "timeline_analysis",
+          "Reading replay data",
+          "Replay playback finished",
+          50,
+          "exact"
+        );
+        break;
+      case "timeline_analysis":
+        if (progressEvent.percent >= 100) {
+          this.setReplayProgress(
+            job,
+            "finalizing_replay",
+            "Saving replay results",
+            "Writing replay results",
+            finalizingReplayProgressPercent(),
+            "indeterminate"
+          );
+          return;
+        }
+        this.setReplayProgress(
+          job,
+          "timeline_analysis",
+          "Reading replay data",
+          progressEvent.detail,
+          replayProgressFromAnalysisPercent(progressEvent.percent),
+          "exact"
+        );
+        break;
+      case "ingest_progress":
+        break;
+    }
+  }
+
+  private setReplayProgress(
+    job: ReplayJob,
+    phase: AnalysisPhase,
+    label: string,
+    detail: string,
+    percent: number | null,
+    mode: ProgressMode
+  ): void {
+    job.progress = this.createProgressSnapshot(phase, label, detail, percent, mode);
+    this.state.primaryProgress = job.progress;
+    this.updateQueueProgress();
+  }
+
+  private createProgressSnapshot(
+    phase: AnalysisPhase,
+    label: string,
+    detail: string,
+    percent: number | null,
+    mode: ProgressMode
+  ): ProgressSnapshot {
+    return {
+      phase,
+      label,
+      detail,
+      percent,
+      mode,
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  private updateQueueProgress(): void {
+    const total = this.state.jobs.length;
+    const completed = this.state.jobs.filter((job) =>
+      ["succeeded", "failed", "cancelled"].includes(job.status)
+    ).length;
+    const currentJob =
+      this.state.currentJobId
+        ? this.state.jobs.find((job) => job.id === this.state.currentJobId)
+        : undefined;
+    const partialPercent = currentJob?.progress?.percent ?? 0;
+    const queuePercent = total
+      ? Math.round(((completed + partialPercent / 100) / total) * 100)
+      : 0;
+    this.state.queueProgress = {
+      completed,
+      total,
+      percent: queuePercent
+    };
   }
 
   private emit(): void {

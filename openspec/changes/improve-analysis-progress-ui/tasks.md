@@ -5,8 +5,8 @@
 
 ## 2. Analysis state orchestration
 
-- [ ] 2.1 Update the analysis manager to track current replay progress, queue progress, and ingest progress from parsed child-process output
-- [ ] 2.2 Add or update tests for progress parsing and analysis-manager state transitions, including estimated replay-export fallback
+- [x] 2.1 Update the analysis manager to track current replay progress, queue progress, and ingest progress from parsed child-process output
+- [x] 2.2 Add or update tests for progress parsing and analysis-manager state transitions, including estimated replay-export fallback
 
 ## 3. Analysis screen refresh
 
