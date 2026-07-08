@@ -15,5 +15,5 @@
 
 ## 4. Finish and verify
 
-- [ ] 4.1 Run the desktop test suite and any targeted build/type checks needed for the progress changes
-- [ ] 4.2 Update task checkboxes and change artifacts to reflect completed implementation state
+- [x] 4.1 Run the desktop test suite and any targeted build/type checks needed for the progress changes
+- [x] 4.2 Update task checkboxes and change artifacts to reflect completed implementation state
