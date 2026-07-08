@@ -1,0 +1,73 @@
+{
+  "planner_schema": "query-planner-v1",
+  "query": {
+    "original_text": "Which pbjt ZvT games have early Mutalisks before enemy Science Vessels are out?",
+    "intent": "find_replays_matching_pattern"
+  },
+  "replay_set": {
+    "matchup": "ZvT",
+    "player": "pbjt",
+    "race": "zerg"
+  },
+  "constraints": [
+    {
+      "id": "self_first_mutalisk_before_6m",
+      "type": "first_event_before",
+      "perspective": "self",
+      "item": "Mutalisk",
+      "before_seconds": 360
+    },
+    {
+      "id": "enemy_first_science_vessel_before_11m30s",
+      "type": "first_event_before",
+      "perspective": "enemy",
+      "item": "Science Vessel",
+      "before_seconds": 690
+    }
+  ],
+  "evidence_requests": [
+    {
+      "id": "self_mutalisk_count_at_7m",
+      "type": "unit_count_at",
+      "perspective": "self",
+      "unit": "Mutalisk",
+      "at_seconds": 420
+    },
+    {
+      "id": "self_economy_at_5m",
+      "type": "economy_at",
+      "perspective": "self",
+      "at_seconds": 300
+    },
+    {
+      "id": "self_deaths_5m_to_8m",
+      "type": "deaths_between",
+      "perspective": "self",
+      "from_seconds": 300,
+      "to_seconds": 480,
+      "include_raw": true,
+      "summaries": [
+        "total_count",
+        "count_by_unit_type",
+        "count_by_category",
+        "first_time_seconds",
+        "last_time_seconds"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "phrase": "early Mutalisks",
+      "meaning": "first self Mutalisk before 6:00"
+    },
+    {
+      "phrase": "Science Vessels are out",
+      "meaning": "first enemy Science Vessel exists before 11:30"
+    },
+    {
+      "phrase": "pbjt ZvT games",
+      "meaning": "pbjt is the self player of interest in replays filtered as matchup ZvT with race zerg"
+    }
+  ],
+  "unsupported_or_approximate": []
+}

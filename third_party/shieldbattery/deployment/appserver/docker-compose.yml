@@ -1,0 +1,270 @@
+volumes:
+  # Leaving these volume configs empty means they'll use the default driver (usually `local`), which
+  # is fine in most cases
+  app_logs:
+  certs:
+  db_data:
+  nginx_conf:
+  nginx_dhparam:
+  nginx_html:
+  nginx_vhost:
+  redis_data:
+  uploaded_files:
+
+networks:
+  frontend:
+    enable_ipv6: true
+  backend:
+
+services:
+  app_server:
+    image: shieldbattery/shieldbattery:${SB_VERSION:-latest}
+    restart: unless-stopped
+    # Required for proper handling of kernel signals (eg. ctrl-c); for more info, see:
+    # https://github.com/nodejs/docker-node/blob/master/docs/BestPractices.md#handling-kernel-signals
+    init: true
+    ports:
+      # rally-point route creator server
+      - '14099:14099/tcp'
+      - '14099:14099/udp'
+    environment:
+      # This controls what addresses nginx_proxy will forward to this
+      - VIRTUAL_HOST=${SB_VIRTUAL_HOST}
+      - VIRTUAL_PORT=5555
+      - LETSENCRYPT_HOST=${SB_VIRTUAL_HOST}
+      - DATABASE_URL=postgres://${SB_DB_USER:-shieldbattery}:${SB_DB_PASSWORD}@db/${SB_DB_NAME:-shieldbattery}
+      - SB_HTTP_PORT=5555
+      - SB_HTTPS_REVERSE_PROXY=true
+      - SB_CANONICAL_HOST
+      - SB_GQL_ORIGIN
+      - SB_JWT_SECRET
+      - SB_REDIS_HOST=redis
+      - SB_REDIS_PORT=6379
+      - 'SB_ROUTE_CREATOR_HOST=::'
+      - SB_ROUTE_CREATOR_PORT=14099
+      - SB_FILE_STORE
+      - SB_MAP_PARSER_MAX_CONCURRENT=${SB_MAP_PARSER_MAX_CONCURRENT:-1}
+      - SB_REPLAY_WORKER_CONCURRENCY=${SB_REPLAY_WORKER_CONCURRENCY:-1}
+      - SB_SPRITE_DATA=server/bw_sprite_data
+      - SB_SESSION_TTL
+      - SB_RALLY_POINT_SECRET
+      - SB_MAILGUN_KEY
+      - SB_MAILGUN_DOMAIN
+      - SB_MAILGUN_FROM
+      - SB_ANALYTICS_ID
+      - SB_DATADOG_KEY
+      - SB_DISABLE_CRAWLERS
+      - SB_DISCORD_WEBHOOK_URL
+      - GOOGLE_APPLICATION_CREDENTIALS=/google-credentials.json
+      - 'SB_SERVER_RS_URL=http://server_rs:5556'
+    networks:
+      - frontend
+      - backend
+    volumes:
+      - app_logs:/home/node/shieldbattery/server/logs:rw
+      - ./google-credentials.json:/google-credentials.json:ro
+      - uploaded_files:/home/node/shieldbattery/server/uploaded_files:rw
+      - type: bind
+        source: ./bw_sprite_data
+        target: /home/node/shieldbattery/server/bw_sprite_data
+        read_only: true
+
+    # NOTE: `depends_on` only waits for the services listed below to start; it doesn't wait for them
+    # to actually be "ready" (whatever "ready" means for a particular service). If you need to
+    # control the startup of services more granularly, use the `./server/deployment_files/wait.sh` script available in
+    # this image. The reason why we're not waiting for `db` service to actually be ready here is
+    # because we're waiting for the `update_server` service to start, and `update_server` service
+    # won't start until the `db` service is ready.
+    depends_on:
+      - db
+      - nginx_proxy
+      - proxy_gen
+      - redis
+      - update_server
+
+  server_rs:
+    image: shieldbattery/server-rs:${SB_VERSION:-latest}
+    restart: unless-stopped
+    init: true
+    expose:
+      - 5556
+    environment:
+      - VIRTUAL_HOST=${SB_GQL_VIRTUAL_HOST}
+      - VIRTUAL_PORT=5556
+      - LETSENCRYPT_HOST=${SB_GQL_VIRTUAL_HOST}
+      - SB_DB_HOST=db
+      - SB_DB_PORT=5432
+      - SB_DB_USER=${SB_DB_USER:-shieldbattery}
+      - SB_DB_PASSWORD=${SB_DB_PASSWORD}
+      - SB_DB=${SB_DB:-shieldbattery}
+      - 'SB_GQL_HOST=[::]'
+      - SB_GQL_PORT=5556
+      - SB_HTTPS_REVERSE_PROXY=true
+      - SB_REDIS_HOST=redis
+      - SB_REDIS_PORT=6379
+      - AWS_EC2_METADATA_DISABLED=true
+      - SB_CANONICAL_HOST
+      - SB_MAILGUN_KEY
+      - SB_MAILGUN_DOMAIN
+      - SB_MAILGUN_FROM
+      - SB_DATADOG_KEY
+      - SB_JWT_SECRET
+      - SB_SESSION_TTL
+      - SB_FILE_STORE
+      - SB_DISCORD_WEBHOOK_URL
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      - db
+      - nginx_proxy
+      - proxy_gen
+      - redis
+      - update_server
+
+  nginx_proxy:
+    image: nginx:mainline
+    container_name: nginx_proxy
+    restart: unless-stopped
+    ports:
+      - '80:80/tcp'
+      - '443:443/tcp'
+      - '443:443/udp'
+    labels:
+      - 'com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy'
+    networks:
+      - frontend
+    volumes:
+      - certs:/etc/nginx/certs:ro
+      - nginx_conf:/etc/nginx/conf.d
+      - nginx_dhparam:/etc/nginx/dhparam
+      - nginx_html:/usr/share/nginx/html
+      - nginx_vhost:/etc/nginx/vhost.d
+
+  # This generates reverse proxy configurations for nginx, setup taken from:
+  # https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Docker-Compose.md
+  # (the three container setup)
+  proxy_gen:
+    image: jwilder/docker-gen:0.7.0
+    restart: unless-stopped
+    command: -notify-sighup nginx_proxy -watch /etc/docker-gen/templates/nginx.tmpl /etc/nginx/conf.d/default.conf
+    environment:
+      - ENABLE_IPV6=true
+    labels:
+      - 'com.github.jrcs.letsencrypt_nginx_proxy_companion.docker_gen'
+    networks:
+      - frontend
+    volumes:
+      - certs:/etc/nginx/certs:ro
+      - nginx_conf:/etc/nginx/conf.d
+      - nginx_dhparam:/etc/nginx/dhparam
+      - nginx_html:/usr/share/nginx/html
+      - nginx_vhost:/etc/nginx/vhost.d
+      - ./docker-nginx.tmpl:/etc/docker-gen/templates/nginx.tmpl:ro
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    depends_on:
+      - nginx_proxy
+
+  letsencrypt:
+    image: jrcs/letsencrypt-nginx-proxy-companion:stable
+    restart: unless-stopped
+    environment:
+      - DEFAULT_EMAIL=${SB_LETSENCRYPT_EMAIL}
+    networks:
+      - frontend
+    volumes:
+      - certs:/etc/nginx/certs:rw
+      - nginx_html:/usr/share/nginx/html
+      - nginx_vhost:/etc/nginx/vhost.d
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - nginx_proxy
+      - proxy_gen
+
+  redis:
+    image: redis:7.4.2
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    networks:
+      - backend
+    volumes:
+      - redis_data:/data
+
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    # This matches the recommended value for this container
+    # (See 'Caveats' section here: https://hub.docker.com/_/postgres)
+    shm_size: 256M
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_SUPER_PASSWORD:?missing POSTGRES_SUPER_PASSWORD}
+      - POSTGRES_DB=postgres
+      - SB_DB=${SB_DB:-shieldbattery}
+      - SB_DB_USER=${SB_DB_USER:-shieldbattery}
+      - SB_DB_PASSWORD=${SB_DB_PASSWORD:?missing SB_DB_PASSWORD}
+    networks:
+      - backend
+    volumes:
+      - ./db/init-scripts:/docker-entrypoint-initdb.d:ro
+      - ./db/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - db_data:/var/lib/postgresql/data
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+
+  # This is a service used to run everything needed (e.g. run migrations, copy assets, etc.) to
+  # update the server to a new version before it actually starts. It uses the same image as the
+  # main server container, but overrides its startup command to only update the server and exit.
+  update_server:
+    image: shieldbattery/shieldbattery:${SB_VERSION:-latest}
+    init: true
+    environment:
+      - SB_SESSION_TTL=${SB_SESSION_TTL}
+      - SB_REDIS_HOST=redis
+      - SB_REDIS_PORT=6379
+      - SB_FILE_STORE=${SB_FILE_STORE}
+      - DATABASE_URL=postgres://${SB_DB_USER:-shieldbattery}:${SB_DB_PASSWORD}@db/${SB_DB:-shieldbattery}
+    command: ['./server/deployment_files/wait.sh',
+      '--endpoint', 'db:5432:15',
+      '--endpoint', 'redis:6379:15',
+      'bash', '-c', './server/update_server.sh']
+    networks:
+      - backend
+    depends_on:
+      - db
+      - redis
+
+  node_exporter:
+    image: prom/node-exporter:latest
+    restart: unless-stopped
+    network_mode: service:tailscale
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+
+  tailscale:
+    build: ./tailscale
+    restart: unless-stopped
+    environment:
+      - AUTH_KEY=${TAILSCALE_AUTH_KEY:-}
+      - ROUTES=${TAILSCALE_ROUTES:-}
+      - EXTRA_ARGS=${TAILSCALE_EXTRA_ARGS:-}
+    cap_add:
+      - NET_ADMIN
+    ports:
+      # tailscale's own communication port
+      - '41641:41641/udp'
+    networks:
+      - backend
+      - frontend
+    volumes:
+      - /var/lib:/var/lib
+    depends_on:
+      - app_server
+      - db
+      - server_rs

@@ -1,0 +1,1203 @@
+{
+  "schema_version": "replay-analysis-deaths-v1",
+  "owner": 1,
+  "race": "terran",
+  "samples": [
+    {
+      "frame": 3513,
+      "time_seconds": 147.546,
+      "death": {
+        "id": 11418,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 288,
+        "pos_y": 3824
+      }
+    },
+    {
+      "frame": 4398,
+      "time_seconds": 184.716,
+      "death": {
+        "id": 11410,
+        "owner": 1,
+        "unit_type": "marine",
+        "unit_type_id": 0,
+        "category": "unit",
+        "pos_x": 1920,
+        "pos_y": 2096
+      }
+    },
+    {
+      "frame": 7027,
+      "time_seconds": 295.134,
+      "death": {
+        "id": 11404,
+        "owner": 1,
+        "unit_type": "vulture",
+        "unit_type_id": 2,
+        "category": "unit",
+        "pos_x": 3954,
+        "pos_y": 3672
+      }
+    },
+    {
+      "frame": 7897,
+      "time_seconds": 331.674,
+      "death": {
+        "id": 11408,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 915,
+        "pos_y": 3017
+      }
+    },
+    {
+      "frame": 7915,
+      "time_seconds": 332.43,
+      "death": {
+        "id": 11419,
+        "owner": 1,
+        "unit_type": "marine",
+        "unit_type_id": 0,
+        "category": "unit",
+        "pos_x": 690,
+        "pos_y": 2971
+      }
+    },
+    {
+      "frame": 7989,
+      "time_seconds": 335.538,
+      "death": {
+        "id": 11380,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 620,
+        "pos_y": 3005
+      }
+    },
+    {
+      "frame": 8136,
+      "time_seconds": 341.712,
+      "death": {
+        "id": 11375,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 548,
+        "pos_y": 3004
+      }
+    },
+    {
+      "frame": 8137,
+      "time_seconds": 341.754,
+      "death": {
+        "id": 11427,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 525,
+        "pos_y": 2994
+      }
+    },
+    {
+      "frame": 8214,
+      "time_seconds": 344.988,
+      "death": {
+        "id": 11379,
+        "owner": 1,
+        "unit_type": "bunker",
+        "unit_type_id": 125,
+        "category": "building",
+        "pos_x": 592,
+        "pos_y": 2976
+      }
+    },
+    {
+      "frame": 8284,
+      "time_seconds": 347.928,
+      "death": {
+        "id": 11413,
+        "owner": 1,
+        "unit_type": "marine",
+        "unit_type_id": 0,
+        "category": "unit",
+        "pos_x": 520,
+        "pos_y": 2976
+      }
+    },
+    {
+      "frame": 8288,
+      "time_seconds": 348.096,
+      "death": {
+        "id": 11371,
+        "owner": 1,
+        "unit_type": "marine",
+        "unit_type_id": 0,
+        "category": "unit",
+        "pos_x": 527,
+        "pos_y": 2993
+      }
+    },
+    {
+      "frame": 8911,
+      "time_seconds": 374.262,
+      "death": {
+        "id": 11353,
+        "owner": 1,
+        "unit_type": "siege_tank_turret",
+        "unit_type_id": 6,
+        "category": "subunit",
+        "pos_x": 192,
+        "pos_y": 3536
+      }
+    },
+    {
+      "frame": 8911,
+      "time_seconds": 374.262,
+      "death": {
+        "id": 11354,
+        "owner": 1,
+        "unit_type": "siege_tank_tank",
+        "unit_type_id": 5,
+        "category": "unit",
+        "pos_x": 192,
+        "pos_y": 3536
+      }
+    },
+    {
+      "frame": 8936,
+      "time_seconds": 375.312,
+      "death": {
+        "id": 11430,
+        "owner": 1,
+        "unit_type": "barracks",
+        "unit_type_id": 111,
+        "category": "building",
+        "pos_x": 456,
+        "pos_y": 2874
+      }
+    },
+    {
+      "frame": 9318,
+      "time_seconds": 391.356,
+      "death": {
+        "id": 11360,
+        "owner": 1,
+        "unit_type": "bunker",
+        "unit_type_id": 125,
+        "category": "building",
+        "pos_x": 400,
+        "pos_y": 3008
+      }
+    },
+    {
+      "frame": 9401,
+      "time_seconds": 394.842,
+      "death": {
+        "id": 11445,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 354,
+        "pos_y": 2860
+      }
+    },
+    {
+      "frame": 9470,
+      "time_seconds": 397.74,
+      "death": {
+        "id": 11358,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 350,
+        "pos_y": 2824
+      }
+    },
+    {
+      "frame": 9771,
+      "time_seconds": 410.382,
+      "death": {
+        "id": 11477,
+        "owner": 1,
+        "unit_type": "refinery",
+        "unit_type_id": 110,
+        "category": "building",
+        "pos_x": 320,
+        "pos_y": 2752
+      }
+    },
+    {
+      "frame": 10827,
+      "time_seconds": 454.734,
+      "death": {
+        "id": 19567,
+        "owner": 1,
+        "unit_type": "marine",
+        "unit_type_id": 0,
+        "category": "unit",
+        "pos_x": 363,
+        "pos_y": 2938
+      }
+    },
+    {
+      "frame": 10833,
+      "time_seconds": 454.986,
+      "death": {
+        "id": 11384,
+        "owner": 1,
+        "unit_type": "siege_tank_siege_turret",
+        "unit_type_id": 31,
+        "category": "subunit",
+        "pos_x": 323,
+        "pos_y": 2943
+      }
+    },
+    {
+      "frame": 10833,
+      "time_seconds": 454.986,
+      "death": {
+        "id": 19632,
+        "owner": 1,
+        "unit_type": "siege_tank_siege",
+        "unit_type_id": 30,
+        "category": "unit",
+        "pos_x": 323,
+        "pos_y": 2943
+      }
+    },
+    {
+      "frame": 11109,
+      "time_seconds": 466.578,
+      "death": {
+        "id": 11361,
+        "owner": 1,
+        "unit_type": "siege_tank_siege",
+        "unit_type_id": 30,
+        "category": "unit",
+        "pos_x": 556,
+        "pos_y": 3224
+      }
+    },
+    {
+      "frame": 11109,
+      "time_seconds": 466.578,
+      "death": {
+        "id": 19572,
+        "owner": 1,
+        "unit_type": "siege_tank_siege_turret",
+        "unit_type_id": 31,
+        "category": "subunit",
+        "pos_x": 556,
+        "pos_y": 3224
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11335,
+        "owner": 1,
+        "unit_type": "siege_tank_tank",
+        "unit_type_id": 5,
+        "category": "unit",
+        "pos_x": 192,
+        "pos_y": 3536
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11336,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 650,
+        "pos_y": 3821
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11337,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 235,
+        "pos_y": 3956
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11340,
+        "owner": 1,
+        "unit_type": "starport",
+        "unit_type_id": 114,
+        "category": "building",
+        "pos_x": 640,
+        "pos_y": 3984
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11343,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 451,
+        "pos_y": 3420
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11344,
+        "owner": 1,
+        "unit_type": "goliath_turret",
+        "unit_type_id": 4,
+        "category": "subunit",
+        "pos_x": 310,
+        "pos_y": 3260
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11345,
+        "owner": 1,
+        "unit_type": "goliath",
+        "unit_type_id": 3,
+        "category": "unit",
+        "pos_x": 310,
+        "pos_y": 3260
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11346,
+        "owner": 1,
+        "unit_type": "engineering_bay",
+        "unit_type_id": 122,
+        "category": "building",
+        "pos_x": 555,
+        "pos_y": 3242
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11348,
+        "owner": 1,
+        "unit_type": "siege_tank_siege",
+        "unit_type_id": 30,
+        "category": "unit",
+        "pos_x": 294,
+        "pos_y": 3135
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11350,
+        "owner": 1,
+        "unit_type": "supply_depot",
+        "unit_type_id": 109,
+        "category": "building",
+        "pos_x": 528,
+        "pos_y": 3904
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11351,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 427,
+        "pos_y": 3412
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11352,
+        "owner": 1,
+        "unit_type": "goliath",
+        "unit_type_id": 3,
+        "category": "unit",
+        "pos_x": 315,
+        "pos_y": 3228
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11355,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 414,
+        "pos_y": 3924
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11356,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 509,
+        "pos_y": 3406
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11357,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 132,
+        "pos_y": 3883
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11359,
+        "owner": 1,
+        "unit_type": "goliath",
+        "unit_type_id": 3,
+        "category": "unit",
+        "pos_x": 311,
+        "pos_y": 3193
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11362,
+        "owner": 1,
+        "unit_type": "supply_depot",
+        "unit_type_id": 109,
+        "category": "building",
+        "pos_x": 688,
+        "pos_y": 3904
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11365,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 181,
+        "pos_y": 3794
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11366,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 480,
+        "pos_y": 3392
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11367,
+        "owner": 1,
+        "unit_type": "vulture",
+        "unit_type_id": 2,
+        "category": "unit",
+        "pos_x": 329,
+        "pos_y": 3159
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11368,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 139,
+        "pos_y": 3947
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11369,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 139,
+        "pos_y": 3851
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11372,
+        "owner": 1,
+        "unit_type": "siege_tank_siege_turret",
+        "unit_type_id": 31,
+        "category": "subunit",
+        "pos_x": 335,
+        "pos_y": 3042
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11373,
+        "owner": 1,
+        "unit_type": "siege_tank_siege",
+        "unit_type_id": 30,
+        "category": "unit",
+        "pos_x": 335,
+        "pos_y": 3042
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11376,
+        "owner": 1,
+        "unit_type": "armory",
+        "unit_type_id": 123,
+        "category": "building",
+        "pos_x": 528,
+        "pos_y": 3968
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11381,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 170,
+        "pos_y": 3923
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11385,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 139,
+        "pos_y": 3787
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11386,
+        "owner": 1,
+        "unit_type": "factory",
+        "unit_type_id": 113,
+        "category": "building",
+        "pos_x": 64,
+        "pos_y": 3408
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11391,
+        "owner": 1,
+        "unit_type": "supply_depot",
+        "unit_type_id": 109,
+        "category": "building",
+        "pos_x": 400,
+        "pos_y": 4000
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11392,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 201,
+        "pos_y": 3813
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11396,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 156,
+        "pos_y": 3787
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11397,
+        "owner": 1,
+        "unit_type": "machine_shop",
+        "unit_type_id": 120,
+        "category": "building",
+        "pos_x": 288,
+        "pos_y": 3552
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11399,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 107,
+        "pos_y": 3796
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11401,
+        "owner": 1,
+        "unit_type": "command_center",
+        "unit_type_id": 106,
+        "category": "building",
+        "pos_x": 660,
+        "pos_y": 2940
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11411,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 107,
+        "pos_y": 3883
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11414,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 107,
+        "pos_y": 3883
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11416,
+        "owner": 1,
+        "unit_type": "factory",
+        "unit_type_id": 113,
+        "category": "building",
+        "pos_x": 192,
+        "pos_y": 3536
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11422,
+        "owner": 1,
+        "unit_type": "supply_depot",
+        "unit_type_id": 109,
+        "category": "building",
+        "pos_x": 48,
+        "pos_y": 3680
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11423,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 139,
+        "pos_y": 3892
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11425,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 228,
+        "pos_y": 3921
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11429,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 328,
+        "pos_y": 3696
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11433,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 209,
+        "pos_y": 3956
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11435,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 139,
+        "pos_y": 3819
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11437,
+        "owner": 1,
+        "unit_type": "supply_depot",
+        "unit_type_id": 109,
+        "category": "building",
+        "pos_x": 304,
+        "pos_y": 4000
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11439,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 216,
+        "pos_y": 3876
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11441,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 203,
+        "pos_y": 3956
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11443,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 139,
+        "pos_y": 3947
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11447,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 297,
+        "pos_y": 3760
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11448,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 139,
+        "pos_y": 3941
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11449,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 107,
+        "pos_y": 3883
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11450,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 305,
+        "pos_y": 3691
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11451,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 139,
+        "pos_y": 3796
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11452,
+        "owner": 1,
+        "unit_type": "command_center",
+        "unit_type_id": 106,
+        "category": "building",
+        "pos_x": 288,
+        "pos_y": 3824
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 11571,
+        "owner": 1,
+        "unit_type": "refinery",
+        "unit_type_id": 110,
+        "category": "building",
+        "pos_x": 288,
+        "pos_y": 3648
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 19545,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 107,
+        "pos_y": 3796
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 19552,
+        "owner": 1,
+        "unit_type": "siege_tank_siege_turret",
+        "unit_type_id": 31,
+        "category": "subunit",
+        "pos_x": 294,
+        "pos_y": 3135
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 19553,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 288,
+        "pos_y": 3824
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 19563,
+        "owner": 1,
+        "unit_type": "goliath_turret",
+        "unit_type_id": 4,
+        "category": "subunit",
+        "pos_x": 311,
+        "pos_y": 3193
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 19576,
+        "owner": 1,
+        "unit_type": "goliath_turret",
+        "unit_type_id": 4,
+        "category": "subunit",
+        "pos_x": 64,
+        "pos_y": 3408
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 19580,
+        "owner": 1,
+        "unit_type": "supply_depot",
+        "unit_type_id": 109,
+        "category": "building",
+        "pos_x": 624,
+        "pos_y": 3776
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 19599,
+        "owner": 1,
+        "unit_type": "missile_turret",
+        "unit_type_id": 124,
+        "category": "building",
+        "pos_x": 544,
+        "pos_y": 3392
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 19602,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 152,
+        "pos_y": 3941
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 19611,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 139,
+        "pos_y": 3956
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 19618,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 139,
+        "pos_y": 3787
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 19622,
+        "owner": 1,
+        "unit_type": "goliath_turret",
+        "unit_type_id": 4,
+        "category": "subunit",
+        "pos_x": 315,
+        "pos_y": 3228
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 19637,
+        "owner": 1,
+        "unit_type": "supply_depot",
+        "unit_type_id": 109,
+        "category": "building",
+        "pos_x": 720,
+        "pos_y": 3808
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 19713,
+        "owner": 1,
+        "unit_type": "scv",
+        "unit_type_id": 7,
+        "category": "worker",
+        "pos_x": 107,
+        "pos_y": 3787
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 27759,
+        "owner": 1,
+        "unit_type": "goliath",
+        "unit_type_id": 3,
+        "category": "unit",
+        "pos_x": 64,
+        "pos_y": 3408
+      }
+    },
+    {
+      "frame": 11371,
+      "time_seconds": 477.582,
+      "death": {
+        "id": 27824,
+        "owner": 1,
+        "unit_type": "siege_tank_turret",
+        "unit_type_id": 6,
+        "category": "subunit",
+        "pos_x": 192,
+        "pos_y": 3536
+      }
+    }
+  ]
+}

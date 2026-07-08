@@ -1,0 +1,178 @@
+name: JS CI
+
+on: [push, pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Using pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Using Node.js 24.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install app dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: ./app
+
+      - name: Run unit tests
+        run: pnpm test
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Check for circular dependencies
+        run: pnpm run check-circular
+
+      - name: Check translation files
+        id: check-translation-files
+        run: pnpm gen-translations:app --fail-on-update && pnpm gen-translations:email --fail-on-update
+
+      - name: Display translation error
+        if: ${{ failure() && steps.check-translation-files.conclusion == 'failure' }}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            core.setFailed('The translation files are not up to date. Please run "pnpm gen-translations" in the directory root and commit the updated translation files.')
+
+      - name: Generate email templates
+        id: gen-email-templates
+        run: pnpm gen-emails
+
+      - name: Generate graphql files
+        id: gen-graphql
+        run: pnpm gen-graphql
+
+      - name: Get changed files
+        uses: zyactions/verify-changed-files@2981a606808d0b36bdb2fbe45a50b01aa3ec601d
+        id: get-changed-files
+        with:
+          return-pipe: true
+
+      - name: Check email templates
+        uses: zyactions/glob@019de5a7f0ba17b700d45867086242eb99ff1a46
+        id: check-email-templates
+        with:
+          pipe: ${{ steps.get-changed-files.outputs.pipe }}
+          pattern: server/email/*.html
+
+      - name: Display email template error
+        if: ${{ steps.check-email-templates.outputs.matches != '' || failure() && steps.gen-email-templates.conclusion == 'failure' }}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            core.setFailed('The email templates seem outdated. Please run "pnpm gen-emails" in the directory root and commit the updated email templates.')
+
+      - name: Check graphql codegen
+        uses: zyactions/glob@019de5a7f0ba17b700d45867086242eb99ff1a46
+        id: check-graphql
+        with:
+          pipe: ${{ steps.get-changed-files.outputs.pipe }}
+          pattern: client/gql/*
+
+      - name: Display graphql error
+        if: ${{ steps.check-graphql.outputs.matches != '' || failure() && steps.gen-graphql.conclusion == 'failure' }}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            core.setFailed('The generated graphql files seem outdated. Please run `pnpm gen-graphql` in the directory root and commit the updated files.')
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          version: latest
+
+      - name: Set up Docker Compose
+        uses: docker/setup-compose-action@v1
+        with:
+          version: latest
+
+      - name: Build app-server container
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: app_server:latest
+          cache-from: type=gha,scope=app-server
+          cache-to: type=gha,mode=max,scope=app-server
+
+      - name: Build server-rs container
+        uses: docker/build-push-action@v6
+        with:
+          context: ./server-rs
+          load: true
+          tags: integration-server-rs:latest
+          cache-from: type=gha,scope=server-rs
+          cache-to: type=gha,mode=max,scope=server-rs
+
+      - name: Running Docker containers
+        run: cd ./integration && docker compose up -V -d
+
+      - name: Using pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Using Node.js 24.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install app dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: ./app
+
+      - name: Install playwright dependencies
+        run: pnpm exec playwright install --with-deps
+
+      - name: Run integration tests
+        run: pnpm test:integration
+
+      - name: View app-server logs
+        if: ${{ failure() }}
+        run: docker logs integration-app-server-1
+
+      - name: View server-rs logs
+        if: ${{ failure() }}
+        run: docker logs integration-server-rs-1
+
+      - name: View mailgun logs
+        if: ${{ failure() }}
+        run: docker logs integration-mailgun-1
+
+      - name: View google-cloud logs
+        if: ${{ failure() }}
+        run: docker logs integration-google-cloud-1
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ failure() || success() }}
+        with:
+          name: test-results
+          path: ./test-results/*
+          retention-days: 5
+          if-no-files-found: ignore

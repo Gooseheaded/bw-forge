@@ -1,0 +1,33 @@
+{
+  "name": "bw-forge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.11",
+  "bin": {
+    "bw-forge": "./apps/cli/src/main.ts"
+  },
+  "workspaces": [
+    "apps/cli",
+    "apps/desktop",
+    "packages/schemas"
+  ],
+  "scripts": {
+    "bw-forge": "bun ./apps/cli/src/main.ts",
+    "analyze": "bun ./apps/cli/src/main.ts analyze",
+    "ingest": "bun ./apps/cli/src/main.ts ingest",
+    "mcp": "bun ./apps/cli/src/main.ts mcp",
+    "desktop:dev": "bun run --cwd apps/desktop dev",
+    "desktop:test": "bun run --cwd apps/desktop test",
+    "desktop:typecheck": "bun run --cwd apps/desktop typecheck",
+    "desktop:build": "bun run --cwd apps/desktop build",
+    "desktop:pack:win": "bun run --cwd apps/desktop pack:win",
+    "test": "bun test apps/cli/src && bun run desktop:test && npm --prefix packages/corpus-query test",
+    "typecheck": "bunx tsc -p tsconfig.json --noEmit && bun run desktop:typecheck && npm --prefix packages/corpus-query run check"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "@types/node": "^24.0.0",
+    "typescript": "^6.0.0"
+  }
+}

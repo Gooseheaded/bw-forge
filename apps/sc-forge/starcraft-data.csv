@@ -1,0 +1,186 @@
+name,race,type,buildTime,mineralCost,gasCost,supplyCost,builtFrom
+SCV,Terran,Unit,12.6,50,0,1,Command Center
+Marine,Terran,Unit,15.1,50,0,1,Barracks
+Firebat,Terran,Unit,15.1,50,25,1,Barracks
+Medic,Terran,Unit,18.9,50,25,1,Barracks
+Ghost,Terran,Unit,31.5,25,75,1,Barracks
+Vulture,Terran,Unit,18.9,75,0,2,Factory
+Siege Tank,Terran,Unit,31.5,150,100,2,Factory
+Goliath,Terran,Unit,25.2,100,50,2,Factory
+Wraith,Terran,Unit,37.8,150,100,2,Starport
+Dropship,Terran,Unit,31.5,100,100,2,Starport
+Battlecruiser,Terran,Unit,83.8,400,300,6,Starport
+Science Vessel,Terran,Unit,50,100,225,2,Starport
+Valkyrie,Terran,Unit,31.5,250,125,3,Starport
+Command Center,Terran,Building,75,400,0,0,SCV
+Supply Depot,Terran,Building,25,100,0,0,SCV
+Refinery,Terran,Building,40,100,0,0,SCV
+Barracks,Terran,Building,50,150,0,0,SCV
+Engineering Bay,Terran,Building,60,125,0,0,SCV
+Academy,Terran,Building,80,150,0,0,SCV
+Factory,Terran,Building,50,200,100,0,SCV
+Starport,Terran,Building,70,150,100,0,SCV
+Armory,Terran,Building,80,100,50,0,SCV
+Missile Turret,Terran,Building,30,75,0,0,SCV
+Bunker,Terran,Building,30,100,0,0,SCV
+Probe,Protoss,Unit,12.6,50,0,1,Nexus
+Zealot,Protoss,Unit,25.2,100,0,2,Gateway
+Dragoon,Protoss,Unit,31.5,125,50,2,Gateway
+High Templar,Protoss,Unit,31.5,50,150,2,Gateway
+Dark Templar,Protoss,Unit,31.5,125,100,2,Gateway
+Archon,Protoss,Unit,13,0,0,0,High Templar
+Dark Archon,Protoss,Unit,12.6,0,0,0,Dark Templar
+Reaver,Protoss,Unit,44,200,100,4,Robotics Facility
+Shuttle,Protoss,Unit,37.8,200,0,2,Robotics Facility
+Observer,Protoss,Unit,25.2,25,75,1,Robotics Facility
+Scout,Protoss,Unit,50,275,125,3,Stargate
+Corsair,Protoss,Unit,25.2,150,100,2,Stargate
+Carrier,Protoss,Unit,88,350,250,6,Stargate
+Arbiter,Protoss,Unit,100.8,100,350,4,Stargate
+Nexus,Protoss,Building,120,400,0,0,Probe
+Pylon,Protoss,Building,30,100,0,0,Probe
+Assimilator,Protoss,Building,40,100,0,0,Probe
+Gateway,Protoss,Building,60,150,0,0,Probe
+Forge,Protoss,Building,40,150,0,0,Probe
+Photon Cannon,Protoss,Building,50,150,0,0,Probe
+Cybernetics Core,Protoss,Building,60,200,0,0,Probe
+Robotics Facility,Protoss,Building,80,200,200,0,Probe
+Stargate,Protoss,Building,70,150,150,0,Probe
+Citadel of Adun,Protoss,Building,60,150,100,0,Probe
+Robotics Support Bay,Protoss,Building,30,150,100,0,Probe
+Fleet Beacon,Protoss,Building,60,300,200,0,Probe
+Templar Archives,Protoss,Building,60,150,200,0,Probe
+Observatory,Protoss,Building,30,50,100,0,Probe
+Arbiter Tribunal,Protoss,Building,60,200,150,0,Probe
+Shield Battery,Protoss,Building,30,100,0,0,Probe
+Drone,Zerg,Unit,12.6,50,0,1,Larva
+Zergling,Zerg,Unit,18,50,0,1,Larva
+Hydralisk,Zerg,Unit,18,75,25,1,Larva
+Mutalisk,Zerg,Unit,25,100,100,2,Larva
+Scourge,Zerg,Unit,19,25,75,1,Larva
+Ultralisk,Zerg,Unit,38,200,200,4,Larva
+Defiler,Zerg,Unit,31.5,50,150,2,Larva
+Queen,Zerg,Unit,31.5,100,100,2,Larva
+Overlord,Zerg,Unit,25,100,0,0,Larva
+Lurker,Zerg,Unit,25,125,125,2,Hydralisk
+Guardian,Zerg,Unit,25,150,200,2,Mutalisk
+Devourer,Zerg,Unit,25,150,150,2,Mutalisk
+Hatchery,Zerg,Building,120,300,0,0,Drone
+Lair,Zerg,Building,100,150,100,0,Hatchery
+Hive,Zerg,Building,120,200,150,0,Lair
+Spawning Pool,Zerg,Building,80,200,0,0,Drone
+Creep Colony,Zerg,Building,20,75,0,0,Drone
+Sunken Colony,Zerg,Building,20,50,0,0,Creep Colony
+Spore Colony,Zerg,Building,20,50,0,0,Creep Colony
+Extractor,Zerg,Building,40,50,0,0,Drone
+Evolution Chamber,Zerg,Building,40,75,0,0,Drone
+Hydralisk Den,Zerg,Building,40,100,50,0,Drone
+Spire,Zerg,Building,120,200,150,0,Drone
+Greater Spire,Zerg,Building,120,100,150,0,Spire
+Queens Nest,Zerg,Building,60,150,100,0,Drone
+Ultralisk Cavern,Zerg,Building,80,150,200,0,Drone
+Defiler Mound,Zerg,Building,60,100,100,0,Drone
+Nydus Canal,Zerg,Building,40,150,0,0,Drone
+Science Facility,Terran,Building,60,100,150,0,SCV
+Comsat Station,Terran,Addon,30,50,50,0,Command Center
+Nuclear Silo,Terran,Addon,60,100,100,0,Command Center
+Machine Shop,Terran,Addon,30,50,0,0,Factory
+Control Tower,Terran,Addon,25,50,50,0,Starport
+Physics Lab,Terran,Addon,30,50,50,0,Science Facility
+Covert Ops,Terran,Addon,30,30,30,0,Science Facility
+Stim Packs,Terran,Upgrade,80,100,100,0,Academy
+U-238 Shells,Terran,Upgrade,80,150,150,0,Academy
+Restoration,Terran,Upgrade,80,100,100,0,Academy
+Optical Flare,Terran,Upgrade,80,100,100,0,Academy
+Caduceus Reactor,Terran,Upgrade,80,150,150,0,Academy
+Tank Siege Mode,Terran,Upgrade,80,150,150,0,Machine Shop
+Spider Mines,Terran,Upgrade,50.4,100,100,0,Machine Shop
+Ion Thrusters,Terran,Upgrade,67,100,100,0,Machine Shop
+Charon Boosters,Terran,Upgrade,67,100,100,0,Machine Shop
+Cloaking Field,Terran,Upgrade,80,150,150,0,Control Tower
+Yamato Gun,Terran,Upgrade,80,100,100,0,Physics Lab
+Irradiate,Terran,Upgrade,80,200,200,0,Physics Lab
+EMP Shockwave,Terran,Upgrade,80,200,200,0,Covert Ops
+Lockdown,Terran,Upgrade,80,200,200,0,Covert Ops
+Personnel Cloaking,Terran,Upgrade,67,100,100,0,Covert Ops
+Infantry Weapons 1,Terran,Upgrade,160,100,100,0,Engineering Bay
+Infantry Weapons 2,Terran,Upgrade,190,175,175,0,Engineering Bay
+Infantry Weapons 3,Terran,Upgrade,220,250,250,0,Engineering Bay
+Infantry Armor 1,Terran,Upgrade,160,100,100,0,Engineering Bay
+Infantry Armor 2,Terran,Upgrade,190,175,175,0,Engineering Bay
+Infantry Armor 3,Terran,Upgrade,220,250,250,0,Engineering Bay
+Vehicle Weapons 1,Terran,Upgrade,160,100,100,0,Armory
+Vehicle Weapons 2,Terran,Upgrade,190,175,175,0,Armory
+Vehicle Weapons 3,Terran,Upgrade,220,250,250,0,Armory
+Vehicle Plating 1,Terran,Upgrade,160,100,100,0,Armory
+Vehicle Plating 2,Terran,Upgrade,190,175,175,0,Armory
+Vehicle Plating 3,Terran,Upgrade,220,250,250,0,Armory
+Ship Weapons 1,Terran,Upgrade,160,100,100,0,Armory
+Ship Weapons 2,Terran,Upgrade,190,175,175,0,Armory
+Ship Weapons 3,Terran,Upgrade,220,250,250,0,Armory
+Ship Plating 1,Terran,Upgrade,160,100,100,0,Armory
+Ship Plating 2,Terran,Upgrade,190,175,175,0,Armory
+Ship Plating 3,Terran,Upgrade,220,250,250,0,Armory
+Leg Enhancements,Protoss,Upgrade,100,150,150,0,Citadel of Adun
+Singularity Charge,Protoss,Upgrade,80,150,150,0,Cybernetics Core
+Scarab Damage,Protoss,Upgrade,80,200,200,0,Robotics Support Bay
+Reaver Capacity,Protoss,Upgrade,80,200,200,0,Robotics Support Bay
+Gravitic Drive,Protoss,Upgrade,80,200,200,0,Robotics Support Bay
+Observer Speed,Protoss,Upgrade,67,50,50,0,Observatory
+Psionic Storm,Protoss,Upgrade,80,200,200,0,Templar Archives
+Hallucination,Protoss,Upgrade,80,150,150,0,Templar Archives
+Khaydarin Amulet,Protoss,Upgrade,80,150,150,0,Templar Archives
+Maelstrom,Protoss,Upgrade,80,100,100,0,Templar Archives
+Mind Control,Protoss,Upgrade,80,200,200,0,Templar Archives
+Disruption Web,Protoss,Upgrade,80,200,200,0,Fleet Beacon
+Carrier Capacity,Protoss,Upgrade,93,100,100,0,Fleet Beacon
+Argus Jewel,Protoss,Upgrade,80,100,100,0,Fleet Beacon
+Recall,Protoss,Upgrade,80,150,150,0,Arbiter Tribunal
+Stasis Field,Protoss,Upgrade,80,150,150,0,Arbiter Tribunal
+Khaydarin Core,Protoss,Upgrade,80,100,100,0,Arbiter Tribunal
+Ground Weapons 1,Protoss,Upgrade,160,100,100,0,Forge
+Ground Weapons 2,Protoss,Upgrade,190,175,175,0,Forge
+Ground Weapons 3,Protoss,Upgrade,220,250,250,0,Forge
+Ground Armor 1,Protoss,Upgrade,160,100,100,0,Forge
+Ground Armor 2,Protoss,Upgrade,190,175,175,0,Forge
+Ground Armor 3,Protoss,Upgrade,220,250,250,0,Forge
+Shields 1,Protoss,Upgrade,160,200,200,0,Forge
+Shields 2,Protoss,Upgrade,190,300,300,0,Forge
+Shields 3,Protoss,Upgrade,220,400,400,0,Forge
+Air Weapons 1,Protoss,Upgrade,160,100,100,0,Cybernetics Core
+Air Weapons 2,Protoss,Upgrade,190,175,175,0,Cybernetics Core
+Air Weapons 3,Protoss,Upgrade,220,250,250,0,Cybernetics Core
+Air Armor 1,Protoss,Upgrade,160,100,100,0,Cybernetics Core
+Air Armor 2,Protoss,Upgrade,190,175,175,0,Cybernetics Core
+Air Armor 3,Protoss,Upgrade,220,250,250,0,Cybernetics Core
+Metabolic Boost,Zerg,Upgrade,100,100,100,0,Spawning Pool
+Adrenal Glands,Zerg,Upgrade,100,200,200,0,Spawning Pool
+Muscular Augments,Zerg,Upgrade,80,150,150,0,Hydralisk Den
+Grooved Spines,Zerg,Upgrade,80,150,150,0,Hydralisk Den
+Lurker Aspect,Zerg,Upgrade,100,200,200,0,Hydralisk Den
+Pneumatized Carapace,Zerg,Upgrade,100,150,150,0,Hatchery
+Ventral Sacs,Zerg,Upgrade,100,200,200,0,Hatchery
+Antennae,Zerg,Upgrade,80,150,150,0,Hatchery
+Burrow,Zerg,Upgrade,60,100,100,0,Hatchery
+Spawn Broodlings,Zerg,Upgrade,80,100,100,0,Queens Nest
+Ensnare,Zerg,Upgrade,80,100,100,0,Queens Nest
+Anabolic Synthesis,Zerg,Upgrade,80,200,200,0,Ultralisk Cavern
+Chitinous Plating,Zerg,Upgrade,80,150,150,0,Ultralisk Cavern
+Plague,Zerg,Upgrade,80,200,200,0,Defiler Mound
+Dark Swarm,Zerg,Upgrade,80,200,200,0,Defiler Mound
+Consume,Zerg,Upgrade,60,100,100,0,Defiler Mound
+Melee Attacks 1,Zerg,Upgrade,160,100,100,0,Evolution Chamber
+Melee Attacks 2,Zerg,Upgrade,190,150,150,0,Evolution Chamber
+Melee Attacks 3,Zerg,Upgrade,220,200,200,0,Evolution Chamber
+Missile Attacks 1,Zerg,Upgrade,160,100,100,0,Evolution Chamber
+Missile Attacks 2,Zerg,Upgrade,190,150,150,0,Evolution Chamber
+Missile Attacks 3,Zerg,Upgrade,220,200,200,0,Evolution Chamber
+Carapace 1,Zerg,Upgrade,160,100,100,0,Evolution Chamber
+Carapace 2,Zerg,Upgrade,190,150,150,0,Evolution Chamber
+Carapace 3,Zerg,Upgrade,220,200,200,0,Evolution Chamber
+Flyer Attacks 1,Zerg,Upgrade,160,100,100,0,Spire
+Flyer Attacks 2,Zerg,Upgrade,190,175,175,0,Spire
+Flyer Attacks 3,Zerg,Upgrade,220,250,250,0,Spire
+Flyer Carapace 1,Zerg,Upgrade,160,100,100,0,Spire
+Flyer Carapace 2,Zerg,Upgrade,190,175,175,0,Spire
+Flyer Carapace 3,Zerg,Upgrade,220,250,250,0,Spire

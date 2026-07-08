@@ -1,0 +1,27 @@
+{
+  "name": "sc-forge",
+  "version": "1.0.0",
+  "description": "This repository is maintained as an offline-first StarCraft: Brood War replay-analysis tool centered on [`build-order.html`](/C:/Users/gctri/Documents/_/sc-forge/build-order.html).",
+  "main": "build-order.override.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Gooseheaded/sc-forge.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Gooseheaded/sc-forge/issues"
+  },
+  "homepage": "https://github.com/Gooseheaded/sc-forge#readme",
+  "devDependencies": {
+    "playwright": "^1.60.0"
+  }
+}

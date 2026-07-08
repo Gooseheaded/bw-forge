@@ -1,0 +1,425 @@
+import { RouterContext } from '@koa/router'
+import httpErrors from 'http-errors'
+import Joi from 'joi'
+import mime from 'mime'
+import { assertUnreachable } from '../../../common/assert-unreachable'
+import { MAX_IMAGE_SIZE_BYTES } from '../../../common/images'
+import {
+  AdminAddLeagueResponse,
+  AdminEditLeagueResponse,
+  AdminGetLeagueResponse,
+  AdminGetLeaguesResponse,
+  GetLeagueByIdResponse,
+  GetLeagueLeaderboardResponse,
+  GetLeaguesListResponse,
+  JoinLeagueResponse,
+  LEAGUE_BADGE_HEIGHT,
+  LEAGUE_BADGE_WIDTH,
+  LEAGUE_IMAGE_HEIGHT,
+  LEAGUE_IMAGE_WIDTH,
+  League,
+  LeagueErrorCode,
+  LeagueId,
+  ServerAdminAddLeagueRequest,
+  ServerAdminEditLeagueRequest,
+  toClientLeagueUserJson,
+  toLeagueJson,
+} from '../../../common/leagues/leagues'
+import { ALL_MATCHMAKING_TYPES } from '../../../common/matchmaking'
+import { Patch } from '../../../common/patch'
+import { UNIQUE_VIOLATION } from '../db/pg-error-codes'
+import transact from '../db/transaction'
+import { CodedError, makeErrorConverterMiddleware } from '../errors/coded-error'
+import { asHttpError } from '../errors/error-with-payload'
+import { writeFile } from '../files'
+import { handleMultipartFiles } from '../files/handle-multipart-files'
+import { createImagePath, resizeImage } from '../files/images'
+import { httpApi, httpBeforeAll } from '../http/http-api'
+import { httpBefore, httpGet, httpPatch, httpPost } from '../http/route-decorators'
+import { checkAllPermissions } from '../permissions/check-permissions'
+import { Redis } from '../redis/redis'
+import ensureLoggedIn from '../session/ensure-logged-in'
+import { findUsersById } from '../users/user-model'
+import { validateRequest } from '../validation/joi-validator'
+import { json } from '../validation/json-validator'
+import { getLeaderboard } from './leaderboard'
+import {
+  LeagueUser,
+  adminGetAllLeagues,
+  adminGetLeague,
+  createLeague,
+  getAllLeaguesForUser,
+  getCurrentLeagues,
+  getFutureLeagues,
+  getLeague,
+  getLeagueUser,
+  getManyLeagueUsers,
+  getPastLeagues,
+  joinLeagueForUser,
+  updateLeague,
+} from './league-models'
+
+class LeagueApiError extends CodedError<LeagueErrorCode> {}
+
+const convertLeagueApiErrors = makeErrorConverterMiddleware(err => {
+  if (!(err instanceof LeagueApiError)) {
+    throw err
+  }
+
+  switch (err.code) {
+    case LeagueErrorCode.NotFound:
+      throw asHttpError(404, err)
+    case LeagueErrorCode.AlreadyEnded:
+      throw asHttpError(410, err)
+
+    default:
+      assertUnreachable(err.code)
+  }
+})
+
+function leagueIdFromUrl(ctx: RouterContext): LeagueId {
+  const { params } = validateRequest(ctx, {
+    params: Joi.object<{ leagueId: LeagueId }>({
+      leagueId: Joi.string().uuid().required(),
+    }),
+  })
+
+  try {
+    return params.leagueId
+  } catch (err) {
+    throw new httpErrors.BadRequest('invalid league id')
+  }
+}
+
+@httpApi('/leagues/')
+@httpBeforeAll(convertLeagueApiErrors)
+export class LeagueApi {
+  constructor(private redis: Redis) {}
+
+  @httpGet('/')
+  async getLeagues(ctx: RouterContext): Promise<GetLeaguesListResponse> {
+    const now = new Date()
+    const isLoggedIn = !!ctx.session?.user
+    const [past, current, future, selfLeagues] = await Promise.all([
+      getPastLeagues(now),
+      getCurrentLeagues(now),
+      getFutureLeagues(now),
+      isLoggedIn ? getAllLeaguesForUser(ctx.session!.user.id) : [],
+    ])
+    return {
+      past: past.map(l => toLeagueJson(l)),
+      current: current.map(l => toLeagueJson(l)),
+      future: future.map(l => toLeagueJson(l)),
+      selfLeagues: selfLeagues.map(lu => toClientLeagueUserJson(lu)),
+    }
+  }
+
+  @httpGet('/:leagueId')
+  async getLeagueById(ctx: RouterContext): Promise<GetLeagueByIdResponse> {
+    const leagueId = leagueIdFromUrl(ctx)
+    const now = new Date()
+    const league = await getLeague(leagueId, now)
+
+    if (!league) {
+      throw new LeagueApiError(LeagueErrorCode.NotFound, 'league not found')
+    }
+
+    let selfLeagueUser: LeagueUser | undefined
+    if (ctx.session?.user) {
+      selfLeagueUser = await getLeagueUser(leagueId, ctx.session.user.id)
+    }
+
+    return {
+      league: toLeagueJson(league),
+      selfLeagueUser: selfLeagueUser ? toClientLeagueUserJson(selfLeagueUser) : undefined,
+    }
+  }
+
+  @httpGet('/:leagueId/leaderboard')
+  async getLeaderboard(ctx: RouterContext): Promise<GetLeagueLeaderboardResponse> {
+    const leagueId = leagueIdFromUrl(ctx)
+    const now = new Date()
+    const [league, leaderboard] = await Promise.all([
+      getLeague(leagueId, now),
+      getLeaderboard(this.redis, leagueId),
+    ])
+
+    if (!league) {
+      throw new LeagueApiError(LeagueErrorCode.NotFound, 'league not found')
+    }
+
+    const [users, leagueUsers] = await Promise.all([
+      leaderboard.length > 0 ? findUsersById(leaderboard) : [],
+      leaderboard.length > 0 ? getManyLeagueUsers(leagueId, leaderboard) : [],
+    ])
+
+    return {
+      league: toLeagueJson(league),
+      leaderboard,
+      leagueUsers: leagueUsers.map(lu => toClientLeagueUserJson(lu)),
+      users,
+    }
+  }
+
+  @httpPost('/:leagueId/join')
+  @httpBefore(ensureLoggedIn)
+  async joinLeague(ctx: RouterContext): Promise<JoinLeagueResponse> {
+    const leagueId = leagueIdFromUrl(ctx)
+    const now = new Date()
+    const league = await getLeague(leagueId, now)
+
+    if (!league) {
+      throw new LeagueApiError(LeagueErrorCode.NotFound, 'league not found')
+    } else if (league.endAt <= now) {
+      throw new LeagueApiError(LeagueErrorCode.AlreadyEnded, 'league already ended')
+    }
+
+    let selfLeagueUser: LeagueUser | undefined
+    try {
+      selfLeagueUser = await joinLeagueForUser(leagueId, ctx.session!.user.id)
+    } catch (err: any) {
+      if (err.code === UNIQUE_VIOLATION) {
+        selfLeagueUser = await getLeagueUser(leagueId, ctx.session!.user.id)
+      }
+    }
+
+    if (!selfLeagueUser) {
+      // This should never really happen, so we don't use an error code for it
+      throw new Error('League was joined but no LeagueUser was returned')
+    }
+
+    return {
+      league: toLeagueJson(league),
+      selfLeagueUser: toClientLeagueUserJson(selfLeagueUser),
+    }
+  }
+}
+
+@httpApi('/admin/leagues/')
+@httpBeforeAll(ensureLoggedIn, checkAllPermissions('manageLeagues'))
+export class LeagueAdminApi {
+  @httpGet('/')
+  async getLeagues(ctx: RouterContext): Promise<AdminGetLeaguesResponse> {
+    const leagues = await adminGetAllLeagues()
+    return { leagues: leagues.map(l => toLeagueJson(l)) }
+  }
+
+  @httpGet('/:leagueId')
+  async getLeague(ctx: RouterContext): Promise<AdminGetLeagueResponse> {
+    const leagueId = leagueIdFromUrl(ctx)
+    const league = await adminGetLeague(leagueId)
+
+    if (!league) {
+      throw new LeagueApiError(LeagueErrorCode.NotFound, 'league not found')
+    }
+
+    return { league: toLeagueJson(league) }
+  }
+
+  @httpPost('/')
+  @httpBefore(handleMultipartFiles(MAX_IMAGE_SIZE_BYTES))
+  async addLeague(ctx: RouterContext): Promise<AdminAddLeagueResponse> {
+    const {
+      body: { leagueData },
+    } = validateRequest(ctx, {
+      body: Joi.object<{ leagueData: ServerAdminAddLeagueRequest }>({
+        leagueData: json.object({
+          name: Joi.string().required(),
+          matchmakingType: Joi.valid(...ALL_MATCHMAKING_TYPES).required(),
+          description: Joi.string().required(),
+          signupsAfter: Joi.date().timestamp().min(Date.now()).required(),
+          startAt: Joi.date().timestamp().min(Date.now()).required(),
+          endAt: Joi.date().timestamp().min(Date.now()).required(),
+          rulesAndInfo: Joi.string(),
+          link: Joi.string().uri({ scheme: ['http', 'https'] }),
+        }),
+      }),
+    })
+
+    if (leagueData.signupsAfter > leagueData.startAt) {
+      throw new httpErrors.BadRequest('signupsAfter must be before startAt')
+    } else if (leagueData.startAt > leagueData.endAt) {
+      throw new httpErrors.BadRequest('startAt must be before endAt')
+    }
+
+    const imageFile = ctx.request.files?.image
+    const badgeFile = ctx.request.files?.badge
+    if ((imageFile && Array.isArray(imageFile)) || (badgeFile && Array.isArray(badgeFile))) {
+      throw new httpErrors.BadRequest('only one image/badge file can be uploaded')
+    }
+    const [image, imageExtension] = imageFile
+      ? await resizeImage(imageFile.filepath, LEAGUE_IMAGE_WIDTH, LEAGUE_IMAGE_HEIGHT)
+      : [undefined, undefined]
+    const [badge, badgeExtension] = badgeFile
+      ? await resizeImage(badgeFile.filepath, LEAGUE_BADGE_WIDTH, LEAGUE_BADGE_HEIGHT)
+      : [undefined, undefined]
+
+    return await transact(async client => {
+      let imagePath: string | undefined
+      if (image) {
+        imagePath = createImagePath('league-images', imageExtension)
+      }
+      let badgePath: string | undefined
+      if (badge) {
+        badgePath = createImagePath('league-images', badgeExtension)
+      }
+
+      const league = await createLeague(
+        {
+          ...leagueData,
+          imagePath,
+          badgePath,
+        },
+        client,
+      )
+
+      const filePromises: Array<Promise<unknown>> = []
+
+      if (image && imagePath) {
+        const buffer = await image.toBuffer()
+        filePromises.push(
+          writeFile(imagePath, buffer, {
+            acl: 'public-read',
+            type: mime.getType(imageExtension),
+          }),
+        )
+      }
+      if (badge && badgePath) {
+        const buffer = await badge.toBuffer()
+        filePromises.push(
+          writeFile(badgePath, buffer, {
+            acl: 'public-read',
+            type: mime.getType(badgeExtension),
+          }),
+        )
+      }
+
+      await Promise.all(filePromises)
+
+      return {
+        league: toLeagueJson(league),
+      }
+    })
+  }
+
+  @httpPatch('/:leagueId')
+  @httpBefore(handleMultipartFiles(MAX_IMAGE_SIZE_BYTES))
+  async editLeague(ctx: RouterContext): Promise<AdminEditLeagueResponse> {
+    const leagueId = leagueIdFromUrl(ctx)
+    const originalLeague = await adminGetLeague(leagueId)
+
+    if (!originalLeague) {
+      throw new LeagueApiError(LeagueErrorCode.NotFound, 'league not found')
+    }
+
+    const {
+      body: { leagueChanges },
+    } = validateRequest(ctx, {
+      body: Joi.object<{ leagueChanges: ServerAdminEditLeagueRequest }>({
+        leagueChanges: json.object({
+          name: Joi.string(),
+          matchmakingType: Joi.valid(...ALL_MATCHMAKING_TYPES),
+          description: Joi.string(),
+          signupsAfter: Joi.date().timestamp(),
+          startAt: Joi.date().timestamp(),
+          endAt: Joi.date().timestamp(),
+          rulesAndInfo: Joi.string().allow(null),
+          link: Joi.string().allow(null),
+          deleteImage: Joi.boolean(),
+          deleteBadge: Joi.boolean(),
+        }),
+      }),
+    })
+
+    const now = new Date()
+
+    if (leagueChanges.signupsAfter && originalLeague.signupsAfter <= now) {
+      throw new httpErrors.BadRequest('cannot change signupsAfter once signups have started')
+    } else if (leagueChanges.signupsAfter && leagueChanges.signupsAfter <= now) {
+      throw new httpErrors.BadRequest('cannot change signupsAfter to a time in the past')
+    }
+
+    if (leagueChanges.startAt && originalLeague.startAt <= now) {
+      throw new httpErrors.BadRequest('cannot change startAt once the league has started')
+    } else if (leagueChanges.startAt && leagueChanges.startAt <= now) {
+      throw new httpErrors.BadRequest('cannot change startAt to a time in the past')
+    }
+
+    if (leagueChanges.endAt && originalLeague.endAt <= now) {
+      throw new httpErrors.BadRequest('cannot change endAt once the league has ended')
+    } else if (leagueChanges.endAt && leagueChanges.endAt <= now) {
+      throw new httpErrors.BadRequest('cannot change endAt to a time in the past')
+    }
+
+    const imageFile = ctx.request.files?.image
+    const badgeFile = ctx.request.files?.badge
+    if ((imageFile && Array.isArray(imageFile)) || (badgeFile && Array.isArray(badgeFile))) {
+      throw new httpErrors.BadRequest('only one image/badge file can be uploaded')
+    }
+    const [image, imageExtension] = imageFile
+      ? await resizeImage(imageFile.filepath, LEAGUE_IMAGE_WIDTH, LEAGUE_IMAGE_HEIGHT)
+      : [undefined, undefined]
+    const [badge, badgeExtension] = badgeFile
+      ? await resizeImage(badgeFile.filepath, LEAGUE_BADGE_WIDTH, LEAGUE_BADGE_HEIGHT)
+      : [undefined, undefined]
+
+    return await transact(async client => {
+      let imagePath: string | undefined
+      if (image) {
+        imagePath = createImagePath('league-images', imageExtension)
+      }
+      let badgePath: string | undefined
+      if (badge) {
+        badgePath = createImagePath('league-images', badgeExtension)
+      }
+
+      const updatedLeague: Patch<Omit<League, 'id'>> = {
+        ...leagueChanges,
+      }
+      delete (updatedLeague as any).image
+      delete (updatedLeague as any).deleteImage
+      delete (updatedLeague as any).badge
+      delete (updatedLeague as any).deleteBadge
+
+      if (leagueChanges.deleteImage) {
+        updatedLeague.imagePath = null
+      } else if (imagePath) {
+        updatedLeague.imagePath = imagePath
+      }
+      if (leagueChanges.deleteBadge) {
+        updatedLeague.badgePath = null
+      } else if (badgePath) {
+        updatedLeague.badgePath = badgePath
+      }
+
+      const league = await updateLeague(leagueId, updatedLeague, client)
+
+      const filePromises: Array<Promise<unknown>> = []
+
+      if (image && imagePath) {
+        const buffer = await image.toBuffer()
+        filePromises.push(
+          writeFile(imagePath, buffer, {
+            acl: 'public-read',
+            type: mime.getType(imageExtension),
+          }),
+        )
+      }
+      if (badge && badgePath) {
+        const buffer = await badge.toBuffer()
+        filePromises.push(
+          writeFile(badgePath, buffer, {
+            acl: 'public-read',
+            type: mime.getType(badgeExtension),
+          }),
+        )
+      }
+
+      await Promise.all(filePromises)
+
+      return {
+        league: toLeagueJson(league),
+      }
+    })
+  }
+}

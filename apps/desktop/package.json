@@ -1,0 +1,35 @@
+{
+  "name": "@bw-forge/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Windows desktop shell for the bw-forge replay-analysis pipeline",
+  "author": "bw-forge contributors",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "start": "electron-vite preview",
+    "build:runtime": "node ./scripts/build-runtime.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "bun run build:runtime && electron-vite build",
+    "pack:dir": "bun run build && electron-builder --dir --win --x64",
+    "pack:win": "bun run build && electron-builder --win nsis --x64"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "electron": "^39.0.0",
+    "electron-builder": "^26.0.0",
+    "electron-vite": "^5.0.0",
+    "typescript": "^6.0.0",
+    "vite": "^7.0.0",
+    "vitest": "^4.0.0"
+  }
+}

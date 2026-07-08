@@ -1,0 +1,2195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Replay Analysis</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: monospace; background: #111; color: #ccc;
+  display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+}
+
+/* ── Nav ── */
+
+/* ── App shell ── */
+#analysis-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 12px 16px; border-bottom: 1px solid #1e1e1e;
+  background: #101010; flex-shrink: 0;
+}
+#analysis-header-main {
+  min-width: 0; display: flex; flex-direction: column; gap: 4px;
+}
+#analysis-title {
+  font-size: 1.05em; color: #e7e7e7; letter-spacing: 0.2px;
+}
+#analysis-version {
+  margin-left: 8px;
+  color: #6d6d6d;
+  font-size: 0.72em;
+  letter-spacing: 0.8px;
+}
+#analysis-status {
+  font-size: 0.82em; color: #838383; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+#analysis-actions {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+#analysis-copy-wrap {
+  position: relative;
+}
+#analysis-copy-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 5200;
+  background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 3px;
+  min-width: 220px; display: none; overflow: hidden;
+}
+#analysis-copy-wrap.open #analysis-copy-menu {
+  display: block;
+}
+#analysis-copy-menu button {
+  display: block; width: 100%; background: none; border: none;
+  color: #aaa; font-family: monospace; font-size: 0.8em;
+  padding: 8px 12px; text-align: left; cursor: pointer;
+}
+#analysis-copy-menu button:hover:not(:disabled) {
+  background: #252525; color: #ddd;
+}
+#analysis-copy-menu button:disabled {
+  color: #555; cursor: not-allowed;
+}
+#analysis-copy-btn:disabled {
+  color: #4a4a4a; border-color: #242424; cursor: not-allowed;
+}
+#bundle-file {
+  position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
+}
+#app { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+/* ── Asset panel ── */
+
+/* Section headers (Terran Units, Terran Buildings…) */
+#asset-panel { display: none; }
+.asset-group {
+  font-size: 0.6em; text-transform: uppercase; letter-spacing: 2px;
+  padding: 10px 12px 3px; color: #2a2a2a;
+}
+
+/* Clickable row shared base */
+.asset-item {
+  display: flex; align-items: center; gap: 7px;
+  cursor: pointer; font-size: 0.82em; color: #666;
+  border-left: 2px solid transparent; padding: 5px 12px;
+}
+.asset-item:hover { background: #161616; color: #ccc; border-left-color: currentColor; }
+
+/* Indent levels */
+.asset-item.lvl1 { padding-left: 22px; }
+.asset-item.lvl2 { padding-left: 34px; }
+
+/* Building toggle row (not itself clickable-to-add) */
+.tree-building {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 12px; font-size: 0.82em; color: #555;
+  user-select: none; cursor: pointer;
+}
+.tree-building:hover { background: #161616; color: #999; }
+.tree-caret { font-size: 0.6em; color: #333; width: 10px; flex-shrink: 0; line-height: 1; }
+.tree-building-name { flex: 1; }
+.tree-building-time { font-size: 0.75em; color: #2a2a2a; }
+
+/* Collapsible children */
+.tree-children { display: none; }
+.tree-children.open { display: block; }
+
+.dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.asset-time { margin-left: auto; font-size: 0.8em; color: #333; }
+
+/* ── Main ── */
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+.tbtn {
+  background: none; border: 1px solid #323232; color: #8a8a8a;
+  font-family: monospace; font-size: 0.82em; padding: 5px 10px;
+  cursor: pointer; border-radius: 3px;
+}
+.tbtn:hover { border-color: #6a6a6a; color: #d0d0d0; }
+.tbtn.is-off { color: #4a4a4a; border-color: #242424; }
+#zoom-info { font-size: 0.8em; color: #777; padding: 0 6px; }
+.tbtn-danger:hover { border-color: #f44336; color: #f44336; }
+
+/* ── Timeline wrapper ── */
+#tl-wrap { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+/* Fixed label column */
+#label-col {
+  width: 118px; flex-shrink: 0; display: flex; flex-direction: column;
+  background: #111; border-right: 1px solid #1a1a1a; z-index: 20;
+}
+#label-ruler-spacer {
+  height: 26px; flex-shrink: 0; border-bottom: 1px solid #1a1a1a;
+  background: #0e0e0e;
+}
+#label-list { overflow: hidden; flex: 1; }
+.label-set-header {
+  height: 30px; display: flex; align-items: center;
+  padding: 0 8px; border-bottom: 1px solid #1d1d1d;
+  font-size: 0.8em; color: #9a9a9a; background: #121212;
+  text-transform: none; letter-spacing: 0.2px; user-select: none;
+}
+.label-set-header.active { color: #f3d27a; font-weight: 600; }
+.label-set-header.active {
+  background: #19150b;
+  box-shadow: inset 3px 0 0 #f0c040;
+}
+.label-supply-cell {
+  height: 28px; border-bottom: 1px solid #1e1e1e;
+  background: #0c0c0c; display: flex; align-items: center;
+  justify-content: flex-end; padding-right: 8px;
+  font-size: 0.58em; color: #2a5a2a; text-transform: uppercase;
+  letter-spacing: 1px; user-select: none;
+}
+.label-cell {
+  height: 42px; display: flex; align-items: center; justify-content: flex-end;
+  padding-right: 8px; font-size: 0.7em; color: #555;
+  border-bottom: 1px solid #1a1a1a; letter-spacing: 1px;
+  text-transform: uppercase; user-select: none;
+}
+.label-drop-cell {
+  height: 20px; border-bottom: 1px solid #141414; color: #222;
+  display: flex; align-items: center; justify-content: flex-end;
+  padding-right: 8px; font-size: 0.58em; user-select: none;
+}
+
+/* Scrollable timeline */
+#tl-scroll { flex: 1; overflow: auto; position: relative; }
+#tl-inner { position: relative; /* width set by JS */ }
+#timeline-empty {
+  position: absolute;
+  inset: 26px 0 0 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: #727272;
+  font-size: 1.1em;
+  letter-spacing: 0.4px;
+  text-transform: none;
+  pointer-events: none;
+  z-index: 4;
+}
+.timeline-hover-line {
+  position: absolute; top: 0; bottom: 0; width: 1px;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(199, 216, 199, 0.95) 0 5px,
+    transparent 5px 8px
+  );
+  pointer-events: none; z-index: 25; visibility: hidden;
+}
+.timeline-hover-player-col {
+  min-width: 150px;
+}
+.timeline-hover-player-col + .timeline-hover-player-col {
+  border-left: 1px solid #2a2a2a;
+  padding-left: 10px;
+}
+.timeline-hover-heading {
+  color: #fff;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.timeline-hover-time {
+  color: #f0c040;
+}
+.timeline-hover-meta {
+  color: #555;
+  margin-bottom: 4px;
+}
+.timeline-hover-statline {
+  color: #ddd;
+}
+.timeline-hover-icon {
+  display: inline-block;
+  min-width: 1.2em;
+}
+.timeline-hover-army {
+  list-style: none;
+  margin: 5px 0 0;
+  padding: 0;
+  color: #aaa;
+}
+.timeline-hover-army li {
+  margin: 0;
+  padding: 0;
+}
+.timeline-hover-empty {
+  color: #444;
+}
+.timeline-hover-label {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 5000;
+  pointer-events: none;
+  visibility: hidden;
+
+  background: #1c1c1c;
+  border: 1px solid #2a2a2a;
+  border-radius: 3px;
+  color: #aaa;
+  font-size: 0.75em;
+  line-height: 1.7;
+  padding: 7px 10px;
+  white-space: nowrap;
+
+  display: flex;
+  flex-flow: row nowrap;
+  gap: 10px;
+  align-items: stretch;
+}
+
+/* Ruler */
+#ruler {
+  height: 26px; position: sticky; top: 0; z-index: 10;
+  background: #0e0e0e; border-bottom: 1px solid #1a1a1a;
+  /* width set by JS */
+}
+.tick { position: absolute; bottom: 0; width: 1px; background: #1e1e1e; }
+.tick.major { background: #2a2a2a; height: 100%; }
+.tick-label {
+  position: absolute; font-size: 0.6em; color: #3a3a3a;
+  bottom: 5px; transform: translateX(-50%); white-space: nowrap;
+}
+
+/* Supply row */
+.supply-row {
+  height: 28px; position: relative; background: #0c0c0c;
+  border-bottom: 1px solid #1e1e1e; overflow: hidden;
+}
+.sup-seg {
+  position: absolute; top: 0; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.6em; font-family: monospace; pointer-events: none;
+  white-space: nowrap; overflow: hidden;
+}
+.sup-ok   { background: #0d1a0d; color: #2a6a2a; }
+.sup-warn { background: #1a1a00; color: #7a7a00; }
+.sup-capped { background: #2a0c0c; color: #d05a5a; }
+.sup-over { background: #1a0a0a; color: #8a2a2a; }
+.sup-zero { color: #2a2a2a; }
+/* Zero-time marker */
+.tick-zero { position: absolute; bottom: 0; width: 1px; background: #3a3a3a; height: 100%; z-index: 2; }
+.tick-zero-label { position: absolute; bottom: 5px; font-size: 0.65em; color: #555; transform: translateX(-50%); }
+
+/* Track rows */
+#tracks { position: relative; /* width set by JS */ }
+.tracks-section { border-bottom: 1px solid #171717; }
+.set-section-header {
+  height: 30px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 10px; border-bottom: 1px solid #1d1d1d;
+  background: #121212; font-size: 0.86em; color: #8c8c8c;
+  cursor: pointer; user-select: none; width: 100%;
+  border-top: none; border-left: none; border-right: none;
+  text-align: left; font-family: monospace;
+}
+.set-section-header:hover { background: #171717; color: #d0d0d0; }
+.set-section-header:focus-visible {
+  outline: 1px solid #f0c040; outline-offset: -1px;
+}
+.set-section-header.active {
+  color: #f7dfa2; background: #1e1810;
+  box-shadow: inset 4px 0 0 #f0c040;
+}
+.set-section-header > span:first-child {
+  color: #d7d7d7; font-size: 1.02em;
+}
+.set-section-header.active > span:first-child {
+  color: #fff1c8;
+}
+.set-section-meta { color: #666; font-size: 0.78em; }
+.track-row {
+  height: 42px; position: relative; border-bottom: 1px solid #141414;
+  background: #111;
+}
+.track-row.drag-over { background: #151515; }
+.track-drop-row {
+  height: 20px; border-bottom: 1px solid #141414; background: #101010;
+}
+.track-drop-row.active { background: #121212; }
+
+/* Blocks */
+.bl {
+  position: absolute; top: 3px; height: 36px;
+  border-radius: 2px; cursor: grab; user-select: none;
+  overflow: hidden; display: flex; align-items: center; padding: 0 5px;
+  font-size: 0.7em; white-space: nowrap;
+}
+.bl:hover { filter: brightness(1.25); }
+.bl span { overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.bl.sel { box-shadow: 0 0 0 1px #f0c040 inset, 0 0 0 1px #f0c040; }
+.bl.dragging { opacity: 0.25; }
+
+/* Ghost (drag preview) */
+#ghost {
+  position: fixed; pointer-events: none; z-index: 9999;
+  display: none; opacity: 0.85;
+  border-radius: 2px; height: 36px; align-items: center; padding: 0 7px;
+  font-size: 0.7em; white-space: nowrap; overflow: hidden;
+  flex-direction: column; justify-content: center; gap: 1px;
+}
+#ghost-name { font-size: 1em; }
+#ghost-time { font-size: 0.8em; opacity: 0.7; }
+
+/* ── Tooltip ── */
+#tip {
+  position: fixed; background: #1c1c1c; border: 1px solid #2a2a2a;
+  padding: 7px 10px; font-size: 0.75em; color: #aaa; line-height: 1.7;
+  border-radius: 3px; pointer-events: none; z-index: 5000; display: none;
+}
+#tip.tip-multicol {
+  display: flex;
+  flex-flow: row nowrap;
+  gap: 10px;
+  align-items: stretch;
+  white-space: nowrap;
+}
+
+/* ── Context menu ── */
+#ctx {
+  position: fixed; background: #1c1c1c; border: 1px solid #2a2a2a;
+  border-radius: 3px; z-index: 5000; display: none; min-width: 120px;
+}
+#ctx button {
+  display: block; width: 100%; background: none; border: none;
+  color: #aaa; font-family: monospace; font-size: 0.82em;
+  padding: 8px 14px; cursor: pointer; text-align: left;
+}
+#ctx button:hover { background: #2a2a2a; color: #f44336; }
+
+/* ── Saves dropdown ── */
+#saves-panel {
+  position: fixed; background: #1c1c1c; border: 1px solid #2a2a2a;
+  border-radius: 3px; z-index: 5000; display: none; min-width: 220px;
+  max-height: 320px; overflow-y: auto;
+}
+.save-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-bottom: 1px solid #1a1a1a;
+}
+.save-row:last-child { border-bottom: none; }
+.save-name {
+  flex: 1; font-size: 0.78em; color: #aaa; font-family: monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.save-btn {
+  background: none; border: 1px solid #252525; color: #555;
+  font-family: monospace; font-size: 0.7em; padding: 2px 7px;
+  cursor: pointer; border-radius: 3px; flex-shrink: 0;
+}
+.save-btn:hover { border-color: #555; color: #aaa; }
+.save-btn.del:hover { border-color: #f44336; color: #f44336; }
+#saves-empty {
+  padding: 14px 16px; font-size: 0.75em; color: #333; font-family: monospace;
+}
+
+/* ── Build order ── */
+#bo-section {
+  width: 320px; flex-shrink: 0; border-right: 1px solid #1e1e1e;
+  display: flex; flex-direction: column; position: relative; overflow: hidden;
+  resize: horizontal; min-width: 180px; max-width: 50vw;
+  transition: width 140ms ease, border-color 140ms ease;
+}
+#bo-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 7px 14px; border-bottom: 1px solid #1a1a1a; flex-shrink: 0;
+  gap: 10px;
+}
+#bo-header-text {
+  display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  flex: 1 1 100%;
+}
+#bo-header span { font-size: 0.65em; text-transform: uppercase; letter-spacing: 2px; color: #333; white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;}
+#bo-hint {
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.82em; color: #9a9a9a; letter-spacing: 0;
+  text-transform: none;
+}
+#bo-player-label {
+  font-size: 0.94em; color: #6f6f6f;
+  flex: 0 0 auto;
+}
+#bo-player-select {
+  min-width: 140px; flex: 1 1 180px; background: #0f0f0f; border: 1px solid #252525;
+  color: #d3d3d3; font-family: monospace; font-size: 1.08em; padding: 5px 9px;
+  border-radius: 3px;
+}
+#bo-player-select:focus {
+  outline: none; border-color: #767676; color: #f3f3f3;
+}
+#bo-header-actions {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  width: 100%;
+}
+#bo-more-wrap {
+  position: relative;
+}
+#bo-more-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 5200;
+  background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 3px;
+  min-width: 170px; display: none; overflow: hidden;
+}
+#bo-more-wrap.open #bo-more-menu {
+  display: block;
+}
+#bo-more-menu button {
+  display: block; width: 100%; background: none; border: none;
+  color: #aaa; font-family: monospace; font-size: 0.8em;
+  padding: 8px 12px; text-align: left; cursor: pointer;
+}
+#bo-more-menu button:hover {
+  background: #252525; color: #ddd;
+}
+#bo-more-menu button.bo-more-danger:hover {
+  color: #f44336;
+}
+#bo-table-wrap {
+  flex: 1; min-height: 0; overflow: auto; background: #0c0c0c;
+}
+#bo-empty {
+  min-height: 100%; display: flex; align-items: center; justify-content: center;
+  padding: 24px 18px; color: #717171; font-family: monospace; font-size: 0.88em;
+  text-align: center; line-height: 1.5;
+}
+#bo-table {
+  width: 100%; border-collapse: collapse; table-layout: fixed;
+  font-family: monospace; font-size: 0.88em; color: #b2b2b2;
+}
+#bo-table thead th {
+  position: sticky; top: 0; z-index: 1; background: #111;
+  color: #7a7a7a; text-transform: uppercase; letter-spacing: 1px;
+  font-size: 0.96em; text-align: left; padding: 9px 14px;
+  border-bottom: 1px solid #1a1a1a;
+}
+#bo-table tbody td {
+  padding: 8px 14px; border-bottom: 1px solid #141414;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#bo-table tbody tr {
+  cursor: pointer;
+}
+#bo-table tbody tr:hover {
+  background: #121212;
+}
+#bo-table tbody tr.is-selected {
+  background: #181818;
+}
+#bo-table .bo-col-time,
+#bo-table .bo-col-supply {
+  width: 72px;
+}
+#bo-table .bo-col-name {
+  width: auto;
+}
+#bo-table td.bo-cell-time,
+#bo-table td.bo-cell-supply {
+  color: #969696;
+}
+#bo-table td.bo-cell-name {
+  color: #e0e0e0;
+}
+#bo-table tr.bo-row-unit td.bo-cell-name::before {
+  content: "U";
+  display: inline-block;
+  margin-right: 8px;
+  color: #2f4f77;
+}
+#bo-table tr.bo-row-building td.bo-cell-name::before {
+  content: "B";
+  display: inline-block;
+  margin-right: 8px;
+  color: #4d3f21;
+}
+#app.bo-panel-collapsed #bo-section {
+  width: 44px; min-width: 44px; border-right-color: #141414;
+}
+#app.bo-panel-collapsed #bo-header {
+  align-items: center; justify-content: flex-start; flex-direction: column;
+  gap: 10px; padding: 10px 6px; border-bottom: none;
+}
+#app.bo-panel-collapsed #bo-header-text {
+  align-items: center; justify-content: center;
+}
+#app.bo-panel-collapsed #bo-title {
+  writing-mode: vertical-rl; transform: rotate(180deg);
+}
+#app.bo-panel-collapsed #bo-hint,
+#app.bo-panel-collapsed #bo-copy-btn,
+#app.bo-panel-collapsed #bo-more-wrap,
+#app.bo-panel-collapsed #bo-table-wrap {
+  display: none;
+}
+#app.bo-panel-collapsed #bo-header-actions {
+  flex-direction: column;
+}
+
+#bo-import-modal {
+  position: fixed; inset: 0; z-index: 5500; display: none;
+}
+#bo-import-modal.is-open {
+  display: block;
+}
+#bo-import-backdrop {
+  position: absolute; inset: 0; background: rgba(0, 0, 0, 0.72);
+}
+#bo-import-dialog {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 48px);
+  background: #111; border: 1px solid #252525; border-radius: 4px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+#bo-import-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 10px 14px; border-bottom: 1px solid #1a1a1a;
+}
+#bo-import-title {
+  color: #ddd; font-family: monospace; font-size: 0.9em;
+}
+#bo-import-hint {
+  color: #555; font-family: monospace; font-size: 0.72em;
+}
+#bo-text {
+  min-height: 260px; width: 100%; background: #0c0c0c; color: #aaa;
+  font-family: monospace; font-size: 0.82em; border: none; resize: vertical;
+  padding: 12px 14px; outline: none; overflow: auto; line-height: 1.6;
+}
+#bo-import-actions {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 10px 14px; border-top: 1px solid #1a1a1a;
+}
+
+#gas-panel {
+  border-top: 1px solid #1e1e1e;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: #0d0d0d;
+}
+#gas-panel.collapsed #gas-body { display: none; }
+#gas-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 14px; border-bottom: 1px solid #1a1a1a;
+}
+#timeline-panel {
+  display: flex; flex-direction: column; min-height: 0; flex: 1;
+}
+#timeline-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 8px 14px; border-bottom: 1px solid #1a1a1a;
+  background: #0f0f0f; flex-shrink: 0;
+}
+#timeline-header-main {
+  min-width: 0; display: flex; flex-direction: column; gap: 3px;
+}
+#timeline-title {
+  font-size: 0.76em; text-transform: uppercase; letter-spacing: 2px; color: #666;
+}
+#timeline-subtitle {
+  font-size: 0.78em; color: #828282; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#timeline-controls {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+#timeline-zoom-group {
+  display: flex; align-items: center; gap: 4px;
+}
+#gas-title-wrap {
+  display: flex; align-items: center; gap: 10px;
+  min-width: 0;
+}
+#gas-title {
+  font-size: 0.65em; text-transform: uppercase; letter-spacing: 2px; color: #333;
+}
+#gas-subtitle {
+  font-size: 0.62em; color: #2a2a2a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#gas-body {
+  height: 132px; overflow: hidden; position: relative; background: #0b0f0b;
+}
+#gas-empty {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: #2e2e2e; font-size: 0.78em; pointer-events: none;
+}
+#gas-scroll {
+  overflow-x: auto; overflow-y: hidden; height: 100%;
+}
+#gas-inner {
+  position: relative; height: 100%;
+}
+#gas-svg {
+  display: block; height: 100%;
+}
+.gas-axis,
+.gas-grid {
+  stroke: #1d241d; stroke-width: 1;
+}
+.gas-zero {
+  stroke: #6e7f6e; stroke-width: 1;
+}
+.gas-path {
+  fill: none; stroke: #6bc66b; stroke-width: 2;
+}
+.econ-path-minerals {
+  fill: none; stroke: #5aa7ff; stroke-width: 2;
+}
+.econ-path-gas {
+  fill: none; stroke: #6bc66b; stroke-width: 2;
+}
+.econ-legend-minerals {
+  fill: #5aa7ff; font-size: 11px; font-family: monospace;
+}
+.econ-legend-gas {
+  fill: #6bc66b; font-size: 11px; font-family: monospace;
+}
+.gas-area-pos {
+  fill: rgba(76, 175, 80, 0.18);
+}
+.gas-area-neg {
+  fill: rgba(244, 67, 54, 0.16);
+}
+.gas-label {
+  fill: #3b4b3b; font-size: 10px; font-family: monospace;
+}
+
+#combat-panel {
+  border-top: 1px solid #1e1e1e;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: #0d0d0d;
+}
+#combat-resize-handle {
+  height: 6px;
+  flex-shrink: 0;
+  cursor: row-resize;
+  border-top: 1px solid #1a1a1a;
+  border-bottom: 1px solid #0f0f0f;
+  background: linear-gradient(to bottom, #151515, #101010);
+}
+#combat-resize-handle:hover {
+  background: linear-gradient(to bottom, #1f1f1f, #141414);
+}
+#combat-panel.collapsed #combat-body { display: none; }
+#combat-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 7px 14px; border-bottom: 1px solid #1a1a1a;
+}
+#combat-header-main {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+}
+#combat-title {
+  font-size: 0.76em; text-transform: uppercase; letter-spacing: 2px; color: #666;
+}
+#combat-subtitle {
+  font-size: 0.78em; color: #828282; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#combat-controls {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+#combat-copy-wrap {
+  position: relative;
+}
+#combat-copy-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 5200;
+  background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 3px;
+  min-width: 248px; display: none; overflow: hidden;
+}
+#combat-copy-wrap.open #combat-copy-menu {
+  display: block;
+}
+#combat-copy-menu button {
+  display: block; width: 100%; background: none; border: none;
+  color: #aaa; font-family: monospace; font-size: 0.8em;
+  padding: 8px 12px; text-align: left; cursor: pointer;
+}
+#combat-copy-menu button:hover:not(:disabled) {
+  background: #252525; color: #ddd;
+}
+#combat-copy-menu button:disabled {
+  color: #555; cursor: not-allowed;
+}
+#combat-copy-btn:disabled {
+  color: #4a4a4a; border-color: #242424; cursor: not-allowed;
+}
+#combat-category-buttons {
+  display: flex; align-items: center; gap: 6px;
+}
+#combat-body {
+  height: 188px; overflow: hidden; position: relative; background: #0f0c0c;
+}
+#combat-wrap {
+  display: flex; height: 100%; overflow: hidden;
+}
+#combat-label-col {
+  width: 170px; flex-shrink: 0; border-right: 1px solid #161616;
+  background: #0f0f0f; position: relative; z-index: 2; overflow: hidden;
+}
+#combat-label-sections {
+  position: relative;
+}
+#combat-empty {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: #2e2e2e; font-size: 0.78em; pointer-events: none; z-index: 1;
+}
+#combat-scroll {
+  flex: 1; overflow-x: auto; overflow-y: auto; height: 100%;
+}
+#combat-inner {
+  position: relative; min-height: 100%;
+}
+.combat-label-set {
+  border-bottom: 1px solid #171717;
+}
+.combat-label-header {
+  height: 24px; display: flex; align-items: center;
+  padding: 0 10px; border-bottom: 1px solid #1a1a1a;
+  font-size: 0.8em; color: #c2c2c2; text-transform: none; letter-spacing: 0.2px;
+  background: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.combat-label-row {
+  height: 22px; display: flex; align-items: center;
+  padding: 0 8px; font-size: 0.72em; color: #767676;
+  text-transform: uppercase; letter-spacing: 0.6px;
+  border-bottom: 1px solid #141414;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.combat-label-row:last-child {
+  border-bottom: none;
+}
+.combat-set {
+  border-bottom: 1px solid #171717;
+}
+.combat-set-header {
+  height: 24px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 10px; border-bottom: 1px solid #1a1a1a;
+  font-size: 0.68em; color: #5a5a5a; text-transform: uppercase; letter-spacing: 1px;
+  background: #111;
+}
+.combat-set-header strong {
+  color: #808080; font-weight: 600;
+}
+.combat-row {
+  position: relative; height: 22px; border-bottom: 1px solid #141414;
+}
+.combat-row:last-child {
+  border-bottom: none;
+}
+.combat-row-track {
+  position: relative; height: 100%; background:
+    linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px) 0 0 / 40px 100%,
+    #0a0a0a;
+}
+.combat-bucket {
+  position: absolute; top: 2px; bottom: 2px; border-radius: 2px;
+}
+.combat-bucket.workers {
+  background: #8c6f2d;
+}
+.combat-bucket.units {
+  background: #7a2d2d;
+}
+.combat-bucket.buildings {
+  background: #444e84;
+}
+.combat-hover-line {
+  position: absolute; top: 0; bottom: 0; width: 1px;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(199, 216, 199, 0.95) 0 5px,
+    transparent 5px 8px
+  );
+  pointer-events: none;
+  z-index: 5;
+  visibility: hidden;
+}
+.gas-hover-line {
+  stroke: #c7d8c7; stroke-width: 1; stroke-dasharray: 3 3;
+}
+.gas-hover-dot {
+  fill: #d7f5d7; stroke: #6bc66b; stroke-width: 1.5;
+}
+.gas-hover-bg {
+  fill: #1c1c1c; stroke: #2a2a2a; stroke-width: 1;
+}
+.gas-hover-label {
+  fill: #aaa; font-size: 12px;
+}
+
+/* ── Autocomplete dropdown ── */
+#ac {
+  position: fixed; z-index: 6000; display: none;
+  background: #1a1a1a; border: 1px solid #2e2e2e;
+  border-radius: 3px; overflow: hidden; min-width: 180px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+}
+.ac-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px; cursor: pointer; font-size: 0.8em;
+  color: #777; white-space: nowrap;
+}
+.ac-item:hover, .ac-item.ac-sel { background: #252525; color: #ddd; }
+.ac-item .ac-race { font-size: 0.75em; color: #444; margin-left: auto; padding-left: 10px; }
+.ac-item .ac-time { font-size: 0.75em; color: #333; }
+
+/* Mirror div for cursor position measurement */
+#ta-mirror {
+  position: fixed; visibility: hidden; pointer-events: none; z-index: -1;
+  white-space: pre-wrap; word-break: break-word; overflow: hidden;
+  font-family: monospace; font-size: 0.82em; line-height: 1.6;
+  padding: 8px 14px;
+}
+</style>
+</head>
+<body>
+
+<div id="analysis-header">
+  <div id="analysis-header-main">
+    <div id="analysis-title">Brood War Build Analysis <span id="analysis-version">runtime v2026.05.15.2</span></div>
+    <div id="analysis-status">No analysis data loaded.</div>
+  </div>
+  <div id="analysis-actions">
+    <input id="bundle-file" type="file" accept=".zip,application/zip" title="Import player data ZIP" aria-label="Import player data ZIP" />
+    <div id="analysis-copy-wrap">
+      <button class="tbtn" id="analysis-copy-btn" type="button" aria-haspopup="true" aria-expanded="false">Copy analysis</button>
+      <div id="analysis-copy-menu">
+        <button id="analysis-copy-full-btn" type="button">Copy full analysis report</button>
+        <button id="analysis-copy-prompt-btn" type="button">Copy prompt + analysis report</button>
+      </div>
+    </div>
+    <button class="tbtn" id="import-player-data-btn" type="button">Import player data</button>
+    <button class="tbtn" id="download-replay-btn" type="button" hidden>Download original replay</button>
+    <button class="tbtn tbtn-danger" id="clear-data-btn" type="button">Clear data</button>
+  </div>
+</div>
+
+<div id="app">
+
+  <!-- ── Asset panel ── -->
+  <div id="asset-panel">
+    <div id="asset-panel-header">
+      <span id="asset-panel-title">Assets</span>
+      <button class="tbtn" id="asset-toggle-btn" type="button">&lt;</button>
+    </div>
+    <input id="search-box" type="text" placeholder="Search...">
+    <div id="asset-list"></div>
+  </div>
+
+  <!-- ── Main ── -->
+  <div id="bo-section">
+    <div id="bo-header">
+      <div id="bo-header-text">
+        <span id="bo-title">Build Order</span>
+        <div id="bo-hint">
+          <span id="bo-player-label">Player:</span>
+          <select id="bo-player-select" aria-label="Focused player"></select>
+        </div>
+      </div>
+      <div id="bo-header-actions">
+        <button class="tbtn" id="bo-copy-btn" type="button">Copy build</button>
+        <div id="bo-more-wrap">
+          <button class="tbtn" id="bo-more-btn" type="button" aria-haspopup="true" aria-expanded="false">...</button>
+          <div id="bo-more-menu">
+            <button id="bo-import-btn" type="button">Import build order</button>
+            <button id="bo-rename-btn" type="button">Rename player</button>
+            <button id="bo-remove-player-btn" type="button" class="bo-more-danger">Remove player</button>
+          </div>
+        </div>
+        <button class="tbtn" id="bo-toggle-btn" type="button">&lt;</button>
+      </div>
+    </div>
+    <div id="bo-table-wrap">
+      <div id="bo-empty">No dataset loaded.</div>
+      <table id="bo-table" hidden>
+        <thead>
+          <tr>
+            <th class="bo-col-time">Time</th>
+            <th class="bo-col-supply">Supply</th>
+            <th class="bo-col-name">Name</th>
+          </tr>
+        </thead>
+        <tbody id="bo-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="main">
+
+    <div id="timeline-header">
+      <div id="timeline-header-main">
+        <span id="timeline-title">Timeline</span>
+        <span id="timeline-subtitle">Compare loaded player analysis data across build order, supply, and combat.</span>
+      </div>
+      <div id="timeline-controls">
+        <div id="timeline-zoom-group">
+      <button class="tbtn" id="timeline-zoom-out-btn" type="button">− Zoom</button>
+      <span id="zoom-info"></span>
+      <button class="tbtn" id="timeline-zoom-in-btn" type="button">+ Zoom</button>
+        </div>
+        <button class="tbtn" id="unit-toggle-btn" type="button">Show Units</button>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div id="tl-wrap">
+      <div id="label-col">
+        <div id="label-ruler-spacer"></div>
+        <div id="label-supply-cell" style="display:none"></div>
+        <div id="label-list"></div>
+      </div>
+        <div id="tl-scroll">
+          <div id="tl-inner">
+            <div id="timeline-hover-line" class="timeline-hover-line" aria-hidden="true"></div>
+            <div id="timeline-hover-label" class="timeline-hover-label" aria-hidden="true"></div>
+            <div id="timeline-empty">No dataset loaded.</div>
+            <div id="ruler"></div>
+            <div id="supply-row" style="display:none"></div>
+            <div id="tracks"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="combat-resize-handle" aria-hidden="true"></div>
+<div id="combat-panel" class="collapsed">
+      <div id="combat-header">
+        <div id="combat-header-main">
+          <span id="combat-title">Combat</span>
+          <span id="combat-subtitle">Compare player losses across time from loaded analysis data.</span>
+        </div>
+        <div id="combat-controls">
+          <div id="combat-copy-wrap">
+            <button class="tbtn" id="combat-copy-btn" type="button" aria-haspopup="true" aria-expanded="false">Copy combat</button>
+            <div id="combat-copy-menu">
+              <button id="combat-copy-focused-btn" type="button">Copy focused player combat summary</button>
+              <button id="combat-copy-all-btn" type="button">Copy all players combat summaries</button>
+            </div>
+          </div>
+          <div id="combat-category-buttons">
+            <button class="tbtn" id="combat-workers-btn" type="button">Workers</button>
+            <button class="tbtn" id="combat-units-btn" type="button">Units</button>
+            <button class="tbtn" id="combat-buildings-btn" type="button">Buildings</button>
+          </div>
+          <button class="tbtn" id="combat-toggle-btn" type="button">Show Combat</button>
+        </div>
+      </div>
+      <div id="combat-body">
+        <div id="combat-wrap">
+          <div id="combat-label-col">
+            <div id="combat-label-sections"></div>
+          </div>
+          <div id="combat-scroll">
+            <div id="combat-inner">
+              <div id="combat-empty">Import player data with deaths.json to compare combat losses</div>
+              <div id="combat-sections"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Ghost drag element -->
+<div id="ghost"></div>
+
+<!-- Autocomplete dropdown -->
+<div id="ac"></div>
+
+<!-- Mirror div for textarea cursor measurement -->
+<div id="ta-mirror"></div>
+
+<!-- Tooltip -->
+<div id="tip"></div>
+
+<!-- Context menu -->
+<div id="ctx">
+  <button id="ctx-remove">Remove</button>
+</div>
+
+<div id="bo-import-modal" aria-hidden="true">
+  <div id="bo-import-backdrop"></div>
+  <div id="bo-import-dialog" role="dialog" aria-modal="true" aria-labelledby="bo-import-title">
+    <div id="bo-import-header">
+      <div>
+        <div id="bo-import-title">Import Build Order</div>
+        <div id="bo-import-hint">(track) M:SS Name [-> Name2]</div>
+      </div>
+      <button class="tbtn" id="bo-import-close-btn" type="button">Close</button>
+    </div>
+    <textarea id="bo-text" spellcheck="false"></textarea>
+    <div id="bo-import-actions">
+      <button class="tbtn" id="bo-import-cancel-btn" type="button">Cancel</button>
+      <button class="tbtn" id="bo-import-apply-btn" type="button">Import build order</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────
+const DATA = [
+  // Terran
+  {name:"SCV",race:"Terran",type:"Unit",buildTime:12.6,mineralCost:50,gasCost:0,supplyCost:1,builtFrom:"Command Center"}, // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Marine",race:"Terran",type:"Unit",buildTime:15.1,mineralCost:50,gasCost:0,supplyCost:1,builtFrom:"Barracks"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Firebat",race:"Terran",type:"Unit",buildTime:15.1,mineralCost:50,gasCost:25,supplyCost:1,builtFrom:"Barracks"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Medic",race:"Terran",type:"Unit",buildTime:18.9,mineralCost:50,gasCost:25,supplyCost:1,builtFrom:"Barracks"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Ghost",race:"Terran",type:"Unit",buildTime:31.5,mineralCost:25,gasCost:75,supplyCost:1,builtFrom:"Barracks"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Vulture",race:"Terran",type:"Unit",buildTime:18.9,mineralCost:75,gasCost:0,supplyCost:2,builtFrom:"Factory"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Siege Tank",race:"Terran",type:"Unit",buildTime:31.5,mineralCost:150,gasCost:100,supplyCost:2,builtFrom:"Factory"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Goliath",race:"Terran",type:"Unit",buildTime:25.2,mineralCost:100,gasCost:50,supplyCost:2,builtFrom:"Factory"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Wraith",race:"Terran",type:"Unit",buildTime:37.8,mineralCost:150,gasCost:100,supplyCost:2,builtFrom:"Starport"}, // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Dropship",race:"Terran",type:"Unit",buildTime:31.5,mineralCost:100,gasCost:100,supplyCost:2,builtFrom:"Starport"}, // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Battlecruiser",race:"Terran",type:"Unit",buildTime:83.8,mineralCost:400,gasCost:300,supplyCost:6,builtFrom:"Starport"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Science Vessel",race:"Terran",type:"Unit",buildTime:50,mineralCost:100,gasCost:225,supplyCost:2,builtFrom:"Starport"}, // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Valkyrie",race:"Terran",type:"Unit",buildTime:31.5,mineralCost:250,gasCost:125,supplyCost:3,builtFrom:"Starport"}, // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Command Center",race:"Terran",type:"Building",buildTime:75,mineralCost:400,gasCost:0,supplyCost:0,builtFrom:"SCV"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Supply Depot",race:"Terran",type:"Building",buildTime:25,mineralCost:100,gasCost:0,supplyCost:0,builtFrom:"SCV"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Refinery",race:"Terran",type:"Building",buildTime:25,mineralCost:100,gasCost:0,supplyCost:0,builtFrom:"SCV"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Barracks",race:"Terran",type:"Building",buildTime:50,mineralCost:150,gasCost:0,supplyCost:0,builtFrom:"SCV"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Engineering Bay",race:"Terran",type:"Building",buildTime:38,mineralCost:125,gasCost:0,supplyCost:0,builtFrom:"SCV"}, // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Academy",race:"Terran",type:"Building",buildTime:50,mineralCost:150,gasCost:0,supplyCost:0,builtFrom:"SCV"}, // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Factory",race:"Terran",type:"Building",buildTime:50,mineralCost:200,gasCost:100,supplyCost:0,builtFrom:"SCV"}, // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Starport",race:"Terran",type:"Building",buildTime:44,mineralCost:150,gasCost:100,supplyCost:0,builtFrom:"SCV"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Armory",race:"Terran",type:"Building",buildTime:50,mineralCost:100,gasCost:50,supplyCost:0,builtFrom:"SCV"}, // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Missile Turret",race:"Terran",type:"Building",buildTime:18.9,mineralCost:75,gasCost:0,supplyCost:0,builtFrom:"SCV"}, // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Bunker",race:"Terran",type:"Building",buildTime:19,mineralCost:100,gasCost:0,supplyCost:0,builtFrom:"SCV"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Science Facility",race:"Terran",type:"Building",buildTime:38,mineralCost:100,gasCost:150,supplyCost:0,builtFrom:"SCV"},  // OK (Checked by Goose on April 23rd, 2026)
+  // Terran Addons
+  {name:"Comsat Station",race:"Terran",type:"Addon",buildTime:25,mineralCost:50,gasCost:50,supplyCost:0,builtFrom:"Command Center"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Nuclear Silo",race:"Terran",type:"Addon",buildTime:50,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Command Center"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Machine Shop",race:"Terran",type:"Addon",buildTime:25,mineralCost:50,gasCost:50,supplyCost:0,builtFrom:"Factory"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Control Tower",race:"Terran",type:"Addon",buildTime:25,mineralCost:50,gasCost:50,supplyCost:0,builtFrom:"Starport"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Physics Lab",race:"Terran",type:"Addon",buildTime:25,mineralCost:50,gasCost:50,supplyCost:0,builtFrom:"Science Facility"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Covert Ops",race:"Terran",type:"Addon",buildTime:25,mineralCost:50,gasCost:50,supplyCost:0,builtFrom:"Science Facility"},  // OK (Checked by Goose on April 23rd, 2026)
+  // Protoss
+  {name:"Probe",race:"Protoss",type:"Unit",buildTime:12.6,mineralCost:50,gasCost:0,supplyCost:1,builtFrom:"Nexus"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Zealot",race:"Protoss",type:"Unit",buildTime:25.2,mineralCost:100,gasCost:0,supplyCost:2,builtFrom:"Gateway"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Dragoon",race:"Protoss",type:"Unit",buildTime:31.5,mineralCost:125,gasCost:50,supplyCost:2,builtFrom:"Gateway"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"High Templar",race:"Protoss",type:"Unit",buildTime:31.5,mineralCost:50,gasCost:150,supplyCost:2,builtFrom:"Gateway"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Dark Templar",race:"Protoss",type:"Unit",buildTime:31.5,mineralCost:125,gasCost:100,supplyCost:2,builtFrom:"Gateway"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Archon",race:"Protoss",type:"Unit",buildTime:13,mineralCost:0,gasCost:0,supplyCost:4,builtFrom:"High Templar"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Dark Archon",race:"Protoss",type:"Unit",buildTime:12.6,mineralCost:0,gasCost:0,supplyCost:4,builtFrom:"Dark Templar"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Reaver",race:"Protoss",type:"Unit",buildTime:44,mineralCost:200,gasCost:100,supplyCost:4,builtFrom:"Robotics Facility"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Shuttle",race:"Protoss",type:"Unit",buildTime:37.8,mineralCost:200,gasCost:0,supplyCost:2,builtFrom:"Robotics Facility"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Observer",race:"Protoss",type:"Unit",buildTime:25.2,mineralCost:25,gasCost:75,supplyCost:1,builtFrom:"Robotics Facility"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Scout",race:"Protoss",type:"Unit",buildTime:50,mineralCost:275,gasCost:125,supplyCost:3,builtFrom:"Stargate"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Corsair",race:"Protoss",type:"Unit",buildTime:25.2,mineralCost:150,gasCost:100,supplyCost:2,builtFrom:"Stargate"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Carrier",race:"Protoss",type:"Unit",buildTime:88,mineralCost:350,gasCost:250,supplyCost:6,builtFrom:"Stargate"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Arbiter",race:"Protoss",type:"Unit",buildTime:100.8,mineralCost:100,gasCost:350,supplyCost:4,builtFrom:"Stargate"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Nexus",race:"Protoss",type:"Building",buildTime:75,mineralCost:400,gasCost:0,supplyCost:0,builtFrom:"Probe"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Pylon",race:"Protoss",type:"Building",buildTime:19,mineralCost:100,gasCost:0,supplyCost:0,builtFrom:"Probe"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Assimilator",race:"Protoss",type:"Building",buildTime:25,mineralCost:100,gasCost:0,supplyCost:0,builtFrom:"Probe"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Gateway",race:"Protoss",type:"Building",buildTime:38,mineralCost:150,gasCost:0,supplyCost:0,builtFrom:"Probe"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Forge",race:"Protoss",type:"Building",buildTime:25,mineralCost:150,gasCost:0,supplyCost:0,builtFrom:"Probe"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Photon Cannon",race:"Protoss",type:"Building",buildTime:31.5,mineralCost:150,gasCost:0,supplyCost:0,builtFrom:"Probe"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Cybernetics Core",race:"Protoss",type:"Building",buildTime:38,mineralCost:200,gasCost:0,supplyCost:0,builtFrom:"Probe"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Robotics Facility",race:"Protoss",type:"Building",buildTime:50,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Probe"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Stargate",race:"Protoss",type:"Building",buildTime:44,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Probe"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Citadel of Adun",race:"Protoss",type:"Building",buildTime:38,mineralCost:150,gasCost:100,supplyCost:0,builtFrom:"Probe"},   // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Robotics Support Bay",race:"Protoss",type:"Building",buildTime:19,mineralCost:150,gasCost:100,supplyCost:0,builtFrom:"Probe"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Fleet Beacon",race:"Protoss",type:"Building",buildTime:38,mineralCost:300,gasCost:200,supplyCost:0,builtFrom:"Probe"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Templar Archives",race:"Protoss",type:"Building",buildTime:38,mineralCost:150,gasCost:200,supplyCost:0,builtFrom:"Probe"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Observatory",race:"Protoss",type:"Building",buildTime:19,mineralCost:50,gasCost:100,supplyCost:0,builtFrom:"Probe"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Arbiter Tribunal",race:"Protoss",type:"Building",buildTime:38,mineralCost:200,gasCost:150,supplyCost:0,builtFrom:"Probe"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Shield Battery",race:"Protoss",type:"Building",buildTime:19,mineralCost:100,gasCost:0,supplyCost:0,builtFrom:"Probe"},  // OK (Checked by Goose on April 23rd, 2026)
+  // Zerg
+  {name:"Drone",race:"Zerg",type:"Unit",buildTime:12.6,mineralCost:50,gasCost:0,supplyCost:1,builtFrom:"Larva"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Zergling",race:"Zerg",type:"Unit",buildTime:18,mineralCost:50,gasCost:0,supplyCost:1,builtFrom:"Larva"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Hydralisk",race:"Zerg",type:"Unit",buildTime:18,mineralCost:75,gasCost:25,supplyCost:1,builtFrom:"Larva"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Mutalisk",race:"Zerg",type:"Unit",buildTime:25,mineralCost:100,gasCost:100,supplyCost:2,builtFrom:"Larva"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Scourge",race:"Zerg",type:"Unit",buildTime:19,mineralCost:25,gasCost:75,supplyCost:1,builtFrom:"Larva"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Ultralisk",race:"Zerg",type:"Unit",buildTime:38,mineralCost:200,gasCost:200,supplyCost:4,builtFrom:"Larva"},   // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Defiler",race:"Zerg",type:"Unit",buildTime:31.5,mineralCost:50,gasCost:150,supplyCost:2,builtFrom:"Larva"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Queen",race:"Zerg",type:"Unit",buildTime:31.5,mineralCost:100,gasCost:100,supplyCost:2,builtFrom:"Larva"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Overlord",race:"Zerg",type:"Unit",buildTime:25,mineralCost:100,gasCost:0,supplyCost:0,builtFrom:"Larva"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Lurker",race:"Zerg",type:"Unit",buildTime:25,mineralCost:50,gasCost:100,supplyCost:2,builtFrom:"Hydralisk"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Guardian",race:"Zerg",type:"Unit",buildTime:25,mineralCost:50,gasCost:100,supplyCost:2,builtFrom:"Mutalisk"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Devourer",race:"Zerg",type:"Unit",buildTime:25,mineralCost:150,gasCost:50,supplyCost:2,builtFrom:"Mutalisk"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Hatchery",race:"Zerg",type:"Building",buildTime:75,mineralCost:300,gasCost:0,supplyCost:0,builtFrom:"Drone"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Lair",race:"Zerg",type:"Building",buildTime:63,mineralCost:150,gasCost:100,supplyCost:0,builtFrom:"Hatchery"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Hive",race:"Zerg",type:"Building",buildTime:75,mineralCost:200,gasCost:150,supplyCost:0,builtFrom:"Lair"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Spawning Pool",race:"Zerg",type:"Building",buildTime:50,mineralCost:200,gasCost:0,supplyCost:0,builtFrom:"Drone"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Creep Colony",race:"Zerg",type:"Building",buildTime:12,mineralCost:75,gasCost:0,supplyCost:0,builtFrom:"Drone"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Sunken Colony",race:"Zerg",type:"Building",buildTime:12,mineralCost:50,gasCost:0,supplyCost:0,builtFrom:"Creep Colony"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Spore Colony",race:"Zerg",type:"Building",buildTime:12,mineralCost:50,gasCost:0,supplyCost:0,builtFrom:"Creep Colony"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Extractor",race:"Zerg",type:"Building",buildTime:25,mineralCost:50,gasCost:0,supplyCost:0,builtFrom:"Drone"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Evolution Chamber",race:"Zerg",type:"Building",buildTime:25,mineralCost:75,gasCost:0,supplyCost:0,builtFrom:"Drone"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Hydralisk Den",race:"Zerg",type:"Building",buildTime:25,mineralCost:100,gasCost:50,supplyCost:0,builtFrom:"Drone"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Spire",race:"Zerg",type:"Building",buildTime:75,mineralCost:200,gasCost:150,supplyCost:0,builtFrom:"Drone"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Greater Spire",race:"Zerg",type:"Building",buildTime:75,mineralCost:100,gasCost:150,supplyCost:0,builtFrom:"Spire"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Queens Nest",race:"Zerg",type:"Building",buildTime:38,mineralCost:150,gasCost:100,supplyCost:0,builtFrom:"Drone"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Ultralisk Cavern",race:"Zerg",type:"Building",buildTime:50,mineralCost:150,gasCost:200,supplyCost:0,builtFrom:"Drone"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Defiler Mound",race:"Zerg",type:"Building",buildTime:38,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Drone"},  // OK (Checked by Goose on April 23rd, 2026)
+  {name:"Nydus Canal",race:"Zerg",type:"Building",buildTime:25,mineralCost:150,gasCost:0,supplyCost:0,builtFrom:"Drone"},  // OK (Checked by Goose on April 23rd, 2026)
+  // Terran Upgrades
+  {name:"Stim Packs",race:"Terran",type:"Upgrade",buildTime:80,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Academy"},
+  {name:"U-238 Shells",race:"Terran",type:"Upgrade",buildTime:80,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Academy"},
+  {name:"Restoration",race:"Terran",type:"Upgrade",buildTime:80,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Academy"},
+  {name:"Optical Flare",race:"Terran",type:"Upgrade",buildTime:80,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Academy"},
+  {name:"Caduceus Reactor",race:"Terran",type:"Upgrade",buildTime:80,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Academy"},
+  {name:"Tank Siege Mode",race:"Terran",type:"Upgrade",buildTime:80,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Machine Shop"},
+  {name:"Spider Mines",race:"Terran",type:"Upgrade",buildTime:50.4,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Machine Shop"},
+  {name:"Ion Thrusters",race:"Terran",type:"Upgrade",buildTime:67,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Machine Shop"},
+  {name:"Charon Boosters",race:"Terran",type:"Upgrade",buildTime:67,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Machine Shop"},
+  {name:"Cloaking Field",race:"Terran",type:"Upgrade",buildTime:80,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Control Tower"},
+  {name:"Yamato Gun",race:"Terran",type:"Upgrade",buildTime:80,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Physics Lab"},
+  {name:"Irradiate",race:"Terran",type:"Upgrade",buildTime:80,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Physics Lab"},
+  {name:"EMP Shockwave",race:"Terran",type:"Upgrade",buildTime:80,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Covert Ops"},
+  {name:"Lockdown",race:"Terran",type:"Upgrade",buildTime:80,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Covert Ops"},
+  {name:"Personnel Cloaking",race:"Terran",type:"Upgrade",buildTime:67,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Covert Ops"},
+  {name:"Infantry Weapons 1",race:"Terran",type:"Upgrade",buildTime:160,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Engineering Bay"},
+  {name:"Infantry Weapons 2",race:"Terran",type:"Upgrade",buildTime:190,mineralCost:175,gasCost:175,supplyCost:0,builtFrom:"Engineering Bay"},
+  {name:"Infantry Weapons 3",race:"Terran",type:"Upgrade",buildTime:220,mineralCost:250,gasCost:250,supplyCost:0,builtFrom:"Engineering Bay"},
+  {name:"Infantry Armor 1",race:"Terran",type:"Upgrade",buildTime:160,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Engineering Bay"},
+  {name:"Infantry Armor 2",race:"Terran",type:"Upgrade",buildTime:190,mineralCost:175,gasCost:175,supplyCost:0,builtFrom:"Engineering Bay"},
+  {name:"Infantry Armor 3",race:"Terran",type:"Upgrade",buildTime:220,mineralCost:250,gasCost:250,supplyCost:0,builtFrom:"Engineering Bay"},
+  {name:"Vehicle Weapons 1",race:"Terran",type:"Upgrade",buildTime:160,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Armory"},
+  {name:"Vehicle Weapons 2",race:"Terran",type:"Upgrade",buildTime:190,mineralCost:175,gasCost:175,supplyCost:0,builtFrom:"Armory"},
+  {name:"Vehicle Weapons 3",race:"Terran",type:"Upgrade",buildTime:220,mineralCost:250,gasCost:250,supplyCost:0,builtFrom:"Armory"},
+  {name:"Vehicle Plating 1",race:"Terran",type:"Upgrade",buildTime:160,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Armory"},
+  {name:"Vehicle Plating 2",race:"Terran",type:"Upgrade",buildTime:190,mineralCost:175,gasCost:175,supplyCost:0,builtFrom:"Armory"},
+  {name:"Vehicle Plating 3",race:"Terran",type:"Upgrade",buildTime:220,mineralCost:250,gasCost:250,supplyCost:0,builtFrom:"Armory"},
+  {name:"Ship Weapons 1",race:"Terran",type:"Upgrade",buildTime:160,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Armory"},
+  {name:"Ship Weapons 2",race:"Terran",type:"Upgrade",buildTime:190,mineralCost:175,gasCost:175,supplyCost:0,builtFrom:"Armory"},
+  {name:"Ship Weapons 3",race:"Terran",type:"Upgrade",buildTime:220,mineralCost:250,gasCost:250,supplyCost:0,builtFrom:"Armory"},
+  {name:"Ship Plating 1",race:"Terran",type:"Upgrade",buildTime:160,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Armory"},
+  {name:"Ship Plating 2",race:"Terran",type:"Upgrade",buildTime:190,mineralCost:175,gasCost:175,supplyCost:0,builtFrom:"Armory"},
+  {name:"Ship Plating 3",race:"Terran",type:"Upgrade",buildTime:220,mineralCost:250,gasCost:250,supplyCost:0,builtFrom:"Armory"},
+  // Protoss Upgrades
+  {name:"Leg Enhancements",race:"Protoss",type:"Upgrade",buildTime:100,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Citadel of Adun"},
+  {name:"Singularity Charge",race:"Protoss",type:"Upgrade",buildTime:80,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Cybernetics Core"},
+  {name:"Scarab Damage",race:"Protoss",type:"Upgrade",buildTime:80,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Robotics Support Bay"},
+  {name:"Reaver Capacity",race:"Protoss",type:"Upgrade",buildTime:80,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Robotics Support Bay"},
+  {name:"Gravitic Drive",race:"Protoss",type:"Upgrade",buildTime:80,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Robotics Support Bay"},
+  {name:"Observer Speed",race:"Protoss",type:"Upgrade",buildTime:67,mineralCost:50,gasCost:50,supplyCost:0,builtFrom:"Observatory"},
+  {name:"Psionic Storm",race:"Protoss",type:"Upgrade",buildTime:80,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Templar Archives"},
+  {name:"Hallucination",race:"Protoss",type:"Upgrade",buildTime:80,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Templar Archives"},
+  {name:"Khaydarin Amulet",race:"Protoss",type:"Upgrade",buildTime:80,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Templar Archives"},
+  {name:"Maelstrom",race:"Protoss",type:"Upgrade",buildTime:80,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Templar Archives"},
+  {name:"Mind Control",race:"Protoss",type:"Upgrade",buildTime:80,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Templar Archives"},
+  {name:"Disruption Web",race:"Protoss",type:"Upgrade",buildTime:80,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Fleet Beacon"},
+  {name:"Carrier Capacity",race:"Protoss",type:"Upgrade",buildTime:93,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Fleet Beacon"},
+  {name:"Argus Jewel",race:"Protoss",type:"Upgrade",buildTime:80,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Fleet Beacon"},
+  {name:"Recall",race:"Protoss",type:"Upgrade",buildTime:80,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Arbiter Tribunal"},
+  {name:"Stasis Field",race:"Protoss",type:"Upgrade",buildTime:80,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Arbiter Tribunal"},
+  {name:"Khaydarin Core",race:"Protoss",type:"Upgrade",buildTime:80,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Arbiter Tribunal"},
+  {name:"Ground Weapons 1",race:"Protoss",type:"Upgrade",buildTime:160,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Forge"},
+  {name:"Ground Weapons 2",race:"Protoss",type:"Upgrade",buildTime:190,mineralCost:175,gasCost:175,supplyCost:0,builtFrom:"Forge"},
+  {name:"Ground Weapons 3",race:"Protoss",type:"Upgrade",buildTime:220,mineralCost:250,gasCost:250,supplyCost:0,builtFrom:"Forge"},
+  {name:"Ground Armor 1",race:"Protoss",type:"Upgrade",buildTime:160,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Forge"},
+  {name:"Ground Armor 2",race:"Protoss",type:"Upgrade",buildTime:190,mineralCost:175,gasCost:175,supplyCost:0,builtFrom:"Forge"},
+  {name:"Ground Armor 3",race:"Protoss",type:"Upgrade",buildTime:220,mineralCost:250,gasCost:250,supplyCost:0,builtFrom:"Forge"},
+  {name:"Shields 1",race:"Protoss",type:"Upgrade",buildTime:160,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Forge"},
+  {name:"Shields 2",race:"Protoss",type:"Upgrade",buildTime:190,mineralCost:300,gasCost:300,supplyCost:0,builtFrom:"Forge"},
+  {name:"Shields 3",race:"Protoss",type:"Upgrade",buildTime:220,mineralCost:400,gasCost:400,supplyCost:0,builtFrom:"Forge"},
+  {name:"Air Weapons 1",race:"Protoss",type:"Upgrade",buildTime:160,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Cybernetics Core"},
+  {name:"Air Weapons 2",race:"Protoss",type:"Upgrade",buildTime:190,mineralCost:175,gasCost:175,supplyCost:0,builtFrom:"Cybernetics Core"},
+  {name:"Air Weapons 3",race:"Protoss",type:"Upgrade",buildTime:220,mineralCost:250,gasCost:250,supplyCost:0,builtFrom:"Cybernetics Core"},
+  {name:"Air Armor 1",race:"Protoss",type:"Upgrade",buildTime:160,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Cybernetics Core"},
+  {name:"Air Armor 2",race:"Protoss",type:"Upgrade",buildTime:190,mineralCost:175,gasCost:175,supplyCost:0,builtFrom:"Cybernetics Core"},
+  {name:"Air Armor 3",race:"Protoss",type:"Upgrade",buildTime:220,mineralCost:250,gasCost:250,supplyCost:0,builtFrom:"Cybernetics Core"},
+  // Zerg Upgrades
+  {name:"Metabolic Boost",race:"Zerg",type:"Upgrade",buildTime:63,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Spawning Pool"},
+  {name:"Adrenal Glands",race:"Zerg",type:"Upgrade",buildTime:100,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Spawning Pool"},
+  {name:"Muscular Augments",race:"Zerg",type:"Upgrade",buildTime:80,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Hydralisk Den"},
+  {name:"Grooved Spines",race:"Zerg",type:"Upgrade",buildTime:80,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Hydralisk Den"},
+  {name:"Lurker Aspect",race:"Zerg",type:"Upgrade",buildTime:100,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Hydralisk Den"},
+  {name:"Pneumatized Carapace",race:"Zerg",type:"Upgrade",buildTime:84,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Hatchery"},
+  {name:"Ventral Sacs",race:"Zerg",type:"Upgrade",buildTime:101,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Hatchery"},
+  {name:"Antennae",race:"Zerg",type:"Upgrade",buildTime:84,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Hatchery"},
+  {name:"Burrow",race:"Zerg",type:"Upgrade",buildTime:60,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Hatchery"},
+  {name:"Spawn Broodlings",race:"Zerg",type:"Upgrade",buildTime:80,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Queens Nest"},
+  {name:"Ensnare",race:"Zerg",type:"Upgrade",buildTime:80,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Queens Nest"},
+  {name:"Anabolic Synthesis",race:"Zerg",type:"Upgrade",buildTime:80,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Ultralisk Cavern"},
+  {name:"Chitinous Plating",race:"Zerg",type:"Upgrade",buildTime:80,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Ultralisk Cavern"},
+  {name:"Plague",race:"Zerg",type:"Upgrade",buildTime:80,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Defiler Mound"},
+  {name:"Dark Swarm",race:"Zerg",type:"Upgrade",buildTime:80,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Defiler Mound"},
+  {name:"Consume",race:"Zerg",type:"Upgrade",buildTime:60,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Defiler Mound"},
+  {name:"Melee Attacks 1",race:"Zerg",type:"Upgrade",buildTime:160,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Evolution Chamber"},
+  {name:"Melee Attacks 2",race:"Zerg",type:"Upgrade",buildTime:190,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Evolution Chamber"},
+  {name:"Melee Attacks 3",race:"Zerg",type:"Upgrade",buildTime:220,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Evolution Chamber"},
+  {name:"Missile Attacks 1",race:"Zerg",type:"Upgrade",buildTime:160,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Evolution Chamber"},
+  {name:"Missile Attacks 2",race:"Zerg",type:"Upgrade",buildTime:190,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Evolution Chamber"},
+  {name:"Missile Attacks 3",race:"Zerg",type:"Upgrade",buildTime:220,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Evolution Chamber"},
+  {name:"Carapace 1",race:"Zerg",type:"Upgrade",buildTime:160,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Evolution Chamber"},
+  {name:"Carapace 2",race:"Zerg",type:"Upgrade",buildTime:190,mineralCost:150,gasCost:150,supplyCost:0,builtFrom:"Evolution Chamber"},
+  {name:"Carapace 3",race:"Zerg",type:"Upgrade",buildTime:220,mineralCost:200,gasCost:200,supplyCost:0,builtFrom:"Evolution Chamber"},
+  {name:"Flyer Attacks 1",race:"Zerg",type:"Upgrade",buildTime:160,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Spire"},
+  {name:"Flyer Attacks 2",race:"Zerg",type:"Upgrade",buildTime:190,mineralCost:175,gasCost:175,supplyCost:0,builtFrom:"Spire"},
+  {name:"Flyer Attacks 3",race:"Zerg",type:"Upgrade",buildTime:220,mineralCost:250,gasCost:250,supplyCost:0,builtFrom:"Spire"},
+  {name:"Flyer Carapace 1",race:"Zerg",type:"Upgrade",buildTime:160,mineralCost:100,gasCost:100,supplyCost:0,builtFrom:"Spire"},
+  {name:"Flyer Carapace 2",race:"Zerg",type:"Upgrade",buildTime:190,mineralCost:175,gasCost:175,supplyCost:0,builtFrom:"Spire"},
+  {name:"Flyer Carapace 3",race:"Zerg",type:"Upgrade",buildTime:220,mineralCost:250,gasCost:250,supplyCost:0,builtFrom:"Spire"},
+];
+
+// ─────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────
+const RACE_COLOR = { Terran: '#4a82be', Protoss: '#a08820', Zerg: '#7030a0' };
+const RACE_BG    = { Terran: '#0f1e2e', Protoss: '#1e1800', Zerg: '#160920' };
+const TRACK_H    = 42;
+const RULER_H    = 26;
+const MIN_DUR    = 300; // minimum 5 min visible
+const WIGGLE     = 120; // 2 min breathing room at end
+
+// Returns { min, max } in game-seconds. min may be negative.
+function timeRange() {
+  const items = tracks.flat();
+  const earliest = items.length ? Math.min(...items.map(it => it.startTime)) : 0;
+  const latest   = items.length ? Math.max(...items.map(it => it.startTime + it.buildTime)) : 0;
+  return {
+    min: earliest < 0 ? earliest - 10 : 0,
+    max: Math.max(MIN_DUR, latest + WIGGLE),
+  };
+}
+
+const ZOOM_STEPS = [3, 4, 6, 8, 12, 18, 26];
+let zoomIdx      = 2;   // 6px/s default
+let PPS          = ZOOM_STEPS[zoomIdx]; // pixels per second
+let TL_MIN       = 0;   // cached timeRange().min, updated each render()
+
+// ─────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────
+let tracks  = [[]];  // tracks[ti] = [{id, name, race, type, buildTime, mineralCost, gasCost, supplyCost, startTime, trackIndex}]
+let nextId  = 0;
+
+// ─────────────────────────────────────────
+// ASSET PANEL
+// ─────────────────────────────────────────
+// Returns true if item or any of its descendants match the query
+function treeMatches(item, lq) {
+  if (!lq) return true;
+  if (item.name.toLowerCase().includes(lq)) return true;
+  return DATA.some(child => child.builtFrom === item.name && treeMatches(child, lq));
+}
+
+// Build a clickable leaf row (unit / addon / upgrade)
+function makeLeafRow(item, level, color) {
+  const row = document.createElement('div');
+  row.className = `asset-item lvl${level}`;
+  row.style.color = color;
+
+  const dot = document.createElement('span');
+  dot.className = 'dot';
+  if (item.type === 'Addon') {
+    dot.style.background = 'transparent';
+    dot.style.border = `1px solid ${color}`;
+  } else if (item.type === 'Upgrade') {
+    dot.style.background = 'transparent';
+    dot.style.border = `1px dashed ${color}`;
+    dot.style.borderRadius = '1px'; // square-ish for upgrades
+  } else {
+    dot.style.background = color;
+  }
+  row.appendChild(dot);
+
+  const nm = document.createElement('span');
+  nm.textContent = item.name;
+  nm.style.flex = '1';
+  row.appendChild(nm);
+
+  const t = document.createElement('span');
+  t.className = 'asset-time';
+  t.textContent = item.buildTime + 's';
+  row.appendChild(t);
+
+  row.onclick = () => addItem(item);
+  return row;
+}
+
+// Build a collapsible building row with nested addons/upgrades
+function makeBuildingTree(building, lq, color, forceOpen) {
+  const addons    = DATA.filter(d => d.builtFrom === building.name && d.type === 'Addon');
+  const upgrades  = DATA.filter(d => d.builtFrom === building.name && d.type === 'Upgrade')
+                        .filter(d => treeMatches(d, lq));
+  const hasChildren = addons.some(a => treeMatches(a, lq)) || upgrades.length > 0;
+
+  const wrap = document.createElement('div');
+
+  // Building toggle row — clicking it adds the building AND toggles children
+  const toggle = document.createElement('div');
+  toggle.className = 'tree-building';
+  toggle.style.color = color;
+
+  const caret = document.createElement('span');
+  caret.className = 'tree-caret';
+  caret.textContent = hasChildren ? '▶' : '';
+  toggle.appendChild(caret);
+
+  const dot = document.createElement('span');
+  dot.className = 'dot';
+  dot.style.background = color;
+  toggle.appendChild(dot);
+
+  const nm = document.createElement('span');
+  nm.className = 'tree-building-name';
+  nm.textContent = building.name;
+  toggle.appendChild(nm);
+
+  const t = document.createElement('span');
+  t.className = 'tree-building-time';
+  t.textContent = building.buildTime + 's';
+  toggle.appendChild(t);
+
+  wrap.appendChild(toggle);
+
+  // Children container
+  const children = document.createElement('div');
+  children.className = 'tree-children' + (forceOpen ? ' open' : '');
+  if (forceOpen && hasChildren) caret.textContent = '▼';
+
+  // Toggle expand on caret click; add building on name click
+  toggle.addEventListener('click', e => {
+    if (!hasChildren) { addItem(building); return; }
+    const open = children.classList.toggle('open');
+    caret.textContent = open ? '▼' : '▶';
+    // Click on the name/dot part also adds the building
+    if (!e.target.closest('.tree-caret')) addItem(building);
+  });
+
+  // Direct upgrades under building
+  upgrades.forEach(u => children.appendChild(makeLeafRow(u, 1, color)));
+
+  // Addons under building, each with their own upgrades
+  addons.filter(a => treeMatches(a, lq)).forEach(addon => {
+    const addonUpgrades = DATA.filter(d => d.builtFrom === addon.name && d.type === 'Upgrade')
+                              .filter(d => treeMatches(d, lq));
+
+    children.appendChild(makeLeafRow(addon, 1, color));
+
+    addonUpgrades.forEach(u => children.appendChild(makeLeafRow(u, 2, color)));
+  });
+
+  wrap.appendChild(children);
+  return wrap;
+}
+
+function buildAssetPanel(q = '') {
+  const list = document.getElementById('asset-list');
+  const panel = document.getElementById('asset-panel');
+  if (!list || !panel || panel.style.display === 'none') return;
+  list.innerHTML = '';
+  const lq = q.toLowerCase().trim();
+  const forceOpen = lq.length > 0; // auto-expand when searching
+
+  ['Terran','Protoss','Zerg'].forEach(race => {
+    const color = RACE_COLOR[race] + 'bb';
+
+    // ── Units ──
+    const units = DATA.filter(d => d.race === race && d.type === 'Unit' && treeMatches(d, lq));
+    if (units.length) {
+      const grp = document.createElement('div');
+      grp.className = 'asset-group';
+      grp.textContent = `${race} Units`;
+      grp.style.color = RACE_COLOR[race] + '70';
+      list.appendChild(grp);
+      units.forEach(u => list.appendChild(makeLeafRow(u, 0, color)));
+    }
+
+    // ── Buildings (with nested addons + upgrades) ──
+    const buildings = DATA.filter(d => d.race === race && d.type === 'Building' && treeMatches(d, lq));
+    if (buildings.length) {
+      const grp = document.createElement('div');
+      grp.className = 'asset-group';
+      grp.textContent = `${race} Buildings`;
+      grp.style.color = RACE_COLOR[race] + '70';
+      list.appendChild(grp);
+      buildings.forEach(b => list.appendChild(makeBuildingTree(b, lq, color, forceOpen)));
+    }
+  });
+}
+
+function filterAssets(v) { buildAssetPanel(v); }
+
+// ─────────────────────────────────────────
+// TIMELINE STATE
+// ─────────────────────────────────────────
+function overlaps(trackItems, startTime, duration, excludeId) {
+  const end = startTime + duration;
+  return trackItems.some(it => {
+    if (it.id === excludeId) return false;
+    return startTime < it.startTime + it.buildTime && end > it.startTime;
+  });
+}
+
+function addItem(dataItem) {
+  // Find first track where item fits at t=0
+  for (let ti = 0; ti < tracks.length; ti++) {
+    if (!overlaps(tracks[ti], 0, dataItem.buildTime, null)) {
+      placeItem(dataItem, ti, 0);
+      return;
+    }
+  }
+  // All tracks occupied at t=0 — create new track
+  tracks.push([]);
+  placeItem(dataItem, tracks.length - 1, 0);
+}
+
+function placeItem(dataItem, ti, startTime) {
+  const item = {
+    id: nextId++,
+    name: dataItem.name, race: dataItem.race, type: dataItem.type,
+    buildTime: dataItem.buildTime, mineralCost: dataItem.mineralCost,
+    gasCost: dataItem.gasCost, supplyCost: dataItem.supplyCost,
+    startTime, trackIndex: ti,
+  };
+  tracks[ti].push(item);
+  render();
+  saveURL();
+}
+
+function removeItem(id) {
+  for (let ti = 0; ti < tracks.length; ti++) {
+    const idx = tracks[ti].findIndex(it => it.id === id);
+    if (idx === -1) continue;
+    tracks[ti].splice(idx, 1);
+    pruneEmptyTracks();
+    render();
+    saveURL();
+    return;
+  }
+}
+
+function pruneEmptyTracks() {
+  while (tracks.length > 1 && tracks[tracks.length - 1].length === 0) tracks.pop();
+}
+
+// ─────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────
+function render(skipBO = false) {
+  const range = timeRange();
+  TL_MIN = range.min;
+  const W = (range.max - range.min) * PPS;
+  document.getElementById('tl-inner').style.width   = W + 'px';
+  document.getElementById('ruler').style.width      = W + 'px';
+  document.getElementById('supply-row').style.width = W + 'px';
+  document.getElementById('tracks').style.width     = W + 'px';
+  renderRuler(range);
+  renderSupplyRow(range, W);
+  renderTracks();
+  renderLabels();
+  if (!skipBO) updateBO();
+  document.getElementById('zoom-info').textContent = PPS + 'px/s';
+}
+
+function renderRuler(range) {
+  const ruler = document.getElementById('ruler');
+  ruler.innerHTML = '';
+
+  const maj = PPS >= 18 ? 10 : PPS >= 8 ? 15 : PPS >= 5 ? 30 : 60;
+  const min = PPS >= 18 ? 5  : PPS >= 8 ? 5  : PPS >= 5 ? 10 : 30;
+
+  // Snap start to a multiple of min
+  const startS = Math.floor(range.min / min) * min;
+  for (let s = startS; s <= range.max; s += min) {
+    const x = (s - range.min) * PPS;
+    const isMaj = s % maj === 0;
+    const tick = document.createElement('div');
+    tick.className = 'tick' + (isMaj ? ' major' : '');
+    tick.style.left   = x + 'px';
+    tick.style.height = isMaj ? '100%' : '35%';
+    ruler.appendChild(tick);
+    if (isMaj) {
+      const lbl = document.createElement('div');
+      lbl.className = 'tick-label';
+      lbl.style.left = x + 'px';
+      lbl.textContent = fmt(s);
+      ruler.appendChild(lbl);
+    }
+  }
+
+  // t=0 marker (only when timeline has negative region)
+  if (range.min < 0) {
+    const x0 = (0 - range.min) * PPS;
+    const z = document.createElement('div');
+    z.className = 'tick-zero';
+    z.style.left = x0 + 'px';
+    ruler.appendChild(z);
+    const zl = document.createElement('div');
+    zl.className = 'tick-zero-label';
+    zl.style.left = x0 + 'px';
+    zl.textContent = '0:00';
+    ruler.appendChild(zl);
+  }
+}
+
+function renderTracks() {
+  const container = document.getElementById('tracks');
+  container.innerHTML = '';
+  tracks.forEach((items, ti) => {
+    const row = document.createElement('div');
+    row.className = 'track-row';
+    row.dataset.ti = ti;
+    items.forEach(item => row.appendChild(makeBlock(item)));
+    container.appendChild(row);
+  });
+}
+
+function renderLabels() {
+  const list = document.getElementById('label-list');
+  list.innerHTML = '';
+  tracks.forEach((_, ti) => {
+    const cell = document.createElement('div');
+    cell.className = 'label-cell';
+    cell.textContent = `T${ti + 1}`;
+    list.appendChild(cell);
+  });
+}
+
+function renderSupplyRow(range, W) {
+  const row = document.getElementById('supply-row');
+  row.innerHTML = '';
+}
+
+function makeBlock(item) {
+  const bl = document.createElement('div');
+  bl.className = 'bl';
+  bl.dataset.id = item.id;
+  bl.style.left    = ((item.startTime - TL_MIN) * PPS) + 'px';
+  bl.style.width   = Math.max(item.buildTime * PPS - 2, 6) + 'px';
+  bl.style.background = RACE_BG[item.race];
+  bl.style.borderLeft = `2px ${item.type === 'Upgrade' ? 'dashed' : 'solid'} ${RACE_COLOR[item.race]}`;
+  bl.style.color   = RACE_COLOR[item.race];
+  if (item.type === 'Upgrade') bl.style.opacity = '0.85';
+
+  const sp = document.createElement('span');
+  sp.textContent = item.name;
+  bl.appendChild(sp);
+
+  bl.addEventListener('mousedown',  e => dragStart(e, item));
+  bl.addEventListener('mouseenter', e => tipShow(e, item));
+  bl.addEventListener('mousemove',  tipMove);
+  bl.addEventListener('mouseleave', tipHide);
+  bl.addEventListener('contextmenu', e => { e.preventDefault(); ctxShow(e, item.id); });
+
+  return bl;
+}
+
+// ─────────────────────────────────────────
+// DRAG
+// ─────────────────────────────────────────
+const ghost = document.getElementById('ghost');
+let drag = null;
+
+function dragStart(e, item) {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  tipHide();
+
+  const blEl = e.currentTarget;
+  const rect  = blEl.getBoundingClientRect();
+  const offX  = e.clientX - rect.left;
+
+  // Style ghost
+  ghost.style.display    = 'flex';
+  ghost.style.width      = blEl.style.width;
+  ghost.style.background = blEl.style.background;
+  ghost.style.borderLeft = blEl.style.borderLeft;
+  ghost.style.color      = blEl.style.color;
+  ghost.innerHTML = `<span id="ghost-name">${item.name}</span><span id="ghost-time"></span>`;
+
+  blEl.style.opacity = '0.25';
+
+  drag = { item, blEl, offX };
+
+  document.addEventListener('mousemove', dragMove);
+  document.addEventListener('mouseup',   dragEnd);
+}
+
+function dragMove(e) {
+  if (!drag) return;
+  const { item, offX } = drag;
+
+  const scroll    = document.getElementById('tl-scroll');
+  const tracksEl  = document.getElementById('tracks');
+  const tracksRect = tracksEl.getBoundingClientRect();
+  const scrollRect = scroll.getBoundingClientRect();
+
+  // Compute snapped time (allow negative)
+  const relX   = e.clientX - tracksRect.left + scroll.scrollLeft - offX;
+  const secRaw = relX / PPS + TL_MIN;
+  const sec    = Math.round(secRaw);
+
+  // Compute target track
+  const relY = e.clientY - tracksRect.top + scroll.scrollTop;
+  const ti   = Math.max(0, Math.min(tracks.length, Math.floor(relY / TRACK_H)));
+
+  drag.previewSec   = sec;
+  drag.previewTrack = ti;
+
+  // Position ghost on screen (snapped)
+  const ghostX = tracksRect.left - scroll.scrollLeft + (sec - TL_MIN) * PPS;
+  const ghostY = tracksRect.top  - scroll.scrollTop  + Math.min(ti, tracks.length - 1) * TRACK_H + 3;
+  ghost.style.left = ghostX + 'px';
+  ghost.style.top  = ghostY + 'px';
+
+  // Live time label
+  const ghostTimeEl = document.getElementById('ghost-time');
+  if (ghostTimeEl) ghostTimeEl.textContent = `${fmt(sec)} → ${fmt(sec + item.buildTime)}`;
+
+  // Auto-scroll
+  if (e.clientX > scrollRect.right  - 50) scroll.scrollLeft += 10;
+  if (e.clientX < scrollRect.left   + 50) scroll.scrollLeft -= 10;
+  if (e.clientY > scrollRect.bottom - 40) scroll.scrollTop  += 10;
+  if (e.clientY < scrollRect.top    + 40) scroll.scrollTop  -= 10;
+}
+
+function dragEnd() {
+  if (!drag) return;
+  const { item, blEl } = drag;
+  const newSec   = drag.previewSec   ?? item.startTime;
+  let   newTrack = drag.previewTrack ?? item.trackIndex;
+
+  // Remove from original track
+  tracks[item.trackIndex] = tracks[item.trackIndex].filter(i => i.id !== item.id);
+
+  // Extend tracks array if dropped below existing tracks
+  while (tracks.length <= newTrack) tracks.push([]);
+
+  // Validate & place
+  if (!overlaps(tracks[newTrack], newSec, item.buildTime, item.id)) {
+    item.startTime   = newSec;
+    item.trackIndex  = newTrack;
+  } else {
+    // Revert to original
+    item.trackIndex = drag.item.trackIndex; // already mutated so re-use backup
+    newTrack = item.trackIndex;
+  }
+  tracks[item.trackIndex].push(item);
+  pruneEmptyTracks();
+
+  ghost.style.display = 'none';
+  blEl.style.opacity  = '';
+  drag = null;
+  document.removeEventListener('mousemove', dragMove);
+  document.removeEventListener('mouseup',   dragEnd);
+
+  render();
+  saveURL();
+}
+
+// ─────────────────────────────────────────
+// TOOLTIP
+// ─────────────────────────────────────────
+const tip = document.getElementById('tip');
+
+function tipShow(e, item) {
+  const endTime = item.startTime + item.buildTime;
+  const sup = item.supplyCost > 0 ? `&nbsp; Supply &nbsp;<b style="color:#ddd">${item.supplyCost}</b>` : '';
+  tip.innerHTML =
+    `<b style="color:#fff">${item.name}</b>  <span style="color:#444">${item.race} ${item.type}</span><br>` +
+    `<span style="color:#555">start</span> <b style="color:#f0c040">${fmt(item.startTime)}</b> &nbsp;→&nbsp; <span style="color:#555">end</span> <b style="color:#f0c040">${fmt(endTime)}</b><br>` +
+    `<span style="color:#444">build time &nbsp;${item.buildTime}s</span><br>` +
+    `Minerals &nbsp;<b style="color:#ddd">${item.mineralCost}</b> &nbsp; Gas &nbsp;<b style="color:#ddd">${item.gasCost}</b>${sup}`;
+  tip.style.display = 'block';
+  tipMove(e);
+}
+function tipMove(e) {
+  tip.style.left = (e.clientX + 14) + 'px';
+  tip.style.top  = (e.clientY - 8)  + 'px';
+}
+function tipHide() { tip.style.display = 'none'; }
+
+// ─────────────────────────────────────────
+// CONTEXT MENU
+// ─────────────────────────────────────────
+const ctx = document.getElementById('ctx');
+let ctxId = null;
+
+function ctxShow(e, id) {
+  ctxId = id;
+  ctx.style.left    = e.clientX + 'px';
+  ctx.style.top     = e.clientY + 'px';
+  ctx.style.display = 'block';
+}
+
+document.getElementById('ctx-remove').onclick = () => {
+  if (ctxId !== null) removeItem(ctxId);
+  ctx.style.display = 'none'; ctxId = null;
+};
+document.addEventListener('click', e => {
+  if (!e.target.closest('#ctx')) ctx.style.display = 'none';
+});
+
+// ─────────────────────────────────────────
+// BUILD ORDER
+// ─────────────────────────────────────────
+function updateBO() {
+  const all = tracks.flat().sort((a, b) => a.startTime - b.startTime || a.trackIndex - b.trackIndex);
+  const multiTrack = tracks.filter(t => t.length > 0).length > 1;
+  document.getElementById('bo-text').value =
+    all.map(it => {
+      const prefix = multiTrack ? `(${it.trackIndex + 1}) ` : '';
+      return `${prefix}${fmt(it.startTime)}  ${it.name}`;
+    }).join('\n');
+}
+
+function fmt(s) {
+  const neg = s < 0;
+  const abs = Math.abs(s);
+  const m   = Math.floor(abs / 60);
+  const sec = String(Math.floor(abs % 60)).padStart(2, '0');
+  return (neg ? '-' : '') + `${m}:${sec}`;
+}
+
+function copyBO(btn) {
+  const ta = document.getElementById('bo-text');
+  ta.select(); document.execCommand('copy');
+  btn.textContent = 'Copied!';
+  setTimeout(() => btn.textContent = 'Copy', 1200);
+}
+
+// ─────────────────────────────────────────
+// ZOOM
+// ─────────────────────────────────────────
+function zoom(dir) {
+  zoomIdx = Math.max(0, Math.min(ZOOM_STEPS.length - 1, zoomIdx + dir));
+  PPS = ZOOM_STEPS[zoomIdx];
+  render();
+}
+
+// ─────────────────────────────────────────
+// URL ENCODE / DECODE
+// ─────────────────────────────────────────
+const LS_KEY = 'bw-build-order';
+
+function saveURL() {
+  const flat = [];
+  tracks.forEach((tr, ti) => tr.forEach(it => flat.push({ n: it.name, t: it.startTime, r: ti })));
+  const encoded = btoa(JSON.stringify(flat));
+  history.replaceState(null, '', '#' + encoded);
+  try { localStorage.setItem(LS_KEY, encoded); } catch {}
+}
+
+function decodeState(encoded) {
+  const flat = JSON.parse(atob(encoded));
+  tracks = [];
+  flat.forEach(entry => {
+    while (tracks.length <= entry.r) tracks.push([]);
+    const src = DATA.find(d => d.name === entry.n);
+    if (!src) return;
+    tracks[entry.r].push({
+      id: nextId++, name: src.name, race: src.race, type: src.type,
+      buildTime: src.buildTime, mineralCost: src.mineralCost,
+      gasCost: src.gasCost, supplyCost: src.supplyCost,
+      startTime: entry.t, trackIndex: entry.r,
+    });
+  });
+  if (!tracks.length) tracks = [[]];
+}
+
+function loadURL() {
+  // URL hash takes priority (enables shareable links); fall back to localStorage
+  const hash = location.hash.slice(1);
+  const stored = hash || (() => { try { return localStorage.getItem(LS_KEY) || ''; } catch { return ''; } })();
+  if (!stored) return;
+  try { decodeState(stored); } catch { tracks = [[]]; }
+}
+
+// ─────────────────────────────────────────
+// TOOLBAR ACTIONS
+// ─────────────────────────────────────────
+function clearAll() {
+  tracks = [[]]; render(); saveURL();
+}
+
+function copyLink(btn) {
+  navigator.clipboard.writeText(location.href).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy Link', 1400);
+  });
+}
+
+// ─────────────────────────────────────────
+// NAMED SAVES
+// ─────────────────────────────────────────
+const SAVES_KEY = 'bw-named-saves';
+
+function getSaves() {
+  try { return JSON.parse(localStorage.getItem(SAVES_KEY) || '{}'); } catch { return {}; }
+}
+
+function setSaves(obj) {
+  try { localStorage.setItem(SAVES_KEY, JSON.stringify(obj)); } catch {}
+}
+
+function saveBuild() {
+  const name = prompt('Save build as:');
+  if (!name || !name.trim()) return;
+  const flat = [];
+  tracks.forEach((tr, ti) => tr.forEach(it => flat.push({ n: it.name, t: it.startTime, r: ti })));
+  const encoded = btoa(JSON.stringify(flat));
+  const saves = getSaves();
+  saves[name.trim()] = encoded;
+  setSaves(saves);
+}
+
+function loadBuild(name) {
+  const saves = getSaves();
+  if (!saves[name]) return;
+  try {
+    decodeState(saves[name]);
+    render();
+    saveURL();
+  } catch {}
+  closeSavesPanel();
+}
+
+function deleteSave(name) {
+  const saves = getSaves();
+  delete saves[name];
+  setSaves(saves);
+  renderSavesPanel();
+}
+
+let savesPanelOpen = false;
+function toggleSavesPanel(btn) {
+  if (savesPanelOpen) { closeSavesPanel(); return; }
+  const panel = document.getElementById('saves-panel');
+  const rect = btn.getBoundingClientRect();
+  panel.style.top  = (rect.bottom + 4) + 'px';
+  panel.style.right = (window.innerWidth - rect.right) + 'px';
+  panel.style.left  = 'auto';
+  renderSavesPanel();
+  panel.style.display = 'block';
+  savesPanelOpen = true;
+}
+
+function closeSavesPanel() {
+  document.getElementById('saves-panel').style.display = 'none';
+  savesPanelOpen = false;
+}
+
+function renderSavesPanel() {
+  const saves = getSaves();
+  const names = Object.keys(saves);
+  const panel = document.getElementById('saves-panel');
+  if (!names.length) {
+    panel.innerHTML = '<div id="saves-empty">No saved builds</div>';
+    return;
+  }
+  panel.innerHTML = '';
+  names.forEach(name => {
+    const row = document.createElement('div');
+    row.className = 'save-row';
+
+    const label = document.createElement('span');
+    label.className = 'save-name';
+    label.title = name;
+    label.textContent = name;
+
+    const loadBtn = document.createElement('button');
+    loadBtn.className = 'save-btn';
+    loadBtn.type = 'button';
+    loadBtn.textContent = 'Load';
+    loadBtn.addEventListener('click', () => loadBuild(name));
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'save-btn del';
+    deleteBtn.type = 'button';
+    deleteBtn.textContent = '✕';
+    deleteBtn.addEventListener('click', () => deleteSave(name));
+
+    row.append(label, loadBtn, deleteBtn);
+    panel.appendChild(row);
+  });
+}
+
+document.addEventListener('click', e => {
+  if (savesPanelOpen &&
+      !e.target.closest('#saves-panel') &&
+      !e.target.closest('#load-btn')) {
+    closeSavesPanel();
+  }
+});
+
+// Sync label column scroll with timeline vertical scroll
+document.getElementById('tl-scroll').addEventListener('scroll', function () {
+  document.getElementById('label-list').scrollTop = this.scrollTop;
+});
+
+// ─────────────────────────────────────────
+// BUILD ORDER — TWO-WAY SYNC
+// ─────────────────────────────────────────
+
+// Parse M:SS → total seconds. Returns null if invalid.
+function parseTime(str) {
+  const m = str.match(/^(-?)(\d+):(\d{2})$/);
+  if (!m) return null;
+  const val = parseInt(m[2]) * 60 + parseInt(m[3]);
+  return m[1] === '-' ? -val : val;
+}
+
+// Parse all lines in the textarea and rebuild the timeline.
+// Called with a debounce so we don't re-render on every keystroke.
+let boDebounce = null;
+function onBOInput() {
+  acUpdate();
+  clearTimeout(boDebounce);
+  boDebounce = setTimeout(parseAndApply, 380);
+}
+
+function parseAndApply() {
+  const ta   = document.getElementById('bo-text');
+  const lines = ta.value.split('\n');
+
+  const parsed = [];
+  lines.forEach(line => {
+    const raw = line.trim();
+    if (!raw) return;
+    // Accept: "(N) M:SS Name [-> Name2 -> Name3]"  (negative times, optional track)
+    const m = raw.match(/^(?:\((\d+)\)\s+)?(-?\d+:\d{2})\s+(.+)$/);
+    if (!m) return;
+    const trackHint = m[1] != null ? parseInt(m[1]) - 1 : null; // 1-indexed → 0-indexed
+    const secs = parseTime(m[2]);
+    if (secs === null) return;
+    // Split chained names by ->
+    const names = m[3].split(/\s*->\s*/);
+    let chainTime = secs;
+    for (const rawName of names) {
+      const name = rawName.trim();
+      const src  = DATA.find(d => d.name.toLowerCase() === name.toLowerCase());
+      if (!src) break; // stop chain on unknown name
+      parsed.push({ src, startTime: chainTime, trackHint });
+      chainTime += src.buildTime;
+    }
+  });
+
+  // Sort by start time for greedy track assignment
+  parsed.sort((a, b) => a.startTime - b.startTime);
+
+  // Rebuild tracks
+  tracks  = [[]];
+  nextId  = 0;
+  parsed.forEach(({ src, startTime, trackHint }) => {
+    if (trackHint !== null) {
+      while (tracks.length <= trackHint) tracks.push([]);
+      tracks[trackHint].push(makeItemObj(src, trackHint, startTime));
+    } else {
+      let placed = false;
+      for (let ti = 0; ti < tracks.length; ti++) {
+        if (!overlaps(tracks[ti], startTime, src.buildTime, null)) {
+          tracks[ti].push(makeItemObj(src, ti, startTime));
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        const ti = tracks.length;
+        tracks.push([makeItemObj(src, ti, startTime)]);
+      }
+    }
+  });
+
+  pruneEmptyTracks();
+  render(true);  // skipBO=true — don't overwrite textarea
+  saveURL();
+}
+
+function makeItemObj(src, ti, startTime) {
+  return {
+    id: nextId++, name: src.name, race: src.race, type: src.type,
+    buildTime: src.buildTime, mineralCost: src.mineralCost,
+    gasCost: src.gasCost, supplyCost: src.supplyCost, builtFrom: src.builtFrom,
+    startTime, trackIndex: ti,
+  };
+}
+
+// ─────────────────────────────────────────
+// AUTOCOMPLETE
+// ─────────────────────────────────────────
+const acEl  = document.getElementById('ac');
+const mirEl = document.getElementById('ta-mirror');
+let acSuggestions = [];
+let acIdx = -1;
+
+// Called on every keystroke — show/update or hide autocomplete
+function acUpdate() {
+  const ta  = document.getElementById('bo-text');
+  const pos = ta.selectionStart;
+  const val = ta.value;
+
+  // Get current line up to cursor
+  const lineStart = val.lastIndexOf('\n', pos - 1) + 1;
+  const lineUpTo  = val.slice(lineStart, pos);
+
+  // Strip optional track hint + timestamp prefix; bail if line doesn't have one
+  const lineBody = lineUpTo.replace(/^(?:\(\d+\)\s+)?-?\d+:\d{2}\s+/, '');
+  if (lineBody === lineUpTo) { acHide(); return; }
+
+  // Fragment being typed is everything after the last ->
+  const arrowIdx = lineBody.lastIndexOf('->');
+  const typed = arrowIdx >= 0 ? lineBody.slice(arrowIdx + 2).replace(/^\s+/, '') : lineBody;
+  if (!typed) { acHide(); return; }
+
+  const lq = typed.toLowerCase();
+  acSuggestions = DATA.filter(d => d.name.toLowerCase().startsWith(lq));
+  if (!acSuggestions.length) { acHide(); return; }
+
+  acIdx = 0;
+  acRender();
+  acPosition(ta, pos);
+}
+
+function acRender() {
+  acEl.innerHTML = '';
+  acSuggestions.slice(0, 9).forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'ac-item' + (i === acIdx ? ' ac-sel' : '');
+    row.innerHTML =
+      `<span class="dot" style="background:${RACE_COLOR[item.race]};flex-shrink:0"></span>` +
+      `<span>${item.name}</span>` +
+      `<span class="ac-race">${item.race}</span>` +
+      `<span class="ac-time">${item.buildTime}s</span>`;
+    row.onmousedown = e => { e.preventDefault(); acCommit(i); };
+    acEl.appendChild(row);
+  });
+  acEl.style.display = 'block';
+}
+
+// Position the dropdown near the cursor using the mirror div trick
+function acPosition(ta, pos) {
+  const taRect = ta.getBoundingClientRect();
+  const cs     = getComputedStyle(ta);
+
+  mirEl.style.width      = taRect.width + 'px';
+  mirEl.style.top        = taRect.top + 'px';
+  mirEl.style.left       = taRect.left + 'px';
+  mirEl.style.paddingTop = cs.paddingTop;
+  mirEl.style.paddingLeft = cs.paddingLeft;
+
+  // Fill mirror up to cursor, append a marker span
+  const before = document.createTextNode(ta.value.slice(0, pos));
+  const marker = document.createElement('span');
+  marker.textContent = '\u200b'; // zero-width space
+  mirEl.innerHTML = '';
+  mirEl.appendChild(before);
+  mirEl.appendChild(marker);
+
+  const mRect = marker.getBoundingClientRect();
+  let x = mRect.left;
+  let y = mRect.bottom + 2;
+
+  // Clamp so dropdown doesn't go off screen
+  const acW = 220;
+  if (x + acW > window.innerWidth) x = window.innerWidth - acW - 8;
+
+  acEl.style.left = x + 'px';
+  acEl.style.top  = y + 'px';
+}
+
+function acHide() {
+  acEl.style.display = 'none';
+  acSuggestions = [];
+  acIdx = -1;
+}
+
+function acCommit(idx) {
+  const item = acSuggestions[idx];
+  if (!item) return;
+
+  const ta  = document.getElementById('bo-text');
+  const pos = ta.selectionStart;
+  const val = ta.value;
+
+  const lineStart = val.lastIndexOf('\n', pos - 1) + 1;
+  const lineUpTo  = val.slice(lineStart, pos);
+
+  // Strip track hint + timestamp prefix to get the body
+  const bodyMatch = lineUpTo.match(/^(?:\(\d+\)\s+)?-?\d+:\d{2}\s+/);
+  if (!bodyMatch) return;
+  const bodyStart = lineStart + bodyMatch[0].length;
+  const bodyUpTo  = val.slice(bodyStart, pos);
+
+  // Replace only the fragment after the last -> (or the whole body if no ->)
+  const arrowIdx = bodyUpTo.lastIndexOf('->');
+  const replaceStart = arrowIdx >= 0
+    ? bodyStart + arrowIdx + 2 + (bodyUpTo.slice(arrowIdx + 2).match(/^\s*/)[0].length)
+    : bodyStart;
+  const newVal = val.slice(0, replaceStart) + item.name + val.slice(pos);
+  ta.value = newVal;
+  const newPos = replaceStart + item.name.length;
+  ta.setSelectionRange(newPos, newPos);
+
+  acHide();
+  // Trigger parse after short delay so user can see the completed text
+  clearTimeout(boDebounce);
+  boDebounce = setTimeout(parseAndApply, 100);
+}
+
+// Keyboard handling for autocomplete + normal editing
+function onBOKey(e) {
+  const open = acEl.style.display !== 'none' && acSuggestions.length;
+
+  if (open) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      acIdx = Math.min(acIdx + 1, Math.min(acSuggestions.length, 9) - 1);
+      acRender();
+      acPosition(document.getElementById('bo-text'), document.getElementById('bo-text').selectionStart);
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      acIdx = Math.max(acIdx - 1, 0);
+      acRender();
+      acPosition(document.getElementById('bo-text'), document.getElementById('bo-text').selectionStart);
+      return;
+    }
+    if (e.key === 'Tab' || e.key === 'Enter') {
+      e.preventDefault();
+      acCommit(acIdx);
+      return;
+    }
+    if (e.key === 'Escape') {
+      acHide();
+      return;
+    }
+  }
+
+  // Enter on a new line when no autocomplete: insert timestamp template
+  if (e.key === 'Enter' && !open) {
+    // Let browser handle the newline, then prepend a hint on next line
+    // (no action needed — user types the time manually)
+  }
+}
+
+// Hide autocomplete when clicking outside
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('#ac') && !e.target.closest('#bo-text')) acHide();
+});
+
+// ─────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────
+loadURL();
+buildAssetPanel();
+render();
+</script>
+<script src="vendor/jszip.min.js"></script>
+<script src="build-order.override.js"></script>
+</body>
+</html>
+

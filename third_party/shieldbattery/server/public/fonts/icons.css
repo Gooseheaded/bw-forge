@@ -1,0 +1,10 @@
+/* https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,FILL,GRAD@20..48,0..1,-25..0&display=block */
+/* fallback */
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('Material_Symbols_Outlined-normal-400-fallback.woff2') format('woff2');
+}
+

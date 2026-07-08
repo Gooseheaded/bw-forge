@@ -1,0 +1,53 @@
+BW Forge Third-Party Notices
+============================
+
+This Windows distribution bundles several third-party components required for
+offline replay analysis and local MCP serving.
+
+Bundled components
+------------------
+
+1. Electron / Chromium runtime
+   - Used for the BW Forge desktop shell and embedded Node runtime.
+   - Electron license information is shipped alongside the installed app as:
+     - LICENSE.electron.txt
+     - LICENSES.chromium.html
+
+2. CPython embeddable distribution
+   - Version: 3.14.6 (x64 embeddable Windows distribution)
+   - Used for replay reduction.
+   - License file is bundled under:
+     - resources\runtime\python\cpython-3.14.6-embed-amd64\LICENSE.txt
+
+3. ShieldBattery replay-export runtime
+   - Source package: shieldbattery
+   - Version: 10.4.2
+   - License: MIT
+   - This distribution embeds a BW Forge-specific replay-engine build derived
+     from the imported fork under third_party\shieldbattery in the source tree.
+
+4. Corpus query runtime
+   - Source package: bw-replay-corpus-query
+   - Version: 0.1.0
+   - License: MIT
+
+5. BW Forge desktop shell
+   - Source package: @bw-forge/desktop
+   - Version: 0.1.0
+
+Not bundled
+-----------
+
+StarCraft: Brood War / StarCraft: Remastered is NOT redistributed with BW Forge.
+Users must point BW Forge at an existing local installation of the game.
+
+Source-tree references
+----------------------
+
+The corresponding source imports in this repository are located at:
+  - third_party\shieldbattery
+  - packages\corpus-query
+  - apps\desktop
+
+If this notice file and a bundled component disagree, treat the installed
+license files shipped with that component as authoritative.

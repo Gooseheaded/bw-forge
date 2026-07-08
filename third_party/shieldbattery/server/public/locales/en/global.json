@@ -1,0 +1,1374 @@
+{
+  "auth": {
+    "emailValidator": {
+      "pattern": "Enter a valid email address",
+      "required": "Enter an email address"
+    },
+    "emailVerification": {
+      "codeLabel": "Verification code",
+      "codeRequired": "Enter your verification code",
+      "explanation": "Your email address has not been verified. Verifying your email helps us keep your account secure and allows us to assist you if you forget your login information.",
+      "instructions": "Enter the verification code sent to <2>{{email}}</2>.",
+      "resend": "Resend email",
+      "resendText": "Don't see the email?",
+      "resent": "Verification email resent!",
+      "submitError": "There was a problem verifying your email. Please try again later.",
+      "title": "Verify your email",
+      "verify": "Verify"
+    },
+    "forgot": {
+      "backToLogin": "Back to login",
+      "password": {
+        "alreadyHaveCodeLink": "Already have a code?",
+        "emailAddress": "Email address",
+        "explanationText": "Enter the email address and username associated with your account. We'll send you an email with a reset code to set a new password.",
+        "sendResetEmail": "Send reset email",
+        "title": "Request password reset",
+        "username": "Username"
+      },
+      "reset": {
+        "confirmPassword": "Confirm new password",
+        "continueToLogin": "Continue to login",
+        "explanationText": "You will receive an email with a reset code. Enter that code here along with your new password.",
+        "newPassword": "New password",
+        "passwordCode": "Reset code",
+        "setNewPassword": "Set new password",
+        "successMessage": "Your password has been reset.",
+        "title": "Reset password"
+      },
+      "user": {
+        "emailAddress": "Email address",
+        "enterEmail": "Enter the email address associated with your account. We'll send you an email with all the usernames associated with that email address (if any).",
+        "recoverUsername": "Recover username",
+        "successMessage": "You should receive an email shortly with all the usernames associated with that email address (if any).",
+        "title": "Recover your username"
+      }
+    },
+    "language": {
+      "changeErrorHeader": "Error changing the language",
+      "changeErrorMessage": "Something went wrong when changing the language"
+    },
+    "login": {
+      "createAccountLinkText": "Don't have an account? <1>Create an account</1>",
+      "forgotPassword": "Reset password",
+      "forgotUsername": "Recover username",
+      "logIn": "Log in",
+      "password": "Password",
+      "rememberMe": "Remember me",
+      "title": "Log in to ShieldBattery",
+      "username": "Username"
+    },
+    "noPermissionsPage": {
+      "body": "You don't have enough permissions to access this page."
+    },
+    "passwordValidator": {
+      "confirm": "Confirm your password",
+      "matching": "Enter a matching password",
+      "required": "Enter a password",
+      "resetCode": "Enter your password reset code"
+    },
+    "randomCodeValidator": {
+      "codePattern": "Invalid code. It should look like {{example}}."
+    },
+    "restriction": {
+      "chat": {
+        "notification": "<0>Your account has been restricted from sending chat messages for the following reason:</0><1>{{reasonLabel}}</1><2>This restriction will end on:</2><3>{{endText}}</3>"
+      }
+    },
+    "signup": {
+      "ageConfirmation": "I certify that I am 13 years of age or older",
+      "alreadyHaveAccount": "Already have an account? <1>Log in</1>",
+      "confirmPassword": "Confirm password",
+      "createAccount": "Create account",
+      "emailAddress": "Email address",
+      "haveSignupCodeLink": "Have a signup code?",
+      "password": "Password",
+      "readAndAgree": "I have read and agree to the <2>Terms of Service</2>, <5>Acceptable Use</5>, and <8>Privacy</8> policies",
+      "signupCode": "Signup code (optional)",
+      "title": "Create account",
+      "username": "Username"
+    },
+    "userErrorDisplay": {
+      "accountBanned": "This account has been banned.<1><0>Reason:</0><1>{{banReason}}</1></1><2>The ban will expire at {{expireTime}}.</2>",
+      "banWithoutReason": "No reason specified",
+      "defaultError": "An error occurred: {{status}} {{statusText}}",
+      "genericError": "An error occurred: {{errorMessage}}",
+      "invalidCode": "The provided code is invalid. It may have expired.",
+      "invalidCredentials": "Incorrect username or password",
+      "machineBanned": "This machine is banned from creating new accounts.",
+      "noConnectionErrorMessage": "Failed to connect to the server. Please check your internet connection and try again.",
+      "sessionExpired": "Session expired",
+      "tooManyAccounts": "This machine has reached the limit of created accounts. If you have a signup code, you can enter it to bypass this limit.",
+      "usernameTaken": "The username is not available."
+    },
+    "usernameValidator": {
+      "availabilityError": "There was a problem checking username availability",
+      "notAvailable": "Username is not available",
+      "pattern": "Username contains invalid characters",
+      "required": "Enter a username",
+      "unavailable": "Username is not available"
+    }
+  },
+  "bugReport": {
+    "details": "Details",
+    "detailsDescription": "Please describe the bug and provide as much detail as possible about what you were doing when the bug occurred.",
+    "detailsRequired": "Bug reports must include details.",
+    "error": "Error: {{errorMessage}}",
+    "logUploadDescription": "Your bug report will include ShieldBattery logs from your machine to help diagnose the issue. Logs may be kept for up to 30 days and are viewable only by ShieldBattery staff.",
+    "reportSubmitted": "Bug report submitted.",
+    "title": "Report a bug"
+  },
+  "chat": {
+    "banUser": {
+      "banAction": "Ban {{user}}",
+      "banReason": "Ban reason (optional)",
+      "dialogTitle": "Ban {{user}}?",
+      "successMessage": "{{user}} was banned"
+    },
+    "banUserErrorDisplay": {
+      "defaultError": "An error occurred: {{statusText}}",
+      "genericError": "Error banning {{user}}: {{errorMessage}}",
+      "moderateChannelModerator": "You cannot ban another moderator",
+      "moderateChannelOwner": "You cannot ban the channel owner",
+      "noPermissions": "You don't have enough permissions to ban this user",
+      "notInChannel": "The user you're trying to ban is not in this channel"
+    },
+    "channelHeader": {
+      "actionItems": {
+        "channelSettings": "Channel settings",
+        "hideBanner": "Hide banner",
+        "leaveChannel": "Leave channel"
+      },
+      "errors": {
+        "toggleBannerVisibility": "Something went wrong toggling the banner visibility"
+      },
+      "moreActions": "More actions"
+    },
+    "channelInfo": {
+      "defaultError": "An error occurred: {{statusText}}",
+      "genericError": "Error getting channel info for #{{channelName}}: {{errorMessage}}",
+      "notFound": "This channel could not be found. It might not exist, or it may have been re-created by someone else."
+    },
+    "channelInfoCard": {
+      "adminView": "Admin view",
+      "joined": "Joined",
+      "moreActions": "More actions",
+      "noDescription": "This channel has no description.",
+      "private": "This channel is private and requires an invite to join.",
+      "userCount_one": "{{count}} member",
+      "userCount_other": "{{count}} members"
+    },
+    "channelList": {
+      "browseChannels": "Browse channels",
+      "createChannel": "Create channel",
+      "noMatchingChannels": "No matching chat channels.",
+      "pageHeadline": "Chat channels",
+      "retrievingError": "There was an error retrieving the chat channels."
+    },
+    "channelMenu": {
+      "banAction": "Ban {{user}}",
+      "kickAction": "Kick {{user}}",
+      "kickingError": "Error kicking {{user.name}}",
+      "userKicked": "{{user}} was kicked"
+    },
+    "channelName": {
+      "deletedChannel": "deleted-channel"
+    },
+    "channelSettings": {
+      "general": {
+        "badgeMaxFileSizeErrorMessage": "The maximum badge file size is {{fileSize}}.",
+        "bannerMaxFileSizeErrorMessage": "The maximum banner file size is {{fileSize}}.",
+        "descriptionLabel": "Description",
+        "inappropriateImageErrorMessage": "The selected image is inappropriate. Please select a different image.",
+        "saveErrorMessage": "Something went wrong while saving the settings",
+        "topicLabel": "Topic"
+      }
+    },
+    "channelValidator": {
+      "pattern": "Channel name contains invalid characters",
+      "required": "Enter a channel name"
+    },
+    "createChannel": {
+      "bannedError": "You are banned from this channel.",
+      "channelName": "Channel name",
+      "createAction": "Create channel",
+      "defaultError": "An error occurred while creating the channel.",
+      "maximumOwnedError": "You have reached the limit of created channels. You must leave one channel you created before you can create another.",
+      "title": "Create channel"
+    },
+    "events": {
+      "ban": "You have been banned from {{channelName}}.",
+      "kick": "You have been kicked from {{channelName}}."
+    },
+    "joinChannel": {
+      "bannedError": "You are banned from #{{channelName}}",
+      "genericError": "An error occurred while joining #{{channelName}}",
+      "maximumChannelsError": "You have reached the limit of joined channels. You must leave one before you can join another."
+    },
+    "messageLayout": {
+      "banUser": "<0><0></0></0> has been banned from the channel",
+      "joinChannel": "<0><0></0></0> has joined the channel",
+      "kickUser": "<0><0></0></0> has been kicked from the channel",
+      "leaveChannel": "<0><0></0></0> has left the channel",
+      "newChannelOwner": "<0><0></0></0> is the new owner of the channel",
+      "selfJoinChannel": "You joined <2><0></0></2>"
+    },
+    "messageMenu": {
+      "deleteError": "Error deleting message",
+      "messageDeleted": "Message deleted"
+    },
+    "navEntry": {
+      "leaveChannel": "Leave channel"
+    },
+    "userList": {
+      "active": "Active",
+      "idle": "Idle",
+      "offline": "Offline"
+    },
+    "whispers": {
+      "startWhisperButton": "Start a whisper"
+    }
+  },
+  "clientDownload": {
+    "andMore": "And more!",
+    "blurb": "Download the ShieldBattery client to:",
+    "download": "Download",
+    "downloadClient": "Download client",
+    "onlyInApp": "This feature is only available in the app.",
+    "playGames": "Play games",
+    "supportProjectText": "Want to support the project?",
+    "watchReplays": "Watch replays"
+  },
+  "clientUpdate": {
+    "overlay": {
+      "errorBody": "There was an error downloading the update. Please restart and try again, or visit <2>our website</2> to download the latest version.",
+      "errorTitle": "Error downloading update",
+      "newUpdateDownloading": "A new update is being downloaded. Please wait for the download to complete in order to continue.",
+      "newUpdateReady": "A new update has been downloaded and is ready to install. Please restart the application to continue.",
+      "noErrorTitle": "Update available",
+      "progress": "{{transferred}} / {{total}} at {{perSecond}}/s",
+      "restartNow": "Restart now"
+    }
+  },
+  "comingSoon": {
+    "headline": "This feature is coming soon!",
+    "subtitle": "Help fund ShieldBattery's development"
+  },
+  "common": {
+    "actions": {
+      "accept": "Accept",
+      "apply": "Apply",
+      "back": "Back",
+      "block": "Block",
+      "cancel": "Cancel",
+      "clear": "Clear",
+      "close": "Close",
+      "copy": "Copy",
+      "decline": "Decline",
+      "download": "Download",
+      "edit": "Edit",
+      "hide": "Hide",
+      "join": "Join",
+      "next": "Next",
+      "okay": "Okay",
+      "previous": "Previous",
+      "read": "Read",
+      "refresh": "Refresh",
+      "remove": "Remove",
+      "reveal": "Reveal",
+      "save": "Save",
+      "search": "Search",
+      "show": "Show",
+      "start": "Start",
+      "stop": "Stop",
+      "submit": "Submit",
+      "test": "Test",
+      "unblock": "Unblock",
+      "view": "View",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out"
+    },
+    "lists": {
+      "empty": "Nothing to see here"
+    },
+    "loading": {
+      "channelName": "Channel name loading…",
+      "username": "Username loading…"
+    },
+    "validators": {
+      "maxLength_one": "Enter at most {{count}} character",
+      "maxLength_other": "Enter at most {{count}} characters",
+      "minLength_one": "Enter at least {{count}} character",
+      "minLength_other": "Enter at least {{count}} characters",
+      "required": "Required",
+      "validatorError": "An unknown error occurred while validating this field"
+    }
+  },
+  "fileBrowser": {
+    "rootFolder": "Root folder",
+    "upOneDirectory": "Up one directory"
+  },
+  "forms": {
+    "fileInput": {
+      "chooseFile": "Choose file",
+      "noFileSelected": "No file selected"
+    }
+  },
+  "game": {
+    "gameSource": {
+      "custom": "Custom game",
+      "ranked": "Ranked {{matchmakingType}}"
+    },
+    "gameType": {
+      "captureTheFlag": "Capture the flag",
+      "freeForAll": "Free for all",
+      "greed": "Greed",
+      "melee": "Melee",
+      "oneOnOne": "One on one",
+      "slaughter": "Slaughter",
+      "suddenDeath": "Sudden death",
+      "teamCaptureTheFlag": "Team capture the flag",
+      "teamFreeForAll": "Team free for all",
+      "teamMelee": "Team melee",
+      "topVsBottom": "Top vs bottom",
+      "unknown": "Unknown",
+      "useMapSettings": "Use map settings"
+    },
+    "launchingGameDialog": {
+      "title": "Launching game…"
+    },
+    "mapName": {
+      "unknown": "Unknown map"
+    },
+    "playerName": {
+      "computer": "Computer",
+      "unknown": "Unknown player"
+    },
+    "race": {
+      "protoss": "Protoss",
+      "random": "Random",
+      "terran": "Terran",
+      "zerg": "Zerg"
+    },
+    "results": {
+      "draw": "Draw",
+      "loss": "Loss",
+      "lossShort": "L",
+      "unknown": "Unknown",
+      "win": "Win",
+      "winShort": "W"
+    },
+    "teamName": {
+      "bottom": "Bottom",
+      "number": "Team {{teamNumber}}",
+      "top": "Top"
+    }
+  },
+  "gameDetails": {
+    "buttonCopyGameId": "Copy ID",
+    "buttonCopyLink": "Copy link to game",
+    "buttonDownloadReplay": "Download replay",
+    "buttonSearchAgain": "Search again",
+    "buttonWatchReplay": "Watch replay",
+    "buttonWatchReplayLoading": "Loading…",
+    "debugInfo": {
+      "clientResult": {
+        "defeat": "Defeat",
+        "disconnected": "Disconnected",
+        "playing": "Playing",
+        "victory": "Victory"
+      },
+      "detailedResults": "Detailed Individual Results",
+      "downloadReplay": "Download replay",
+      "hasReport": "Has Report",
+      "latency": "Latency (ms)",
+      "player": "Player",
+      "player1": "Player 1",
+      "player2": "Player 2",
+      "replay": "Replay",
+      "reportedAPM": "APM",
+      "reportedAt": "Reported At",
+      "reportedPlayer": "Player",
+      "reportedRace": "Race",
+      "reportedResult": "Result",
+      "reportedResults": "Individual Reports Summary",
+      "reportedTime": "Reported Time",
+      "reportTitle": "Report from <1></1>:",
+      "routes": "Network Routes",
+      "server": "Server",
+      "title": "Debug Information"
+    },
+    "errorLoading": "There was a problem loading this game.",
+    "headlineDefault": "Results",
+    "headlineDefeat": "Defeat!",
+    "headlineDraw": "Draw!",
+    "headlineInProgress": "In progress…",
+    "headlineVictory": "Victory!",
+    "infoDate": "Date",
+    "infoDuration": "Duration",
+    "infoGameType": "Type",
+    "statusFinal": "Final",
+    "statusLive": "Live",
+    "summary": {
+      "mmr": "MMR",
+      "pointsBase": "Base",
+      "pointsBonus": "Bonus",
+      "rp": "RP"
+    },
+    "tabBuildOrders": "Build orders",
+    "tabStats": "Stats",
+    "tabSummary": "Summary"
+  },
+  "gameplayActivity": {
+    "lobby": {
+      "slotCount": "{{takenSlots}} / {{totalSlots}}",
+      "slotsLabel": "Slots:",
+      "viewLobby": "View lobby"
+    },
+    "matchmaking": {
+      "matchFound": "Match found!",
+      "searching": "Searching for a match…"
+    }
+  },
+  "games": {
+    "activity": {
+      "title": "Games"
+    },
+    "liveGames": {
+      "title": "Live games"
+    }
+  },
+  "home": {
+    "latestNewsTitle": "Latest news",
+    "supportTitle": "Support the project"
+  },
+  "ladder": {
+    "activity": {
+      "title": "Ladder"
+    },
+    "division": "Division",
+    "divisionGroup": {
+      "all": "All",
+      "bronze": "Bronze",
+      "champion": "Champion",
+      "diamond": "Diamond",
+      "gold": "Gold",
+      "platinum": "Platinum",
+      "silver": "Silver",
+      "unrated": "Unrated"
+    },
+    "errorRetrievingRankings": "There was an error retrieving the current rankings.",
+    "lastPlayedHeader": "Last played",
+    "mmrHeader": "MMR",
+    "noMatchingPlayers": "No matching players.",
+    "pageHeadline": "Ladder",
+    "playerHeader": "Player",
+    "pointsHeader": "Points",
+    "rankHeader": "Rank",
+    "season": "Season",
+    "updatedText": "Updated: {{timestamp}}",
+    "winLossHeader": "Win/loss"
+  },
+  "landing": {
+    "bottomLinks": {
+      "acceptableUsePolicy": "Acceptable Use Policy",
+      "faq": "FAQ",
+      "privacyPolicy": "Privacy Policy",
+      "termsOfService": "Terms of Service"
+    },
+    "faq": {
+      "hotkeyCustomizationAnswer": "Yes, we support customized hotkeys, but we do not currently have a hotkey editor. If you want to use customized hotkeys, launch StarCraft: Remastered through the Blizzard launcher and customize them there first. After doing so, future launches through ShieldBattery will use those hotkeys.",
+      "hotkeyCustomizationQuestion": "Is hotkey customization allowed or provided?",
+      "isShieldBatteryFreeAnswer": "<0>ShieldBattery is totally free to use!</0><1>It does, however, cost us time and money to host and develop ShieldBattery. If you would like to help us cover those costs, we'd greatly appreciate it. We have set up a number of ways to contribute:</1>",
+      "isShieldBatteryFreeQuestion": "Does ShieldBattery cost anything? How can I support the project?",
+      "linuxSupportAnswer": "<0>This is not currently something that we have official support for.</0><1>However, there's a community-contributed integration of ShieldBattery with Wine. Check out our <2>Discord</2> to learn how to run ShieldBattery on Wine.</1>",
+      "linuxSupportQuestion": "Does ShieldBattery work on Linux or MacOS?",
+      "officialSupportAnswer": "No, ShieldBattery is a project developed by passionate community members, and has no official support or acknowledgement from Blizzard.",
+      "officialSupportQuestion": "Is ShieldBattery developed with the support of Blizzard?",
+      "openSourceAnswer": "<0>Yes. You can access our main repository as well as the various additional projects we've written and separated into their own repositories at our <2>GitHub page</2>.</0><1>We could always use more contributors, so if you think you can help, check it out!</1>",
+      "openSourceQuestion": "Is the project open source?",
+      "reportIssuesAnswer": "The easiest way to report bugs or issues is through our <2>Discord</2>. If you are comfortable with doing so, you can also file issues on our <5>GitHub</5>.",
+      "reportIssuesQuestion": "How can I report bugs or issues?",
+      "supportedStarcraftVersionAnswer": "ShieldBattery supports the latest version of StarCraft: Remastered. You can download the free version of StarCraft: Remastered from the <2>Battle.net launcher</2>. Any purchased addons (such as HD graphics) will be usable on ShieldBattery.",
+      "supportedStarcraftVersionQuestion": "What version of StarCraft does ShieldBattery support?",
+      "systemRequirementsAnswer": "<0>Our system requirements are mainly driven by those of <2>StarCraft: Remastered</2>, but in brief:</0><1><0>A computer running Windows 10 or later</0><1>2GB RAM</1><2>NVIDIA GeForce 6800 (256MB) or ATI Radeon X1600 Pro (256MB) or better</2><3>A StarCraft: Remastered installation, patched to the latest version</3></1>",
+      "systemRequirementsQuestion": "What are the system requirements to play on ShieldBattery?",
+      "title": "Frequently Asked Questions"
+    },
+    "splash": {
+      "blurb": "ShieldBattery is a community server that supports official StarCraft: Remastered clients. Download our launcher to get access to 1v1 and team matchmaking, improved netcode, fast replay launching, and more!",
+      "disclaimerText": "StarCraft is a registered trademark of Blizzard Entertainment, Inc. ShieldBattery is developed solely by members of the community, unaffiliated with Blizzard, and is not officially endorsed or supported by Blizzard.",
+      "gameCount": "<0></0><1>games played</1>",
+      "subtitle": "The premier StarCraft 1 community platform"
+    }
+  },
+  "leagues": {
+    "activity": {
+      "title": "Leagues"
+    },
+    "explainer": {
+      "description": "Leagues are a new way to compete for prizes, qualify for tournament entries, and more!",
+      "howLeaguesWork": "How leagues work",
+      "joinDescription": "Find a league that is currently running or accepting signups in the format you'd like to play. Some leagues may have different requirements, rules, or qualifications, so make sure to read the information before joining!",
+      "joinTitle": "Join.",
+      "playDescription": "Once a league has started, all ladder games you play will reward points towards the league standings alongside your normal ladder standings. Check the leaderboard on the league page to see how you're doing!",
+      "playTitle": "Play.",
+      "winDescription": "After a league finishes, the leaderboard will be available for organizers to distribute prizes and rewards. Check out the league information page for more details.",
+      "winTitle": "Win!"
+    },
+    "leagueDetails": {
+      "about": "About",
+      "copyLink": "Copy link to league",
+      "dateText": "{{startDate}} to {{endDate}}",
+      "goBack": "Go back to list",
+      "info": "Info",
+      "joined": "Joined",
+      "joinError": "Couldn't join league: {{errorMessage}}",
+      "leaderboard": "Leaderboard",
+      "leaderboardError": "There was a problem retrieving the leaderboard: {{errorMessage}}",
+      "leaderBoardHeader": {
+        "lastPlayed": "Last played",
+        "player": "Player",
+        "points": "Points",
+        "rank": "Rank",
+        "winLoss": "Win/loss"
+      },
+      "leagueEndedError": "Couldn't join because the league has already ended",
+      "leagueJoined": "League joined",
+      "noPlayers": "No matching players.",
+      "notFound": "League not found",
+      "retrieveError": "There was an error retrieving this league: {{errorMessage}}",
+      "rulesAndInfo": "Rules and info"
+    },
+    "list": {
+      "acceptingSignups": "Accepting signups",
+      "currentlyRunning": "Currently running",
+      "ends": "Ends {{endDate}}",
+      "finished": "Finished",
+      "howDoLeaguesWork": "How do leagues work?",
+      "joined": "Joined",
+      "loadingError": "Error loading leagues",
+      "manageLeagues": "Manage leagues",
+      "noLeagues": "No matching leagues",
+      "pageHeadline": "Leagues",
+      "runningNow": "Running now!",
+      "starts": "Starts {{startDate}}",
+      "viewAll": "View all leagues",
+      "viewInfo": "View info"
+    }
+  },
+  "lobbies": {
+    "activity": {
+      "title": "Lobbies ({{lobbyCount}})"
+    },
+    "createLobby": {
+      "advancedSettings": "Advanced settings",
+      "backToList": "Back to list",
+      "gameSubTypeHeader": "Teams",
+      "gameSubTypeOption": "{{numTeams}} teams",
+      "gameSubTypeOptionTvB": "{{topSlots}} vs {{bottomSlots}}",
+      "gameTypeHeader": "Game type",
+      "lobbyName": "Lobby name",
+      "lobbyNameInvalidCharacters": "Lobby name contains invalid characters",
+      "lobbyNameRequired": "Enter a lobby name",
+      "mapRequired": "Select a map to play",
+      "selectMap": "Select map",
+      "title": "Create lobby",
+      "turnRate": "Turn rate",
+      "turnRateAuto": "Auto",
+      "turnRateDynamic": "DTR (Not recommended)",
+      "useLegacyLimits": "Use legacy unit limit"
+    },
+    "errors": {
+      "alreadyInLobby": "You're already in another lobby.",
+      "load": "There was a problem loading this lobby"
+    },
+    "events": {
+      "banned": "You have been banned from the lobby.",
+      "kicked": "You have been kicked from the lobby."
+    },
+    "joinLobby": {
+      "action": "Join lobby",
+      "matchmakingActiveDialogText": "You cannot join lobbies while a matchmaking search is active.",
+      "matchmakingActiveDialogTitle": "Joining lobbies disabled",
+      "noActiveLobbies": "There are no active lobbies",
+      "noOpenLobbies": "There are no open lobbies",
+      "openSlotCount_one": "{{count}} slot open",
+      "openSlotCount_other": "{{count}} slots open",
+      "title": "Join Lobby"
+    },
+    "lobby": {
+      "gameType": "Game type",
+      "leaveLobby": "Leave lobby",
+      "startGame": "Start game",
+      "turnRate": "Turn rate",
+      "turnRateAuto": "Auto",
+      "turnRateDynamic": "DTR",
+      "unitLimit": "Unit limit",
+      "unitLimitExtended": "Extended",
+      "unitLimitLegacy": "Legacy"
+    },
+    "messageLayout": {
+      "banPlayer": "<0><0></0></0> has been banned from the lobby",
+      "countdownCanceled": "The game countdown has been canceled",
+      "countdownStarted": "The game countdown has begun",
+      "gameInitializationCanceled": "Game initialization has been canceled",
+      "gameInitializationCanceledMultiple": "Game initialization has been canceled because the following players failed to load:<1></1>",
+      "gameInitializationCanceledSingle": "Game initialization has been canceled because <2><0></0></2> failed to load.",
+      "hostChange": "<0><0></0></0> is now the host",
+      "joinLobby": "<0><0></0></0> has joined the lobby",
+      "kickPlayer": "<0><0></0></0> has been kicked from the lobby",
+      "leaveLobby": "<0><0></0></0> has left the lobby",
+      "selfJoin": "You have joined <1>{{lobby}}</1>. The host is <4><0></0></4>."
+    },
+    "slots": {
+      "addComputer": "Add computer",
+      "banPlayer": "Ban {{user}}",
+      "banUnnamedPlayer": "Ban player",
+      "closeSlot": "Close slot",
+      "kickPlayer": "Kick {{user}}",
+      "kickUnnamedPlayer": "Kick player",
+      "makeObserver": "Make observer",
+      "makePlayer": "Make player",
+      "name": "Closed",
+      "open": "Open",
+      "openSlot": "Open slot",
+      "removeComputer": "Remove computer",
+      "slotActions": "Slot actions"
+    },
+    "state": {
+      "exists": "You're not currently in this lobby. Would you like to join it?",
+      "nonexistent": "Lobby not found. Would you like to create it?",
+      "started": "This lobby has already started and cannot be joined."
+    }
+  },
+  "map": {
+    "download": {
+      "dialogTitle": "Downloading map…",
+      "urlError": "There was a problem retrieving the download link. Please try again later."
+    }
+  },
+  "maps": {
+    "activity": {
+      "title": "Maps"
+    },
+    "details": {
+      "editDescription": "Edit description",
+      "editName": "Edit name",
+      "mapDescription": "Map description",
+      "mapDescriptionRequired": "Enter a map description",
+      "mapName": "Map name",
+      "mapNameRequired": "Enter a map name",
+      "players": "Players: {{playerSize}}",
+      "size": "Size: {{width}}x{{height}}",
+      "tileset": "Tileset: {{tilesetName}}",
+      "title": "Map details"
+    },
+    "local": {
+      "documentsFolder": "Documents folder",
+      "mapFileSizeErrorMessage": "The map's file size exceeds the maximum allowed size of {{fileSize}}.",
+      "programFolder": "Program folder",
+      "title": "Local Maps",
+      "uploadMapError": "An unknown error occurred while uploading the map. Please try again later.",
+      "uploadMapErrorTitle": "Error uploading the map"
+    },
+    "mapSelect": {
+      "browseMaps": "Browse maps"
+    },
+    "server": {
+      "allMaps": "All maps",
+      "browseLocal": "Browse local maps",
+      "error": "There was an error retrieving the maps.",
+      "favoriteMaps": "Favorite maps",
+      "favorites": {
+        "added": "Added to favorites",
+        "addedError": "An error occurred while adding to favorites",
+        "error": "There was an error retrieving your favorite maps.",
+        "removed": "Removed from favorites",
+        "removedError": "An error occurred while removing from favorites"
+      },
+      "filterOptions": {
+        "numberOfPlayers": "{{numPlayers}} players",
+        "section": {
+          "numberOfPlayers": "Number of players",
+          "tileset": "Tileset"
+        },
+        "title": "Filter options"
+      },
+      "noCommunityMaps": "No maps by the community have been made public yet.",
+      "noOfficialMaps": "No official maps have been uploaded yet.",
+      "noResults": "No results.",
+      "noUploadedMaps": "You haven't uploaded any maps. You can upload a map by clicking on the browse button below.",
+      "noUploadedMapsWeb": "You haven't uploaded any maps.",
+      "regenerated": "Images regenerated",
+      "regenerateError": "An error occurred while regenerating images",
+      "removeError": "An error occurred while removing the map",
+      "sortMaps": {
+        "option": {
+          "dateUploaded": "Date uploaded",
+          "name": "Name",
+          "numberOfPlayers": "Number of players"
+        },
+        "title": "Sort maps"
+      },
+      "tab": {
+        "community": "Community",
+        "myMaps": "My maps",
+        "official": "Official"
+      },
+      "thumbnailSize": {
+        "option": {
+          "large": "Large",
+          "medium": "Medium",
+          "small": "Small"
+        },
+        "title": "Thumbnail size"
+      },
+      "uploadedMap": "Uploaded map"
+    },
+    "thumbnail": {
+      "addToFavorites": "Add to favorites",
+      "downloadMap": "Download",
+      "mapActions": "Map actions",
+      "noMapPreview": "Map preview not available",
+      "regenerateImage": "Regenerate image",
+      "removeFromFavorites": "Remove from favorites",
+      "showMapPreview": "Show map preview",
+      "viewMapDetails": "View map details"
+    },
+    "tileset": {
+      "ashworld": "Ashworld",
+      "badlands": "Badlands",
+      "desert": "Desert",
+      "ice": "Ice",
+      "installation": "Installation",
+      "jungleWorld": "Jungle world",
+      "spacePlatform": "Space platform",
+      "twilight": "Twilight"
+    }
+  },
+  "matchmaking": {
+    "acceptMatch": {
+      "body": "All players must ready up for the match to start.",
+      "failedToAccept": "Failed to accept",
+      "matchFound": "Match found",
+      "readyUp": "Ready up",
+      "removedFromQueue": "You didn't ready up in time and have been removed from the queue.",
+      "returningToQueue": "Some players didn't ready up in time or failed to load. Returning to the matchmaking queue…"
+    },
+    "activity": {
+      "title": "Matchmaking"
+    },
+    "bannedDialog": {
+      "bannedFor": "You are banned for:",
+      "description": "You have been temporarily banned from matchmaking for failing to ready up, or failing to join matches.",
+      "title": "Banned from matchmaking"
+    },
+    "disabledCard": {
+      "days": "Days",
+      "description": "Matchmaking is sometimes shut down for maintenance and development, and is currently disabled. The next matchmaking period is:",
+      "hours": "Hours",
+      "minutes": "Minutes",
+      "nextDateRange": "<0>{{nextStartDate}}</0><1>to</1><2>{{nextEndDate}}</2>",
+      "seconds": "Seconds",
+      "soon": "Soon™",
+      "title": "Matchmaking disabled"
+    },
+    "division": {
+      "bronze": "Bronze {{level}}",
+      "champion": "Champion",
+      "diamond": "Diamond {{level}}",
+      "gold": "Gold {{level}}",
+      "platinum": "Platinum {{level}}",
+      "silver": "Silver {{level}}",
+      "unrated": "Unrated"
+    },
+    "draftScreen": {
+      "anonymizedName0": "Rusty Rhynadon",
+      "anonymizedName1": "Bold Bengalaas",
+      "anonymizedName2": "Sneaky Scantid",
+      "anonymizedName3": "Keen Kakaru",
+      "anonymizedName4": "Ruthless Ragnasaur",
+      "anonymizedName5": "Unstable Ursadon",
+      "chatMessageError": "Couldn't send chat message",
+      "lockInError": "Couldn't lock in race",
+      "lockInRaceButton": "Lock in",
+      "pickerText": {
+        "myTurn": "You are picking…",
+        "opponentTurn": "{{name}} is picking…",
+        "teammateTurn": "<0></0> is picking…"
+      },
+      "pickSubtext": "Pick {{num}}"
+    },
+    "findMatch": {
+      "action": "Find match",
+      "alternateRace": "Alternate race",
+      "bonusPoints": "{{bonusAvailable}} points",
+      "bonusPool": "Bonus pool",
+      "description": "Select a race to be used whenever your opponent has selected the same primary race.",
+      "errors": {
+        "alreadyInGame": "You are already in a game, searching for a match, or in a custom lobby",
+        "dialogTitle": "Error searching for a match",
+        "loadingRank": "There was a problem loading your current rank.",
+        "matchmakingDisabled": "Matchmaking is currently disabled",
+        "searchAgainError": "There was a problem searching for a match",
+        "somethingWentWrong": "Something went wrong :(",
+        "userOffline": "Your connection to the server was interrupted, please reconnect and try again."
+      },
+      "goToLobby": "Go to lobby",
+      "lobbyDisabledText": "You can't use matchmaking while in a lobby.",
+      "mapPool": "Map pool",
+      "mapSelectionDescription": "Select the maps you would like to play on. Only selected maps will be chosen.",
+      "points": "Points",
+      "race": "Race",
+      "rating": "Rating",
+      "title": "Find match",
+      "unratedText": "No rating",
+      "updated": "Updated",
+      "useAlternateRace": "Use alternate race to avoid mirror matchups",
+      "vetoDescriptionNoOverlap_one": "Veto up to {{count}} map. Vetoed maps will never be selected for play.",
+      "vetoDescriptionNoOverlap_other": "Veto up to {{count}} maps. Vetoed maps will never be selected for play.",
+      "vetoDescriptionWithOverlap_one": "Veto up to {{count}} map. Vetoed maps will be chosen significantly less often than other maps.",
+      "vetoDescriptionWithOverlap_other": "Veto up to {{count}} maps. Vetoed maps will be chosen significantly less often than other maps.",
+      "vetoesLeft": "<0>Vetoes left: </0><1>{{vetoesLeft}}</1>"
+    },
+    "match": {
+      "gameFailedToLoad": "The game has failed to load."
+    },
+    "postMatchDialog": {
+      "leagues": "Leagues",
+      "matchmaking": "Matchmaking",
+      "points": "Points",
+      "rating": "Rating",
+      "searchAgain": "Search again",
+      "title": "Match results",
+      "watchReplay": "Watch replay"
+    },
+    "type": {
+      "1v1": "1v1",
+      "1v1fastest": "1v1 Fastest",
+      "2v2": "2v2",
+      "3v3": "3v3"
+    }
+  },
+  "material": {
+    "datetimeTextField": {
+      "pickerButtonLabel": "Show picker"
+    },
+    "dialog": {
+      "closeDialog": "Close dialog"
+    },
+    "passwordField": {
+      "hide": "Hide password",
+      "show": "Show password"
+    }
+  },
+  "messaging": {
+    "blockedMessage": "Blocked message",
+    "mention": "Mention",
+    "newDayMessage": "Day changed to <2>{{day}}</2>",
+    "searchWithGoogle": "Search with Google",
+    "sendMessage": "Send a message",
+    "sendMessageChatRestricted": "Restricted from sending messages until {{date}}"
+  },
+  "navigation": {
+    "bar": {
+      "appMenu": "Menu",
+      "home": "Home",
+      "play": "Play",
+      "userMenu": "User menu"
+    },
+    "copyLink": {
+      "copiedText": "Copied!",
+      "defaultText": "Copy link"
+    },
+    "externalLink": {
+      "alwaysTrust": "Always trust this domain",
+      "dialogText": "<0>This link will take you to a site outside ShieldBattery:</0><1>{{link}}</1><2>Are you sure you want to go there?</2>",
+      "openLink": "Open Link",
+      "title": "External link"
+    },
+    "leftNav": {
+      "chatChannels": "Chat channels",
+      "logOut": "Log out",
+      "logOutErrorMessage": "Something went wrong. Please try again later.",
+      "logOutErrorTitle": "Logging out failed",
+      "reportBug": "Report a bug",
+      "viewProfile": "View profile",
+      "whisperCloseError": "Error closing whisper session: {{errorMessage}}",
+      "whispers": "Whispers"
+    }
+  },
+  "network": {
+    "notConnectedText": "Not connected"
+  },
+  "notifications": {
+    "activityButton": {
+      "read": "Notifications (Alt + N)",
+      "unread": "Notifications - unread (Alt + N)"
+    },
+    "errors": {
+      "clear": "An error occurred while clearing notifications",
+      "markRead": "An error occurred while marking a notification read"
+    },
+    "list": {
+      "title": "Notifications"
+    },
+    "popup": {
+      "markAsRead": "Mark as read"
+    }
+  },
+  "policy": {
+    "acceptableUse": "Acceptable use",
+    "acceptableUseAllCaps": "Acceptable Use Policy",
+    "policyUpdateNotification": "ShieldBattery's <2>{{label}}</2> has been updated.",
+    "privacyPolicy": "Privacy policy",
+    "privacyPolicyAllCaps": "Privacy Policy",
+    "termsOfService": "Terms of service",
+    "termsOfServiceAllCaps": "Terms of Service"
+  },
+  "replays": {
+    "activity": {
+      "title": "Replays"
+    },
+    "fileDropError": "There was a problem opening the replay file",
+    "fileDropText": "Drop replays here to watch them with ShieldBattery.",
+    "loading": {
+      "dialogTitle": "Loading replay…",
+      "errorGeneric": "Something went wrong while loading the replay.",
+      "initFailureBody": "The selected replay could not be loaded. It may either be corrupt, or was created by a version of StarCraft newer than is currently supported.",
+      "initFailureTitle": "Error loading replay"
+    },
+    "local": {
+      "duration": "Duration: {{durationStr}}",
+      "gameType": "Game type: {{gameTypeLabel}}",
+      "loadingError": "There was a problem loading the replay",
+      "rootFolderName": "Replays",
+      "title": "Local Replays",
+      "watchReplay": "Watch replay"
+    },
+    "replayInfoDialog": {
+      "title": "Replay info",
+      "watch": "Watch"
+    },
+    "watch": {
+      "errorBody": "There was a problem downloading or loading the replay. Please try again later.",
+      "errorTitle": "Error loading replay"
+    }
+  },
+  "rootErrorBoundary": {
+    "contents": "Please report this issue to us in our <2>Discord</2>.",
+    "reloadApp": "Reload app",
+    "title": "Something went wrong :("
+  },
+  "settings": {
+    "activity": {
+      "title": "Settings (Alt + S)"
+    },
+    "app": {
+      "sound": {
+        "masterVolume": "Master volume",
+        "title": "Sound"
+      },
+      "system": {
+        "filesOverline": "Files",
+        "replayQuickOpen": "Launch replays opened with ShieldBattery immediately without previewing",
+        "runOnStartup": "Run ShieldBattery on system startup",
+        "startMinimized": "Start minimized",
+        "startupOverline": "Startup",
+        "title": "System"
+      },
+      "title": "App"
+    },
+    "close": "Close settings",
+    "errors": {
+      "save": "There was an issue saving the settings."
+    },
+    "game": {
+      "gameplay": {
+        "apmAlert": "Alert when APM falls below",
+        "apmAlertHeader": "APM alert",
+        "apmColorText": "Color text",
+        "apmDisplay": "APM display",
+        "apmSound": "Play sound",
+        "apmValue": "APM value",
+        "apmValueValidation": "Enter a value between 1 and 999",
+        "colorCycling": "Enable color cycling",
+        "consoleSkins": {
+          "20thAnniversary": "StarCraft 20th Anniversary",
+          "blizzcon2017": "BlizzCon 2017",
+          "blizzcon2018": "BlizzCon 2018",
+          "default": "Default",
+          "krcGold": "Gold - Orchestra 2019",
+          "krcSilver": "Silver - Orchestra 2019",
+          "title": "Console skin",
+          "warcraft3": "WarCraft 3 Spoils"
+        },
+        "devOnlySettings": "Dev-only settings",
+        "gameTimer": "Game timer",
+        "ingameSkins": {
+          "carbot": "Carbot",
+          "none": "None",
+          "preorder": "Preorder",
+          "title": "Ingame skin"
+        },
+        "latency": "Show latency",
+        "minimapPosition": {
+          "bottomLeft": "Bottom-left corner",
+          "standard": "Standard",
+          "title": "Minimap position"
+        },
+        "showBonusSkins": "Show bonus skins",
+        "skinsInfo": "Skins (must be purchased from Blizzard)",
+        "startingFog": {
+          "legacy": "Legacy",
+          "showResources": "Show resources",
+          "showTerrainAndResources": "Show terrain and resources",
+          "title": "Starting fog of war"
+        },
+        "title": "Gameplay",
+        "unitPortraits": {
+          "animated": "Animated",
+          "disabled": "Disabled",
+          "still": "Still",
+          "title": "Portraits"
+        },
+        "visualizeNetworkStalls": "Visualize network stalls"
+      },
+      "input": {
+        "customCursorSizeLargest": "Largest",
+        "customCursorSizeSmallest": "Smallest",
+        "customMouseSensitivity": "Custom mouse sensitivity",
+        "hardwareCursor": "Hardware cursor",
+        "hardwareCursorTooltip": "Recommended for best performance and input responsiveness",
+        "keyboardScrollSpeed": "Keyboard scroll speed",
+        "legacyCursorSizing": "Use legacy cursor sizing",
+        "legacyCursorSizingTooltip": "Uses the original StarCraft: Remastered cursor sizes, which have inconsistent scales at higher resolutions.",
+        "legacySettingsDescription": "These settings are available for compatibility with the StarCraft: Remastered settings, but are not recommended for use because they cause performance issues.",
+        "legacySettingsHeader": "Legacy settings",
+        "lockCursor": "Lock cursor to window",
+        "mouseScaling": "Use mouse scaling",
+        "mouseScrollSpeed": "Mouse scroll speed",
+        "mouseSensitivity": "Mouse sensitivity",
+        "title": "Input",
+        "useCustomCursorSize": "Use custom cursor size"
+      },
+      "sound": {
+        "announcer": {
+          "default": "Default",
+          "heyJini": "Hey Jini",
+          "info": "Packs (must be purchased from Blizzard)",
+          "jeonYongJun": "Jeon Yong Jun",
+          "kimJungmin": "Kim Jungmin",
+          "title": "Announcer",
+          "umJaeKyung": "Um Jae Kyung",
+          "umJeonKim": "Um, Jeon, Kim Trio"
+        },
+        "backgroundSounds": "Sound plays while in background",
+        "buildingSounds": "Building sounds",
+        "cinematicSubtitles": "Cinematic subtitles",
+        "gameSounds": "Game sounds",
+        "gameSubtitles": "Game subtitles",
+        "music": "Music",
+        "musicVolume": "Music volume",
+        "originalVoiceOvers": "Original unit voice overs",
+        "soundVolume": "Sound volume",
+        "title": "Sound",
+        "unitAcknowledgements": "Unit acknowledgements",
+        "unitSpeech": "Unit speech"
+      },
+      "starcraft": {
+        "browseManually": "Browse manually",
+        "currentPathLabel": "Current game path:",
+        "detectionFailed": "Detecting your installation path failed. Please ensure you have StarCraft: Remastered installed and try again, or set the path manually.",
+        "detectPath": "Detect installation",
+        "devOnlySettings": "Dev-only settings",
+        "disableHd": "Don't load HD graphics (Crashes if switching to HD in game)",
+        "instructions": {
+          "advanced": "If detection fails, you can set the path manually. Click the button below and select the directory that contains your StarCraft: Remastered installation.",
+          "description": "ShieldBattery requires a valid, up-to-date installation of StarCraft: Remastered. Click the button below to automatically detect the installation folder."
+        },
+        "launch64Bit": "Launch 64-bit executable",
+        "pathInvalid": "This path does not point to a valid StarCraft: Remastered installation. Please ensure your installation is up to date or try a different path.",
+        "pathValid": "This game path appears to be a valid installation.",
+        "title": "StarCraft"
+      },
+      "title": "Game",
+      "video": {
+        "customFpsLimit": "Custom FPS limit",
+        "displayMode": {
+          "fullscreen": "Fullscreen",
+          "title": "Display mode",
+          "windowed": "Windowed",
+          "windowedFullscreen": "Windowed (Fullscreen)"
+        },
+        "enableVerticalSync": "Enable vertical sync",
+        "environmentEffects": "Environment effects",
+        "fpsLimit": "FPS limit",
+        "hdGraphics": "HD graphics",
+        "monitor": "Monitor",
+        "monitorItem": "Monitor {{index}} - {{label}}",
+        "pillarbox": "Pillarbox (4:3 aspect ratio)",
+        "primaryMonitor": "Default (primary monitor)",
+        "realTimeLighting": "Real-time lighting",
+        "sdGraphicsFilter": "SD graphics filter",
+        "shadowStacking": "Shadow stacking",
+        "showFps": "Show FPS",
+        "smoothUnitTurning": "Smooth unit turning",
+        "title": "Video"
+      }
+    },
+    "user": {
+      "account": {
+        "authenticationHeader": "Authentication",
+        "changeDisplayName": {
+          "dialogTitle": "Change display name",
+          "success": "Display name changed successfully."
+        },
+        "changeEmail": {
+          "dialogTitle": "Change email",
+          "patternError": "Enter a valid email address",
+          "requiredError": "Enter an email address",
+          "success": "Email changed successfully."
+        },
+        "changeLoginName": {
+          "dialogTitle": "Change login name",
+          "success": "Login name changed successfully."
+        },
+        "changePassword": {
+          "dialogTitle": "Change password",
+          "success": "Password changed successfully."
+        },
+        "changePasswordButton": "Change password",
+        "confirmNewPassword": "Confirm new password",
+        "currentPassword": "Current password",
+        "displayName": "Display name",
+        "displayNameChangeInfo": "Display names can be changed once every 60 days. Capitalization changes are not affected by name change limits.",
+        "displayNameCooldown_one": "You have changed your display name too recently. You can change your display name again in {{count}} day.",
+        "displayNameCooldown_other": "You have changed your display name too recently. You can change your display name again in {{count}} days.",
+        "displayNameUnavailable": "Display name is not available",
+        "email": "Email",
+        "emailUnverified": "Unverified",
+        "emailVerified": "Verified",
+        "error": "There was a problem retrieving your user information.",
+        "invalidCurrentPassword": "Current password is incorrect",
+        "label": "Account",
+        "loginName": "Login name",
+        "loginNameChangeInfo": "Login names can be changed once every 30 days.",
+        "loginNameCooldown_one": "You have changed your name too recently. You can change your login name again in {{count}} day.",
+        "loginNameCooldown_other": "You have changed your name too recently. You can change your login name again in {{count}} days.",
+        "loginNameUnavailable": "Login name is not available",
+        "networkError": "Network error: {{errorMessage}}",
+        "newPassword": "New password",
+        "passwordValidator": {
+          "confirm": "Enter a matching password",
+          "current": "Enter your current password",
+          "new": "Enter a new password"
+        },
+        "rateLimited": "You can only change your login name once every 30 days.",
+        "unknownError": "Something went wrong, please try again later."
+      },
+      "language": {
+        "selectLanguage": "Select a language",
+        "title": "Language"
+      },
+      "title": "User"
+    }
+  },
+  "social": {
+    "chat": {
+      "label": "Chat",
+      "loadingChannelsError": "Error loading chat channels",
+      "loadingWhispersError": "Error loading whispers"
+    },
+    "errors": {
+      "friendsList": {
+        "errorAcceptingFriendRequest": "Error accepting friend request",
+        "errorDecliningFriendRequest": "Error declining friend request",
+        "errorRemovingFriendRequest": "Error removing friend request",
+        "load": "Failed to load friends list"
+      }
+    },
+    "friends": {
+      "label": "Friends ({{friendCount}})"
+    },
+    "friendsList": {
+      "header": {
+        "incoming": "Incoming",
+        "offline": "Offline",
+        "online": "Online",
+        "outgoing": "Outgoing"
+      },
+      "loadingUsername": "Username loading…",
+      "tabs": {
+        "addFriends": "Add friends",
+        "friendsList": "Friends list",
+        "socialSettings": "Social settings"
+      },
+      "title": {
+        "addFriends": "Add friends",
+        "friends": "Friends"
+      }
+    },
+    "sidebar": {
+      "buttonTooltip": "Toggle social (ALT + H)",
+      "pinTooltip": "Pin sidebar",
+      "unpinTooltip": "Unpin sidebar"
+    }
+  },
+  "starcraft": {
+    "shieldbatteryHealth": {
+      "bottomContents": "If you are able to, reporting these as false positives to your anti-virus vendor will help this stop happening for other users as well!",
+      "middleContents": "This is often the result of installed anti-virus software taking action on false positives. You may need to add exceptions for these files, or tell the software to remove them from quarantine. You can also try re-installing ShieldBattery.",
+      "noProblems": "Your local installation is now free of problems.",
+      "rescanFiles": "Rescan files",
+      "title": "Installation problems detected",
+      "topContents": "We've detected that the following ShieldBattery files are missing or have been modified:"
+    },
+    "starcraftHealth": {
+      "header": "The following problems need to be corrected before you can play games on ShieldBattery:",
+      "installPathContents": "Your StarCraft path setting does not point to a valid installation. Please correct the value in <2>Settings</2>. If you do not have the game installed, it can be easily downloaded from <5><0>Battle.net</0></5>. You may need to restart ShieldBattery after installation.",
+      "noProblems": "Your local installation is now free of problems.",
+      "starcraftVersionContents": "Your StarCraft installation is out of date. ShieldBattery supports installations of the latest Remastered version from Battle.net. Please install the <2><0>latest version</0></2> and restart ShieldBattery.",
+      "title": "Installation problems detected"
+    }
+  },
+  "user": {
+    "matchHistory": {
+      "noMatchingGames": "No matching games.",
+      "retrievingError": "There was an error retrieving the match history."
+    },
+    "miniMatchHistory": {
+      "noGameSelected": "No game selected",
+      "viewDetails": "View details",
+      "viewFullHistory": "View full match history"
+    },
+    "seasons": {
+      "noMatchingGames": "{{user}} has played no games in previous seasons.",
+      "retrievingError": "There was an error retrieving the ranking history."
+    }
+  },
+  "users": {
+    "admin": {
+      "ipAddresses": {
+        "title": "IP addresses"
+      },
+      "nameHistory": {
+        "displayNameChanges": "Display Name Changes",
+        "loginNameChanges": "Login Name Changes",
+        "noDisplayNameHistory": "No display name changes found.",
+        "noLoginNameHistory": "No login name changes found.",
+        "title": "Name history",
+        "usedToken": "Used name change token",
+        "userHistory": "Name history"
+      },
+      "permissions": {
+        "title": "Permissions"
+      },
+      "punishments": {
+        "title": "Punishments"
+      }
+    },
+    "contextMenu": {
+      "addFriend": "Add friend",
+      "copyUserId": "Copy ID",
+      "friendRemoved": "Friend removed",
+      "friendRequestAccepted": "Friend request accepted",
+      "friendRequestRemoved": "Friend request removed",
+      "friendRequestSent": "Friend request sent",
+      "loadingUsers": "Loading user…",
+      "removeFriend": "Remove friend",
+      "removeFriendRequest": "Remove friend request",
+      "userBlocked": "User blocked",
+      "userUnblocked": "User unblocked",
+      "viewProfile": "View profile",
+      "whisper": "Whisper"
+    },
+    "errors": {
+      "friendsList": {
+        "blockedByUser": "you have been blocked by this user",
+        "errorAcceptingFriendRequest": "Error accepting friend request",
+        "errorBlockingUser": "Error blocking user",
+        "errorDecliningFriendRequest": "Error declining friend request",
+        "errorRemovingFriend": "Error removing friend",
+        "errorRemovingFriendRequest": "Error removing friend request",
+        "errorSendingFriendRequest": "Error sending friend request",
+        "errorUnblockingUser": "Error unblocking user",
+        "invalidSelfAction": "you cannot perform this action on yourself",
+        "limitReached": "you have reached the maximum amount of friends or blocks, please remove some to add more",
+        "noMatchingEntry": "no matching entry found"
+      },
+      "profile": {
+        "loadUser": "There was a problem loading this user."
+      }
+    },
+    "friendsList": {
+      "friendStart": "You are now friends with <2>{{user}}</2>.",
+      "receivedFriendRequest": "<0>{{user}}</0> sent you a friend request."
+    },
+    "profile": {
+      "achievements": "Achievements",
+      "latestGames": "Latest games",
+      "points": "Points",
+      "rank": "Rank",
+      "rating": "Rating",
+      "record": "Record",
+      "tabs": {
+        "admin": "Admin",
+        "matchHistory": "Match history",
+        "season": "Seasons",
+        "stats": "Stats",
+        "summary": "Summary"
+      },
+      "totalGames": "Total games"
+    },
+    "profileOverlay": {
+      "info": "Info",
+      "joined": "Joined {{date}}",
+      "ranked": "Ranked",
+      "rightClick": "Right-click user for more actions",
+      "viewProfile": "View profile"
+    },
+    "restrictions": {
+      "reason": {
+        "disruptive_behavior": "Disruptive behavior",
+        "harassment": "Harassment",
+        "hate_speech": "Hate speech",
+        "other": "Other",
+        "spam": "Spam",
+        "toxicity": "Toxicity"
+      }
+    },
+    "titles": {
+      "novice": "Novice"
+    }
+  },
+  "whispers": {
+    "createWhisper": {
+      "error": "Error: {{errorMessage}}",
+      "title": "Send a message",
+      "username": "Username",
+      "usernamePattern": "Username contains invalid characters",
+      "usernameRequired": "Enter a username"
+    },
+    "errors": {
+      "cantWhisperYourself": "You can't whisper with yourself.",
+      "invalidAction": "Must have an active whisper session with a user to retrieve message history",
+      "loadingHistory": "Error loading message history: {{errorMessage}}",
+      "noSelfMessaging": "Cannot send messages to yourself",
+      "openSession": "Error opening whisper to user: {{errorMessage}}",
+      "sendingMessage": "Error sending message: {{errorMessage}}",
+      "unknownError": "Unknown error",
+      "userChatRestricted": "You are currently restricted from sending chat messages",
+      "userNotFound": "User not found"
+    },
+    "navEntry": {
+      "closeWhisper": "Close whisper"
+    }
+  },
+  "windowControls": {
+    "close": "Close",
+    "maximizeRestore": "Maximize/Restore",
+    "minimize": "Minimize"
+  }
+}

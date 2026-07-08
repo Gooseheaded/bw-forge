@@ -1,0 +1,166 @@
+[package]
+name = "shieldbattery"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "shieldbattery"
+crate-type = ["cdylib"]
+
+[profile.dev]
+# opt-level 1 should enable basic optimizations but not heavy inlining that makes
+# debugging / compiling rougher.
+opt-level = 1
+panic = "abort"
+
+[profile.release]
+debug = 1
+panic = "abort"
+lto = true
+
+[dependencies]
+arrayvec = "0.7"
+atomic_enum = "0.3"
+bytemuck = { version = "1.23", features = ["derive"] }
+byteorder = "1.3"
+bytes = "1.10"
+chrono = "0.4"
+directories = "6.0"
+egui = { version = "0.31", features = ["bytemuck"] }
+egui_extras = { version = "0.31", features = ["file", "http", "image", "svg"] }
+egui_flex = "0.3"
+fern = "0.7"
+futures = "0.3"
+fxhash = "0.2"
+hashbrown = { version = "0.15", features = ["serde"] }
+http = "1.3"
+image = { version = "0.25", default-features = false, features = [
+  "rayon",
+  "bmp",
+  "dds",
+  "gif",
+  "hdr",
+  "ico",
+  "jpeg",
+  "png",
+  "webp",
+] }
+lazy_static = "1.3"
+libc = "0.2"
+log = "0.4"
+parking_lot = { version = "0.12", features = ["send_guard"] }
+prost = "0.14"
+quick-error = "2.0"
+rand = "0.9"
+reqwest = { version = "0.12", features = [
+  "deflate",
+  "gzip",
+  "json",
+  "multipart",
+  "rustls-tls",
+  "stream",
+] }
+rmp = "0.8"
+scopeguard = "1.1"
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0"
+serde_repr = "0.1"
+smallvec = "1.15"
+tokio = { version = "1.46", features = [
+  "fs",
+  "net",
+  "rt-multi-thread",
+  "macros",
+  "sync",
+  "time",
+] }
+tokio-debouncer = "0.3"
+tokio-stream = "0.1"
+tokio-tungstenite = "0.27"
+
+[dependencies.winapi]
+version = "0.3"
+features = [
+  "combaseapi",
+  "dsound",
+  "d3d11",
+  "debugapi",
+  "dxgi",
+  "errhandlingapi",
+  "fileapi",
+  "handleapi",
+  "knownfolders",
+  "libloaderapi",
+  "memoryapi",
+  "minwinbase",
+  "minwindef",
+  "processthreadsapi",
+  "shlobj",
+  "stringapiset",
+  "synchapi",
+  "sysinfoapi",
+  "tlhelp32",
+  "unknwnbase",
+  "windef",
+  "wingdi",
+  "winsock2",
+  "winuser",
+  "winver",
+  "ws2def",
+  "ws2ipdef",
+]
+
+# Function hooking
+[dependencies.whack]
+git = "https://github.com/neivv/whack.git"
+rev = "2d1adbae09d75bdaa2af65b0af12760740cd3d2b"
+
+# Struct declarations & convenience functions for ingame BW data
+[dependencies.bw_dat]
+git = "https://github.com/neivv/aise.git"
+rev = "257f4dc1dbff1719f80c96db81fe026e1144b680"
+features = ["scr-only"]
+
+[build-dependencies]
+anyhow = "1.0"
+serde_json = "1.0"
+prost-build = "0.14"
+protoc-bin-vendored-win32 = "3.0"
+
+# -- Local helper crates --
+[workspace]
+
+[dependencies.scr-analysis]
+path = "./scr-analysis"
+
+[dependencies.compile-shaders]
+path = "./compile-shaders"
+
+[build-dependencies.compile-shaders]
+path = "./compile-shaders"
+
+[profile.dev.package.scr-analysis]
+# Optimize scr-analysis subcrate as its code takes quite a lot of time to run
+# if not optimized (That is also the main reason for it being a separate crate)
+opt-level = 3
+
+# Enable more optimizations for dependencies in dev, but not for our code
+[profile.dev.package."*"]
+opt-level = 3
+
+# Have build dependencies (most importantly serde) be built with opt-level 3.
+# In debug this should reduce time it takes to expand derive macros -- it's
+# done every time the compiler is ran. I don't have pc that can get super reliable
+# measurements, but it seems to shorten macro expansion phase by few seconds for me.
+# I'm betting on this being worth the bit longer initial compile time when working
+# on the game code a lot =)
+[profile.dev.build-override]
+opt-level = 3
+debug = 0
+overflow-checks = false
+
+# On release, use opt-level 0 to make the code executed at build time compile faster.
+# (Release doesn't need to save few seconds on rebuild after minor change)
+[profile.release.build-override]
+opt-level = 0
+debug = 0

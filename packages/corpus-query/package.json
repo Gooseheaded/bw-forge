@@ -1,0 +1,49 @@
+{
+  "name": "bw-replay-corpus-query",
+  "version": "0.1.0",
+  "description": "Deterministic querying over Brood War replay-analysis corpora",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.32.1",
+  "main": "./dist/mcp/server.js",
+  "files": [
+    "dist/**",
+    "README.md",
+    "docs/codex-local-llamacpp.md",
+    "docs/query-planner-v1.md",
+    "docs/llm-planner-prompt-v1.md",
+    "examples/query-plans/**",
+    "package.json"
+  ],
+  "bin": {
+    "bw-replay-corpus": "./dist/cli.js",
+    "bw-replays-mcp": "./dist/mcp/server.js",
+    "replay-corpus": "./dist/cli.js",
+    "replay-corpus-mcp": "./dist/mcp/server.js"
+  },
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "build": "tsc -p tsconfig.json && node scripts/write-build-info.mjs",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test test/**/*.test.ts",
+    "start": "tsx src/cli.ts",
+    "mcp:start": "tsx src/mcp/server.ts",
+    "prepack": "pnpm build",
+    "verify:packaged": "node scripts/verify-packaged-mcp.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "commander": "^14.0.3",
+    "mcp-proxy": "^6.5.1",
+    "sql.js": "^1.14.1",
+    "yauzl": "^3.3.0",
+    "yazl": "^3.3.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@types/yauzl": "^2.10.3",
+    "tsx": "^4.22.0",
+    "typescript": "^6.0.3"
+  }
+}

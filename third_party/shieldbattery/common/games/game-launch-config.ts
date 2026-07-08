@@ -1,0 +1,130 @@
+import { SlotType } from '../lobbies/slot'
+import { MapInfoJson } from '../maps'
+import { BwTurnRate, BwUserLatency } from '../network'
+import { RaceChar } from '../races'
+import { ResolvedRallyPointServer } from '../rally-point/index'
+import { SbUser } from '../users/sb-user'
+import { SbUserId } from '../users/sb-user-id'
+import { GameType } from './game-type'
+
+/**
+ * Configuration for a particular player in a game. This is similar to Lobby's `Slot` structure,
+ * but has been flattened slightly to remove the need to send info about teams.
+ */
+export interface PlayerInfo {
+  /** The ID of the player slot, an opaque string. */
+  id: string
+  /** Shieldbattery user ID of the player. Only set for 'human' and 'observer' */
+  userId?: SbUserId
+  /** The race set for this slot. */
+  race?: RaceChar
+  /** The BW player ID for this slot (a number between 0 and 7). */
+  playerId?: number
+  /** The ID of the team this slot is a part of. */
+  teamId: number
+  /** The type of this slot. */
+  type: SlotType
+  /** The BW id of the type of this slot. */
+  typeId: number
+}
+
+export interface ReplayMapInfo {
+  isReplay: true
+  path: string
+}
+
+export interface ReplayExportConfig {
+  enabled: boolean
+  targetMultiplier?: number
+  disableRender?: boolean
+  disableAudio?: boolean
+}
+
+export function isReplayLaunchConfig(config: GameLaunchConfig) {
+  return isReplayMapInfo(config.setup.map)
+}
+
+export function isReplayMapInfo(map: MapInfoJson | ReplayMapInfo): map is ReplayMapInfo {
+  return (map as ReplayMapInfo).isReplay
+}
+
+export interface GameSetup {
+  /**
+   * The id of the game, used by the server to identify it for sending commands and receiving
+   * results.
+   */
+  gameId: string
+  /**
+   * The name of the game. Not really that important generally, as we don't display this directly
+   * to users.
+   */
+  name: string
+  map: MapInfoJson | ReplayMapInfo
+  /**
+   * The file path of the map file. Note that this gets set during the launch process, it's not
+   * provided directly by the code that triggers the launch.
+   * TODO(tec27): make it provided directly instead?
+   */
+  mapPath?: string
+  gameType: GameType
+  gameSubType: number
+  slots: PlayerInfo[]
+  host: PlayerInfo
+  users: SbUser[]
+  /** For matchmaking, a list of entries of the rating for each player. */
+  ratings?: Array<[id: SbUserId, rating: number]>
+  /**
+   * Whether changing allies during the game is disabled. Optional, defaults to false (i.e. use
+   * the default for the game mode). */
+  disableAllianceChanges?: boolean
+  /**
+   * Turn rate for the game. 0 means dynamic, other values mean N turns per second. If not
+   * provided, defaults to dynamic.
+   */
+  turnRate?: BwTurnRate | 0
+  /**
+   * The initial user latency setting to use. If not set, will default to Low.
+   */
+  userLatency?: BwUserLatency
+  /**
+   * Whether to use legacy unit/sprite limits (instead of the extended ones that are default in
+   * SC:R).
+   */
+  useLegacyLimits?: boolean
+  seed: number
+  /**
+   * The code used to submit results for this game to the server. This is secret and unique per
+   * player in the game. In certain cases (when observing, or when watching a replay), a result
+   * code may not be given, meaning no result is to be reported.
+   */
+  resultCode?: string
+  /** True if the local user is currently restricted from sending messages. */
+  isChatRestricted?: boolean
+  /** Optional replay-export settings for unattended high-speed playback. */
+  replayExport?: ReplayExportConfig
+}
+
+/** Configuration info for launching a local game client to play a specific game. */
+export interface GameLaunchConfig {
+  /** The user currently logged into the application and playing the game. */
+  localUser: SbUser
+  /** Setup for this specific server. */
+  serverConfig: {
+    /** The URL of the server, so that the game client can communicate with it as necessary. */
+    serverUrl: string
+  }
+  /** Setup configuration for the game, such as the map, game type, etc. */
+  setup: GameSetup
+}
+
+/** A network route configuration for communication between two players in a game. */
+export interface GameRoute {
+  /** The ID of the player who will be connected to over this network route. */
+  for: string
+  /** The rally-point server to connect to for this route. */
+  server: ResolvedRallyPointServer
+  /** The ID of the route, used to identify it to the rally-point server. */
+  routeId: string
+  /** The ID of the local player, used to identify themselves to the rally-point server. */
+  playerId: number
+}

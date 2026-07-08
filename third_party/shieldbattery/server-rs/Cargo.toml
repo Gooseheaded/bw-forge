@@ -1,0 +1,107 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2024"
+
+default-run = "server"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "server"
+path = "src/main.rs"
+
+[[bin]]
+name = "gen-schema"
+path = "src/bin/gen-schema.rs"
+
+[dependencies]
+async-graphql = { version = "7.0", features = [
+  "chrono",
+  "dataloader",
+  "tracing",
+  "uuid",
+] }
+async-graphql-axum = "7.0"
+async-trait = "0.1"
+aws-config = { version = "1.6", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1.85"
+axum = { version = "0.8", features = ["macros", "ws"] }
+axum-client-ip = "1.0"
+axum-extra = { version = "0.10", features = ["typed-header"] }
+axum-prometheus = "0.9"
+bcrypt = "0.17"
+clap = { version = "4.5", features = ["derive"] }
+color-eyre = "0.6"
+chrono = { version = "0.4", features = ["serde"] }
+data-encoding = "2.9"
+dotenvy = "0.15"
+gethostname = "1.0"
+ipnetwork = "0.20"
+jsonwebtoken = "9.3"
+mobc = "0.9"
+mobc-redis = "0.9"
+rand = "0.9"
+rayon = "1.10"
+redis = { version = "0.32", features = ["tokio-rustls-comp"] }
+regex = "1.11"
+reqwest = { version = "0.12", default-features = false, features = [
+  "brotli",
+  "deflate",
+  "gzip",
+  "json",
+  "rustls-tls",
+] }
+secrecy = { version = "0.10", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+thiserror = "2.0"
+tokio = { version = "1.45", features = ["macros", "rt-multi-thread"] }
+tower = { version = "0.5", features = ["util"] }
+tracing = "0.1"
+tracing-bunyan-formatter = "0.3"
+tracing-error = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+typeshare = "1.0"
+url = { version = "2.5" }
+uuid = { version = "1.16", features = ["v4"] }
+serde_with = "3.14.0"
+
+[dependencies.sqlx]
+version = "0.8"
+default-features = false
+features = [
+  "chrono",
+  "ipnetwork",
+  "json",
+  "macros",
+  "migrate",
+  "postgres",
+  "runtime-tokio-rustls",
+  "uuid",
+]
+
+[dependencies.tower-http]
+version = "0.6"
+features = [
+  "add-extension",
+  "compression-full",
+  "cors",
+  "normalize-path",
+  "request-id",
+  "sensitive-headers",
+  "timeout",
+  "trace",
+  "util",
+]
+
+[dev-dependencies]
+mockito = "1.1"
+
+# Enable more optimizations for dependencies in dev, but not for our code
+[profile.dev.package."*"]
+opt-level = 3
+
+[workspace]

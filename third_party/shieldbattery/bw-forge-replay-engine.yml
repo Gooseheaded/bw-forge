@@ -1,0 +1,34 @@
+# Dedicated unattended replay runtime embedded by BW Forge.
+#
+# This intentionally does not inherit ShieldBattery's signing, publishing, NSIS, or updater
+# configuration. Most importantly, its product identity is distinct from upstream ShieldBattery:
+# app/startup.js derives app.name (and therefore the single-instance pipe) from the product-specific
+# user-data directory.
+appId: com.bwforge.replayengine
+productName: BW Forge Replay Engine
+executableName: BW Forge Replay Engine
+directories:
+  output: dist/bw-forge-replay-engine
+extraResources:
+  - game/dist/**
+files:
+  - '!**/*.map'
+  - '!build/**/*'
+  - '!node_modules/**/*'
+  - 'index.html'
+  - 'assets/**/*'
+  - '!dist/index.js'
+  - '!dist/preload.js'
+  - '!dist/**/*.appchunk.js'
+  - 'dist/**/*.js'
+  - 'dist/manifest.json'
+  - from: 'dist/'
+    to: './'
+    filter:
+      - 'index.js'
+      - 'preload.js'
+      - '**/*.appchunk.js'
+      - 'native/**/*.node'
+win:
+  icon: icon.ico
+  target: dir

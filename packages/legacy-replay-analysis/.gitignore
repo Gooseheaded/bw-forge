@@ -1,0 +1,23 @@
+__pycache__/
+*.pyc
+*.jsonl
+*.txt
+
+# Imported local corpora and analysis outputs. Keep them on disk during migration,
+# but do not track them in the monorepo.
+/26-04/
+/26-04-analysis/
+/26-05/
+/26-05-analysis/
+/2gate/
+/mcribbed/
+/tarpman/
+/tvz-exit/
+/tvz-speed/
+/zvp/
+/zvp-2hm/
+/zvp-jimin/
+/zvt-pbjt/
+/zvt-soulkey/
+/zvt-xtinc/
+/deaths.json

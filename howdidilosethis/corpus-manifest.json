@@ -1,0 +1,15 @@
+{
+  "schema_version": "bw-forge-corpus-manifest-v1",
+  "generated_at": "2026-06-12T23:36:04.000Z",
+  "replay_count": 1,
+  "replays": [
+    {
+      "replay_id": "44b77091c689e59a4657215aff6bd281d6329dca73e4b6e1c7e9670117461ec6",
+      "replay_manifest_path": "replays/44b77091c689e59a4657215aff6bd281d6329dca73e4b6e1c7e9670117461ec6/replay-manifest.json",
+      "replay_dir": "replays/44b77091c689e59a4657215aff6bd281d6329dca73e4b6e1c7e9670117461ec6",
+      "source_filename": "LastReplay.rep",
+      "matchup": "ZvT",
+      "duration_seconds": 1383.354
+    }
+  ]
+}

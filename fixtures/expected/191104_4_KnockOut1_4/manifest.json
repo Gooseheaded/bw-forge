@@ -1,0 +1,25 @@
+{
+  "schema_version": "replay-analysis-manifest-v1",
+  "replay_id": "617f8e90744ca2697e3ba5cfb0eacb75cff5961b0e41a07979222c75807440eb",
+  "source": {
+    "filename": "191104,(4)KnockOut1.4.rep",
+    "path": "C:\\Users\\gctri\\Documents\\_\\replay-analysis\\26-04\\20260405\\191104,(4)KnockOut1.4.rep"
+  },
+  "matchup": "ZvT",
+  "map": null,
+  "duration_seconds": 509.376,
+  "players": [
+    {
+      "owner": 0,
+      "name": "Gooseheaded",
+      "race": "zerg",
+      "zip_filename": "player_0.zip"
+    },
+    {
+      "owner": 1,
+      "name": "Aether-X",
+      "race": "terran",
+      "zip_filename": "player_1.zip"
+    }
+  ]
+}

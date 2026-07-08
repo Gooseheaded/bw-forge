@@ -1,0 +1,42 @@
+{
+  "name": "shieldbattery-app",
+  "productName": "ShieldBattery-Local",
+  "productFilename": "ShieldBattery-Local",
+  "private": true,
+  "version": "10.4.2",
+  "description": "The standalone client for ShieldBattery",
+  "main": "index.js",
+  "license": "MIT",
+  "author": "Travis Collins <travis@tec27.com> (http://tec27.com)",
+  "dependencies": {
+    "@babel/core": "^7.28.5",
+    "@babel/plugin-proposal-decorators": "^7.28.0",
+    "@babel/plugin-transform-class-properties": "^7.27.1",
+    "@babel/plugin-transform-private-methods": "^7.27.1",
+    "@babel/preset-env": "^7.28.5",
+    "@babel/register": "^7.28.3",
+    "@bufbuild/protobuf": "^2.10.2",
+    "@shieldbattery/stimpack": "^1.1.1",
+    "@shieldbattery/windows-registry": "^1.0.0",
+    "archiver": "^7.0.1",
+    "bl": "^6.1.6",
+    "core-js": "^3.47.0",
+    "deep-equal": "^2.2.3",
+    "electron-is-dev": "^3.0.1",
+    "electron-localshortcut": "^3.2.1",
+    "electron-updater": "^6.6.2",
+    "jssuh": "^1.6.0",
+    "lodash": "^4.17.21",
+    "mkdirp": "^3.0.1",
+    "sanitize-filename": "^1.6.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/node": "24.2.1",
+      "@types/unist": "^3.0.3"
+    },
+    "onlyBuiltDependencies": [
+      "core-js"
+    ]
+  }
+}

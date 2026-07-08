@@ -1,0 +1,808 @@
+import { Map as IMap, Set as ISet, List, Record } from 'immutable'
+import { Counter, Histogram, linearBuckets } from 'prom-client'
+import { container, singleton } from 'tsyringe'
+import { AsyncResult, Result } from 'typescript-result'
+import createDeferred, { Deferred } from '../../../common/async/deferred'
+import rejectOnTimeout from '../../../common/async/reject-on-timeout'
+import { GameConfig, GameSource } from '../../../common/games/configuration'
+import { GameRoute, GameSetup, PlayerInfo } from '../../../common/games/game-launch-config'
+import { GameLoaderEvent } from '../../../common/games/game-loader-network'
+import { GameRouteDebugInfo } from '../../../common/games/games'
+import { Slot } from '../../../common/lobbies/slot'
+import { MapInfo, SbMapId, toMapInfoJson } from '../../../common/maps'
+import { BwTurnRate, BwUserLatency, turnRateToMaxLatency } from '../../../common/network'
+import { urlPath } from '../../../common/urls'
+import { RestrictionKind } from '../../../common/users/restrictions'
+import { SbUser } from '../../../common/users/sb-user'
+import { SbUserId } from '../../../common/users/sb-user-id'
+import { CodedError } from '../errors/coded-error'
+import log from '../logging/logger'
+import { getMapInfos } from '../maps/map-models'
+import { deleteUserRecordsForGame } from '../models/games-users'
+import { RallyPointRouteInfo, RallyPointService } from '../rally-point/rally-point-service'
+import { RestrictionService } from '../users/restriction-service'
+import { findUsersById } from '../users/user-model'
+import { TypedPublisher } from '../websockets/typed-publisher'
+import { deleteRecordForGame, updateRouteDebugInfo } from './game-models'
+import { GameplayActivityRegistry } from './gameplay-activity-registry'
+import { registerGame } from './registration'
+
+const GAME_LOAD_TIMEOUT = 75 * 1000
+
+// NOTE(tec27): It's important that these are sorted low -> high
+const POTENTIAL_TURN_RATES: ReadonlyArray<BwTurnRate> = [12, 14, 16, 20, 24]
+/**
+ * Entries of turn rate -> the max latency that is allowed to auto-pick that turn rate. These values
+ * are chosen to work initially on low latency, although with significant packet loss may need to be
+ * bumped higher. (This is a stop-gap measure, longer-term our netcode should be able to adjust on
+ * the fly.)
+ */
+const MAX_LATENCIES_LOW: ReadonlyArray<[turnRate: BwTurnRate, maxLatency: number]> =
+  POTENTIAL_TURN_RATES.map(turnRate => [
+    turnRate,
+    turnRateToMaxLatency(turnRate, BwUserLatency.Low),
+  ])
+/**
+ * Latencies to check if none of the MAX_LATENCIES_LOW work. At that point we pick a latency based
+ * on what would be optimal for the "High" ingame latency setting.
+ */
+const MAX_LATENCIES_HIGH: ReadonlyArray<[turnRate: BwTurnRate, maxLatency: number]> =
+  POTENTIAL_TURN_RATES.map(turnRate => [
+    turnRate,
+    turnRateToMaxLatency(turnRate, BwUserLatency.High),
+  ])
+
+export enum GameLoadErrorType {
+  /** The game load request was canceled before it completed. */
+  Canceled = 'canceled',
+  /** An internal error occurred while trying to load the game. */
+  Internal = 'internal',
+  /** A specific player failed to load. */
+  PlayerFailed = 'playerFailed',
+  /** Loading the game timed out before it finished. */
+  Timeout = 'timeout',
+}
+
+type GameLoadErrorTypeToData = {
+  [GameLoadErrorType.PlayerFailed]: {
+    userId: SbUserId
+  }
+  [GameLoadErrorType.Timeout]: {
+    unloaded: SbUserId[]
+  }
+
+  [GameLoadErrorType.Canceled]: undefined
+  [GameLoadErrorType.Internal]: undefined
+}
+
+export class BaseGameLoaderError<
+  T extends GameLoadErrorType = GameLoadErrorType,
+> extends CodedError<T, GameLoadErrorTypeToData[T]> {}
+
+export type GameLoaderError =
+  | BaseGameLoaderError<GameLoadErrorType.Canceled>
+  | BaseGameLoaderError<GameLoadErrorType.Internal>
+  | BaseGameLoaderError<GameLoadErrorType.PlayerFailed>
+  | BaseGameLoaderError<GameLoadErrorType.Timeout>
+
+export function isGameLoaderError(err: unknown): err is GameLoaderError {
+  return err instanceof BaseGameLoaderError
+}
+
+function generateSeed() {
+  // BWChart and some other replay sites/libraries utilize the random seed as the date the game was
+  // played, so we match BW's random seed method (time()) here
+  return (Date.now() / 1000) | 0
+}
+
+interface RouteResult extends RallyPointRouteInfo {
+  p1Slot: Slot
+  p2Slot: Slot
+}
+
+function createRoutes(players: ISet<Slot>): Promise<RouteResult[]> {
+  // Generate all the pairings of players to figure out the routes we need
+  const matchGen: Array<[Slot, ISet<Slot>]> = []
+  let rest = players
+  while (!rest.isEmpty()) {
+    const first = rest.first<Slot | undefined>(undefined)!
+    rest = rest.rest()
+    if (!rest.isEmpty()) {
+      matchGen.push([first, rest])
+    }
+  }
+  const needRoutes = matchGen.reduce(
+    (result, [p1, players]) => {
+      players.forEach(p2 => result.push([p1, p2]))
+      return result
+    },
+    [] as Array<[Slot, Slot]>,
+  )
+
+  const rallyPointService = container.resolve(RallyPointService)
+  const activityRegistry = container.resolve(GameplayActivityRegistry)
+
+  return Promise.all(
+    needRoutes.map(([p1, p2]) =>
+      rallyPointService
+        .createBestRoute(
+          activityRegistry.getClientForUser(p1.userId!)!,
+          activityRegistry.getClientForUser(p2.userId!)!,
+        )
+        .then(result => ({ ...result, p1Slot: p1, p2Slot: p2 })),
+    ),
+  )
+}
+
+const createLoadingData = Record({
+  gameSource: GameSource.Lobby,
+  players: ISet<Slot>(),
+  finishedPlayers: ISet<SbUserId>(),
+  abortController: null as unknown as AbortController,
+  deferred: null as unknown as Deferred<Result<void, GameLoaderError>>,
+  signal: null as unknown as AbortSignal,
+})
+
+type LoadingData = ReturnType<typeof createLoadingData>
+
+const LoadingDatas = {
+  isAllFinished(loadingData: LoadingData) {
+    return loadingData.players.every(p => loadingData.finishedPlayers.has(p.userId!))
+  },
+}
+
+export interface GameSetupGameInfo {
+  gameId: string
+  seed: number
+  turnRate?: BwTurnRate | 0
+  userLatency?: BwUserLatency
+  useLegacyLimits?: boolean
+}
+
+/**
+ * Parameters to `GameLoader.loadGame`.
+ */
+export interface GameLoadRequest {
+  /**
+   * A list of players that should be created as human (or observer) type slots. At least one player
+   * should be present for things to work properly.
+   */
+  players: Iterable<Slot>
+  /**
+   * A list of the info about each slot in the map/lobby. This is only really useful data for UMS
+   * lobbies, where slots may have different types, there might be hidden computer slots, etc. For
+   * a lobby, see `getPlayerInfos(Lobby)`. For matchmaking this can just be created from `players`
+   * directly.
+   */
+  playerInfos: PlayerInfo[]
+  /**
+   * The ID of the map that the game will be played on.
+   */
+  mapId: SbMapId
+  /**
+   * Configuration info for the game.
+   */
+  gameConfig: GameConfig
+  /**
+   * Optional list of rating entries for each player in the game. This only need to be provided for
+   * matchmaking games.
+   */
+  ratings?: Array<[id: SbUserId, rating: number]>
+  /** An `AbortSignal` that can be used to cancel the loading process midway through. */
+  signal?: AbortSignal
+}
+
+function gameUserPath(gameId: string, userId: SbUserId) {
+  return urlPath`/gameLoader/${gameId}/${userId}`
+}
+
+/** Returns the `GameSetup` for a game without any user-specific data. */
+function getGeneralGameSetup({
+  gameConfig,
+  playerInfos,
+  users,
+  ratings,
+  map,
+  gameId,
+  seed,
+  turnRate,
+  userLatency,
+}: {
+  gameConfig: GameConfig
+  playerInfos: PlayerInfo[]
+  users: SbUser[]
+  ratings?: Array<[id: SbUserId, rating: number]>
+  map: MapInfo
+  gameId: string
+  seed: number
+  turnRate: BwTurnRate | 0 | undefined
+  userLatency: BwUserLatency | undefined
+}): Exclude<GameSetup, 'resultCode'> {
+  if (gameConfig.gameSource === GameSource.Lobby) {
+    // NOTE(tec27): For launching lobbies this should now always be set (the optional bit is just
+    // for DB-stored configs), but we fall back to the first human player just in case
+    let host: PlayerInfo | undefined
+    if (gameConfig.gameSourceExtra?.host) {
+      host = playerInfos.find(p => p.userId === gameConfig.gameSourceExtra!.host)
+    }
+    if (!host) {
+      host = playerInfos.find(p => p.type === 'human' && p.userId)!
+    }
+
+    return {
+      gameId,
+      name: 'ShieldBattery Lobby',
+      map: toMapInfoJson(map),
+      gameType: gameConfig.gameType,
+      gameSubType: gameConfig.gameSubType,
+      slots: playerInfos,
+      host,
+      users,
+      seed,
+      turnRate,
+      userLatency,
+      useLegacyLimits: gameConfig.gameSourceExtra?.useLegacyLimits,
+    }
+  } else if (gameConfig.gameSource === GameSource.Matchmaking) {
+    return {
+      gameId,
+      name: 'ShieldBattery Matchmaking',
+      map: toMapInfoJson(map),
+      gameType: gameConfig.gameType,
+      gameSubType: gameConfig.gameSubType,
+      slots: playerInfos,
+      host: playerInfos[0],
+      users,
+      ratings,
+      disableAllianceChanges: true,
+      seed,
+      turnRate,
+      userLatency,
+    }
+  } else {
+    return gameConfig satisfies never
+  }
+}
+
+@singleton()
+export class GameLoader {
+  // Maps game id -> loading data
+  private loadingGames = IMap<string, LoadingData>()
+  private recentlyLoadedGames = new Set<string>()
+
+  private gameLoadRequestsTotalMetric = new Counter({
+    name: 'shieldbattery_game_loader_requests_total',
+    labelNames: ['game_source'],
+    help: 'Total number of game load requests',
+  })
+  private gameLoadFailuresTotalMetric = new Counter({
+    name: 'shieldbattery_game_loader_failures_total',
+    // TODO(tec27): Add failure types?
+    labelNames: ['game_source'],
+    help: 'Total number of game load requests that failed',
+  })
+  private gameLoadSuccessesTotalMetric = new Counter({
+    name: 'shieldbattery_game_loader_successes_total',
+    labelNames: ['game_source'],
+    help: 'Total number of game load requests that succeeded',
+  })
+  private maxEstimatedLatencyMetric = new Histogram({
+    name: 'shieldbattery_game_loader_max_estimated_latency_seconds',
+    labelNames: ['game_source'],
+    help: 'Maximum latency between a pair of peers in a game in seconds',
+    buckets: linearBuckets(0.01, 0.03, 12),
+  })
+  // TODO(tec27): Add a metric for the chosen turn rate
+
+  constructor(
+    private publisher: TypedPublisher<GameLoaderEvent>,
+    private activityRegistry: GameplayActivityRegistry,
+    private restrictionService: RestrictionService,
+  ) {}
+
+  /**
+   * Starts the process of loading a new game.
+   *
+   * @returns A promise which will resolve with the list of players if the game successfully loaded,
+   *   or be rejected if the load failed.
+   */
+  loadGame({
+    players,
+    playerInfos,
+    mapId,
+    gameConfig,
+    ratings,
+    signal,
+  }: GameLoadRequest): AsyncResult<void, GameLoaderError> {
+    const gameLoaded = createDeferred<Result<void, GameLoaderError>>()
+
+    this.gameLoadRequestsTotalMetric.labels(gameConfig.gameSource).inc()
+
+    registerGame(mapId, gameConfig).then(
+      ({ gameId, resultCodes }) => {
+        const abortController = new AbortController()
+        this.loadingGames = this.loadingGames.set(
+          gameId,
+          createLoadingData({
+            gameSource: gameConfig.gameSource,
+            players: ISet(players),
+            abortController,
+            deferred: gameLoaded,
+            signal: signal
+              ? AbortSignal.any([signal, abortController.signal])
+              : abortController.signal,
+          }),
+        )
+
+        this.doGameLoad({ gameId, mapId, gameConfig, resultCodes, playerInfos, ratings }).onFailure(
+          err => {
+            this.maybeCancelLoadingFromSystem(gameId, err)
+          },
+        )
+
+        rejectOnTimeout(gameLoaded, GAME_LOAD_TIMEOUT).catch(() => {
+          const loadingData = this.loadingGames.get(gameId)
+          if (!loadingData) {
+            // Something else must have already dealt with it
+            return
+          }
+
+          const unloaded = []
+          if (loadingData.finishedPlayers.size >= Math.floor(loadingData.players.size / 2)) {
+            // If at least half the players have finished loading, mark the rest of them as failed
+            // since that can only really happen if some players failed to report a status or
+            // crashed on game start.
+            for (const p of loadingData.players) {
+              if (p.userId && !loadingData.finishedPlayers.has(p.userId)) {
+                unloaded.push(p.userId)
+              }
+            }
+          }
+
+          this.maybeCancelLoadingFromSystem(
+            gameId,
+            new BaseGameLoaderError(GameLoadErrorType.Timeout, 'game load timed out', {
+              data: {
+                // TODO(tec27): Better determine who is at fault here. Currently we don't get enough
+                // information from clients about their loading state (just that their game is
+                // started or errored) so timeouts often result in all players being seen
+                // as at fault. We should send all the intermediate statuses from the game
+                // (configuring, setting up, etc.) so that we can see who is behind the rest and
+                // put the blame on them. (There we still likely be a lot of cases where no one
+                // in particular is to blame, though)
+                unloaded,
+              },
+            }),
+          )
+        })
+      },
+      err => {
+        log.error({ err }, "couldn't register game with database")
+        // NOTE(tec27): We haven't registered the game in `loadingGames` yet by this point so we
+        // can't cancel it that way
+        gameLoaded.resolve(
+          Result.error(
+            new BaseGameLoaderError(
+              GameLoadErrorType.Internal,
+              "Couldn't register game with database",
+            ),
+          ),
+        )
+      },
+    )
+
+    Result.fromAsync(() => gameLoaded)
+      .onSuccess(() => {
+        this.gameLoadSuccessesTotalMetric.labels(gameConfig.gameSource).inc()
+      })
+      .onFailure(() => {
+        this.gameLoadFailuresTotalMetric.labels(gameConfig.gameSource).inc()
+      })
+
+    return Result.fromAsync(() => gameLoaded)
+  }
+
+  /**
+   * The game has successfully loaded for a specific player. Once the game is loaded for all
+   * players, we clean up any remaining state to prevent it from being canceled.
+   *
+   * @returns whether the relevant game could be found
+   */
+  registerGameAsLoaded(gameId: string, playerId: SbUserId): boolean {
+    if (this.recentlyLoadedGames.has(gameId)) {
+      // This is just to prevent an erroneous 404/409 resulting from retrying game status updates
+      return true
+    }
+
+    if (!this.loadingGames.has(gameId)) {
+      return false
+    }
+
+    let loadingData = this.loadingGames.get(gameId)!
+    if (!loadingData.players.some(p => p.userId === playerId)) {
+      return false
+    }
+
+    loadingData = loadingData.set('finishedPlayers', loadingData.finishedPlayers.add(playerId))
+    this.loadingGames = this.loadingGames.set(gameId, loadingData)
+
+    if (LoadingDatas.isAllFinished(loadingData)) {
+      const allUserIds = loadingData.players.map(p => p.userId!).toArray()
+      const activeClients = allUserIds
+        .map(userId => this.activityRegistry.getClientForUser(userId))
+        .filter(c => !!c)
+      for (const client of activeClients) {
+        client.unsubscribe(gameUserPath(gameId, client.userId))
+      }
+
+      this.recentlyLoadedGames.add(gameId)
+      this.loadingGames = this.loadingGames.delete(gameId)
+      loadingData.deferred.resolve(Result.ok())
+
+      setTimeout(() => {
+        this.recentlyLoadedGames.delete(gameId)
+      }, 60000)
+    }
+
+    return true
+  }
+
+  /**
+   * Cancels the loading state of the game if it was loading (no-op if it was not).
+   *
+   * @returns whether the relevant game could be found
+   */
+  maybeCancelLoading(gameId: string, playerId: SbUserId): boolean {
+    if (!this.loadingGames.has(gameId)) {
+      return false
+    }
+
+    const loadingData = this.loadingGames.get(gameId)!
+    const loadingPlayer = loadingData.players.find(p => p.userId === playerId)
+    if (!loadingPlayer) {
+      return false
+    }
+
+    return this.maybeCancelLoadingFromSystem(
+      gameId,
+      new BaseGameLoaderError(GameLoadErrorType.PlayerFailed, `User ${playerId} failed to load`, {
+        data: { userId: playerId },
+      }),
+    )
+  }
+
+  private maybeCancelLoadingFromSystem(gameId: string, reason: GameLoaderError) {
+    if (!this.loadingGames.has(gameId)) {
+      return false
+    }
+
+    log.info({ err: reason }, `cancelling game load for ${gameId}: ${reason.message}`)
+
+    const loadingData = this.loadingGames.get(gameId)!
+
+    const allUserIds = loadingData.players.map(p => p.userId!).toArray()
+    const activeClients = allUserIds
+      .map(userId => this.activityRegistry.getClientForUser(userId))
+      .filter(c => !!c)
+    for (const userId of allUserIds) {
+      this.publisher.publish(gameUserPath(gameId, userId), {
+        type: 'cancelLoading',
+        gameId,
+      })
+    }
+
+    Promise.resolve()
+      .then(() => {
+        for (const client of activeClients) {
+          client.unsubscribe(gameUserPath(gameId, client.userId))
+        }
+      })
+      .catch(err => {
+        log.error({ err }, 'error unsubscribing client')
+      })
+
+    this.loadingGames = this.loadingGames.delete(gameId)
+    loadingData.abortController.abort()
+    loadingData.deferred.resolve(Result.error(reason))
+
+    Promise.all([deleteRecordForGame(gameId), deleteUserRecordsForGame(gameId)]).catch(err => {
+      log.error({ err }, 'error removing game records for cancelled game')
+    })
+
+    return true
+  }
+
+  isLoadingOrRecentlyLoaded(gameId: string) {
+    return this.loadingGames.has(gameId) || this.recentlyLoadedGames.has(gameId)
+  }
+
+  isLoading(gameId: string) {
+    return this.loadingGames.has(gameId)
+  }
+
+  private doGameLoad({
+    gameId,
+    mapId,
+    gameConfig,
+    resultCodes,
+    playerInfos,
+    ratings,
+  }: {
+    gameId: string
+    mapId: SbMapId
+    gameConfig: GameConfig
+    resultCodes: Map<SbUserId, string>
+    playerInfos: PlayerInfo[]
+    ratings?: Array<[id: SbUserId, rating: number]>
+  }): AsyncResult<void, GameLoaderError> {
+    return Result.fromAsync(async () => {
+      if (!this.loadingGames.has(gameId)) {
+        return Result.error(
+          new BaseGameLoaderError(
+            GameLoadErrorType.Internal,
+            `tried to load a game that doesn't exist: ${gameId}`,
+          ),
+        )
+      }
+
+      const mapPromise = Result.try(() => getMapInfos([mapId]))
+
+      const loadingData = this.loadingGames.get(gameId)!
+      const { players, signal } = loadingData
+      const allUserIds = players.map(p => p.userId!).toArray()
+
+      const usersResult = Result.try(() => findUsersById(allUserIds))
+      const chatRestrictedResult = Result.try(() =>
+        this.restrictionService.checkMultipleRestrictions(allUserIds, RestrictionKind.Chat),
+      )
+
+      const [activeClients, activeClientsError] = Result.all(
+        ...allUserIds.map(userId => {
+          const client = this.activityRegistry.getClientForUser(userId)
+          if (!client) {
+            return Result.error(
+              new BaseGameLoaderError(
+                GameLoadErrorType.PlayerFailed,
+                'a player had no active client',
+                {
+                  data: { userId },
+                },
+              ),
+            )
+          }
+          return Result.ok(client)
+        }),
+      ).toTuple()
+
+      if (activeClientsError) {
+        return Result.error(activeClientsError)
+      }
+
+      const [users, usersError] = await usersResult.toTuple()
+      if (usersError || users.length !== players.size) {
+        return Result.error(
+          new BaseGameLoaderError(
+            GameLoadErrorType.Internal,
+            "couldn't find all users in the game",
+          ),
+        )
+      }
+
+      for (const client of activeClients) {
+        client.subscribe(gameUserPath(gameId, client.userId), undefined, () => {
+          this.maybeCancelLoadingFromSystem(
+            gameId,
+            new BaseGameLoaderError(
+              GameLoadErrorType.PlayerFailed,
+              'a player disconnected while loading',
+              { data: { userId: client.userId } },
+            ),
+          )
+        })
+      }
+
+      const rallyPointService = container.resolve(RallyPointService)
+      const activityRegistry = container.resolve(GameplayActivityRegistry)
+
+      const hasMultipleHumans = players.size > 1
+      const pingPromise = !hasMultipleHumans
+        ? Result.ok()
+        : Result.all(
+            ...players.map(p =>
+              Result.try(
+                () =>
+                  rallyPointService.waitForPingResult(
+                    activityRegistry.getClientForUser(p.userId!)!,
+                  ),
+                (error: unknown) =>
+                  new BaseGameLoaderError(
+                    GameLoadErrorType.PlayerFailed,
+                    'a player failed to connect to a rally-point server',
+                    { data: { userId: p.userId! }, cause: error },
+                  ),
+              ),
+            ),
+          )
+
+      const pingResult = await pingPromise
+      if (pingResult.isError()) {
+        return Result.error(pingResult.error)
+      }
+      if (signal.aborted) {
+        return Result.error(
+          new BaseGameLoaderError(GameLoadErrorType.Canceled, 'game load was canceled'),
+        )
+      }
+
+      const [routes, routesError] = (
+        await (hasMultipleHumans ? Result.fromAsyncCatching(createRoutes(players)) : Result.ok([]))
+      ).toTuple()
+      if (routesError) {
+        return Result.error(
+          new BaseGameLoaderError(GameLoadErrorType.Internal, 'error creating routes', {
+            cause: routesError,
+          }),
+        )
+      }
+      if (signal.aborted) {
+        return Result.error(
+          new BaseGameLoaderError(GameLoadErrorType.Canceled, 'game load was canceled'),
+        )
+      }
+
+      let chosenTurnRate: BwTurnRate | 0 | undefined
+      let chosenUserLatency: BwUserLatency | undefined
+
+      if (
+        gameConfig.gameSource === GameSource.Matchmaking ||
+        gameConfig.gameSourceExtra?.turnRate === undefined
+      ) {
+        let maxEstimatedLatency = 0
+        for (const route of routes) {
+          if (route.estimatedLatency > maxEstimatedLatency) {
+            maxEstimatedLatency = route.estimatedLatency
+          }
+        }
+
+        this.maxEstimatedLatencyMetric
+          .labels(loadingData.gameSource)
+          .observe(maxEstimatedLatency / 1000)
+
+        let availableTurnRates = MAX_LATENCIES_LOW.filter(
+          ([_, latency]) => latency > maxEstimatedLatency,
+        )
+        if (availableTurnRates.length) {
+          // Of the turn rates that work for this latency, pick the best one
+          chosenTurnRate = availableTurnRates.at(-1)![0]
+          chosenUserLatency = BwUserLatency.Low
+        } else {
+          // Fall back to a latency that will work for High latency
+          availableTurnRates = MAX_LATENCIES_HIGH.filter(
+            ([_, latency]) => latency > maxEstimatedLatency,
+          )
+          // Of the turn rates that work for this latency, pick the best one
+          chosenTurnRate = availableTurnRates.length ? availableTurnRates.at(-1)![0] : 12
+          chosenUserLatency = BwUserLatency.High
+        }
+      } else if (gameConfig.gameSourceExtra?.turnRate) {
+        chosenTurnRate = gameConfig.gameSourceExtra.turnRate
+      }
+
+      const [maps, mapError] = await mapPromise.toTuple()
+      if (mapError || !maps.length) {
+        return Result.error(
+          new BaseGameLoaderError(
+            GameLoadErrorType.Internal,
+            `Couldn't find map with ID ${mapId}`,
+            {
+              cause: mapError,
+            },
+          ),
+        )
+      }
+      if (signal.aborted) {
+        return Result.error(
+          new BaseGameLoaderError(GameLoadErrorType.Canceled, 'game load was canceled'),
+        )
+      }
+      const [map] = maps
+
+      const [chatRestrictions, chatRestrictionsError] = await chatRestrictedResult.toTuple()
+      const restrictionsSet = new global.Set<SbUserId>()
+      if (chatRestrictionsError) {
+        log.error({ err: chatRestrictionsError }, 'error checking chat restrictions')
+      } else {
+        for (const u of chatRestrictions) {
+          restrictionsSet.add(u)
+        }
+      }
+
+      const generalSetup = getGeneralGameSetup({
+        gameConfig,
+        playerInfos,
+        users,
+        map,
+        gameId,
+        ratings,
+        seed: generateSeed(),
+        turnRate: chosenTurnRate,
+        userLatency: chosenUserLatency,
+      })
+      for (const player of players) {
+        const userId = player.userId!
+        this.publisher.publish(gameUserPath(gameId, userId), {
+          type: 'setGameConfig',
+          gameId,
+          setup: {
+            ...generalSetup,
+            resultCode: resultCodes.get(userId)!,
+            isChatRestricted: restrictionsSet.has(userId),
+          },
+        })
+      }
+
+      // get a list of routes + player IDs per player, broadcast that to each player
+      const routesByPlayer = routes.reduce((result, route) => {
+        const {
+          p1Slot,
+          p2Slot,
+          server,
+          route: { routeId, p1Id, p2Id },
+        } = route
+        return result
+          .update(p1Slot, List(), val =>
+            val.push({ for: p2Slot.id, server, routeId, playerId: p1Id }),
+          )
+          .update(p2Slot, List(), val =>
+            val.push({ for: p1Slot.id, server, routeId, playerId: p2Id }),
+          )
+      }, IMap<Slot, List<GameRoute>>())
+
+      const debugRouteInfo = routes.map<GameRouteDebugInfo>(route => ({
+        p1: route.p1,
+        p2: route.p2,
+        server: route.server.id,
+        latency: route.estimatedLatency,
+      }))
+      Promise.resolve()
+        .then(() => updateRouteDebugInfo(gameId, debugRouteInfo))
+        .catch(err => {
+          log.error({ err }, 'error updating route debug info')
+        })
+
+      for (const [player, routes] of routesByPlayer.entries()) {
+        this.publisher.publish(gameUserPath(gameId, player.userId!), {
+          type: 'setRoutes',
+          gameId,
+          routes: routes.toArray(),
+        })
+      }
+      if (!hasMultipleHumans) {
+        const human = players.first<Slot | undefined>(undefined)!.userId!
+        this.publisher.publish(gameUserPath(gameId, human), {
+          type: 'setRoutes',
+          gameId,
+          routes: [],
+        })
+      }
+
+      if (signal.aborted) {
+        return Result.error(
+          new BaseGameLoaderError(GameLoadErrorType.Canceled, 'game load was canceled'),
+        )
+      }
+
+      for (const client of activeClients) {
+        this.publisher.publish(gameUserPath(gameId, client.userId), {
+          type: 'startWhenReady',
+          gameId,
+        })
+      }
+
+      // Delay the cleanup until after `startWhenReady` has been sent
+      await Promise.resolve()
+
+      return Result.ok()
+    })
+  }
+}

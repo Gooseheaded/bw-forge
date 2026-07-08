@@ -1,0 +1,190 @@
+import { nanoid } from 'nanoid'
+import swallowNonBuiltins from '../../common/async/swallow-non-builtins'
+import { PlayerInfo } from '../../common/games/game-launch-config'
+import { GameType } from '../../common/games/game-type'
+import { GameReplayInfo } from '../../common/games/games'
+import { TypedIpcRenderer } from '../../common/ipc'
+import { SlotType } from '../../common/lobbies/slot'
+import { SbUser, SelfUserJson } from '../../common/users/sb-user'
+import { makeSbUserId } from '../../common/users/sb-user-id'
+import { openDialog, openSimpleDialog } from '../dialogs/action-creators'
+import { DialogType } from '../dialogs/dialog-type'
+import { DispatchFunction, ThunkAction } from '../dispatch-registry'
+import i18n from '../i18n/i18next'
+import logger from '../logging/logger'
+import { abortableThunk, RequestHandlingSpec } from '../network/abortable-thunk'
+import { fetchRaw } from '../network/fetch'
+import { makeServerUrl } from '../network/server-url'
+import { RootState } from '../root-reducer'
+import { healthChecked } from '../starcraft/health-checked'
+
+const ipcRenderer = new TypedIpcRenderer()
+
+async function setGameConfigWithOptions(
+  replay: { name: string; path: string },
+  options: {
+    fastExport?: boolean
+    targetMultiplier?: number
+    disableRender?: boolean
+    disableAudio?: boolean
+  },
+  user?: SelfUserJson,
+) {
+  const player: PlayerInfo = {
+    type: SlotType.Human,
+    typeId: 6,
+    id: nanoid(),
+    teamId: 0,
+    userId: user?.id ?? makeSbUserId(0),
+  }
+  const slots = [player]
+
+  const header = (await ipcRenderer.invoke('replayParseMetadata', replay.path))?.headerData
+
+  const localUser: SbUser = {
+    id: user?.id ?? makeSbUserId(0),
+    name: user?.name ?? 'ShieldBattery User',
+  }
+
+  return ipcRenderer.invoke('activeGameSetConfig', {
+    localUser,
+    serverConfig: {
+      serverUrl: makeServerUrl(''),
+    },
+    setup: {
+      gameId: nanoid(),
+      name: replay.name,
+      map: { isReplay: true, path: replay.path },
+      gameType: GameType.Melee,
+      gameSubType: 0,
+      slots,
+      host: player,
+      users: [localUser],
+      seed: header?.seed ?? 0,
+      replayExport: options.fastExport
+        ? {
+            enabled: true,
+            targetMultiplier: options.targetMultiplier ?? 128,
+            disableRender: options.disableRender ?? true,
+            disableAudio: options.disableAudio ?? true,
+          }
+        : undefined,
+    },
+  })
+}
+
+function setGameRoutes(gameId: string) {
+  ipcRenderer.invoke('activeGameSetRoutes', gameId, [])?.catch(swallowNonBuiltins)
+  ipcRenderer.invoke('activeGameStartWhenReady', gameId)?.catch(swallowNonBuiltins)
+}
+
+export function startReplay({
+  path,
+  name = 'Replay',
+  fastExport = false,
+  targetMultiplier,
+  disableRender,
+  disableAudio,
+}: {
+  path: string
+  name?: string
+  fastExport?: boolean
+  targetMultiplier?: number
+  disableRender?: boolean
+  disableAudio?: boolean
+}): ThunkAction {
+  const runReplayStart = (
+    dispatch: DispatchFunction<Parameters<ThunkAction>[0] extends never ? never : any>,
+    getState: () => RootState,
+  ) => {
+    const {
+      auth: { self },
+    } = getState()
+
+    // TODO(2Pac): Use the game loader on the server to register watching a replay, so we can show
+    // to other people (like their friends) when a user is watching a replay.
+    setGameConfigWithOptions(
+      { path, name },
+      { fastExport, targetMultiplier, disableRender, disableAudio },
+      self?.user,
+    ).then(
+      gameId => {
+        if (gameId) {
+          if (fastExport) {
+            setGameRoutes(gameId)
+          } else {
+            dispatch(openDialog({ type: DialogType.ReplayLoad, initData: { gameId } }))
+            // NOTE(tec27): This is just to give time for the dialog to open/run its effects to
+            // start waiting for this game to launch to avoid a race here. This is pretty dumb and
+            // should probably be handled in a different way.
+            setTimeout(() => {
+              setGameRoutes(gameId)
+            }, 250)
+          }
+        }
+      },
+      err => {
+        logger.error(`Error starting replay file [${path}]: ${err?.stack ?? err}`)
+        dispatch(
+          openSimpleDialog(
+            i18n.t('replays.loading.initFailureTitle', 'Error loading replay'),
+            i18n.t(
+              'replays.loading.initFailureBody',
+              'The selected replay could not be loaded. It may either be corrupt, or was created ' +
+                'by a version of StarCraft newer than is currently supported.',
+            ),
+          ),
+        )
+      },
+    )
+  }
+
+  if (fastExport) {
+    return runReplayStart
+  }
+
+  return healthChecked(runReplayStart)
+}
+
+export function showReplayInfo(filePath: string) {
+  return openDialog({ type: DialogType.ReplayInfo, initData: { filePath } })
+}
+
+/**
+ * Downloads a replay from the server (if not already cached) and starts watching it.
+ */
+export function watchReplayFromUrl(
+  replayInfo: GameReplayInfo,
+  gameId: string,
+  spec: RequestHandlingSpec,
+): ThunkAction {
+  return abortableThunk(spec, async dispatch => {
+    // Check if replay is already cached
+    let replayPath = await ipcRenderer.invoke('replayStoreGetPath', replayInfo.id, replayInfo.hash)
+
+    if (!replayPath) {
+      // Download the replay
+      const response = await fetchRaw(replayInfo.url, {
+        signal: spec.signal,
+        credentials: 'same-origin',
+        headers: { Accept: '*/*' },
+      })
+      if (!response.ok) {
+        throw new Error(`Failed to download replay: ${response.status} ${response.statusText}`)
+      }
+      const data = await response.arrayBuffer()
+
+      // Store in cache
+      replayPath = await ipcRenderer.invoke(
+        'replayStoreStoreReplay',
+        replayInfo.id,
+        replayInfo.hash,
+        data,
+      )
+    }
+
+    if (replayPath) {
+      dispatch(startReplay({ path: replayPath, name: `Replay ${gameId}` }))
+    }
+  })
+}

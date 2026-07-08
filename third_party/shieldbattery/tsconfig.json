@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "noImplicitOverride": true,
+    "strict": true,
+
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "preserveConstEnums": true,
+    "skipLibCheck": true
+  },
+
+  "include": [
+    "app/**/*",
+    "client/**/*",
+    "common/**/*",
+    "email/**/*",
+    "integration/**/*",
+    "server/**/*",
+    "typings/**/*",
+    "*.ts"
+  ],
+
+  "exclude": ["server/public", "server/testing/google", "app/dist", "app/node_modules"]
+}

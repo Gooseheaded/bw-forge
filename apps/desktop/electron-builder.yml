@@ -1,0 +1,25 @@
+appId: com.bwforge.desktop
+productName: BW Forge
+asar: true
+directories:
+  output: release
+files:
+  - out/**/*
+  - package.json
+  - README.md
+  - THIRD_PARTY_NOTICES.txt
+extraResources:
+  - from: .runtime-build
+    to: runtime
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: ${productName}-${version}-${arch}-Setup.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

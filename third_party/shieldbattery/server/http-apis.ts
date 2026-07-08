@@ -1,0 +1,17 @@
+// This file should import every `HttpApi` that needs to be included in the app. It doesn't have to
+// do anything with them, they just need to be imported so they will be registered with tsyringe
+import './lib/bugs/bugs-api'
+import './lib/chat/chat-api'
+import './lib/games/game-api'
+import './lib/ladder/ladder-api'
+import './lib/leagues/league-api'
+import './lib/maps/map-api'
+import './lib/matchmaking/matchmaking-api'
+import './lib/matchmaking/matchmaking-map-pools-api'
+import './lib/matchmaking/matchmaking-preferences-api'
+import './lib/matchmaking/matchmaking-times-api'
+import './lib/notifications/notification-api'
+import './lib/rally-point/rally-point-api'
+import './lib/session/session-api'
+import './lib/users/user-api'
+import './lib/whispers/whisper-api'

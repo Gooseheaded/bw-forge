@@ -1,0 +1,1811 @@
+﻿[
+  {
+    "replay_id": "02a9270e7e798cd9506b4423733a6a43ae73baf1cd8036464b113bed04524307",
+    "source_replay_filename": "250918_033021_AetherX_pbjt AqknDn55jNlQa0QjczpqQ65zuvHNgDZGSxE77QRSQwc.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 392,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:32 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "032d74b5f8be7e73e5116b2c1f427fa8c3a94b4a5b7c6ae904f34d0b97c2af0a",
+    "source_replay_filename": "250919_041000_AetherX_pbjt Ay10tfi-fnPlEWssH0J_qMOpS0pbfGrpBPNNC5fCrwo.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 334,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:34 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "03fc7955df3e5103ffdafbc8e4d2710804f1f786913e9fe5798746fd50197894",
+    "source_replay_filename": "260101_223916_pand0r_pbjt A_x5Vd8-UQP_2vvI5NJxCATx94aRPp_leYdG_VAZeJQ.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": null
+  },
+  {
+    "replay_id": "04bfc8adc6c06d4ab98c34d7f70f39e44a1df73f352a49701f5ea6bea293dcb5",
+    "source_replay_filename": "251202_043649_pand0r_pbjt BL_IrcbAbUq5jDTX9w855Eod9z81KklwH16mvqKT3LU.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 315,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:15 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "06257d363c7028307a8d5c88430aaab10c48e3083bccdef17928895b405c1d34",
+    "source_replay_filename": "251216_031740_pand0r_pbjt BiV9NjxwKDB6jVyIQwqqsQxI4wg7zN7xeSiJW0BcHTQ.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 322,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:22 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "073a121b8e43f01c14475c348e95c5ac01ca1913a6e8b7f17fb8c9effa4c3f0f",
+    "source_replay_filename": "260102_015705_pand0r_pbjt BzoSG45D8BwUR1w0jpXFrAHKGROm6Lfxf7jJ7_pMPw8.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 410,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:50 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "07a35f6c8c8a2db3db43055c74e4fb41b74b03c9e66a3264e1aef2b2022f6999",
+    "source_replay_filename": "250726_211954_AetherX_pbjt B6NfbIyKLbPbQwVcdOT7QbdLA8nmajJk4a7ysgIvaZk.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 325,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:25 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "07d170051927ea850c1a02a2916fa92319dddab6f4ba64ef14f3b0deac16b40c",
+    "source_replay_filename": "251229_042948_pand0r_pbjt B9FwBRkn6oUMGgKikW-pIxnd2rb0umTvFPOw3qwWtAw.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 331,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:31 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "0bdb7e107bb1bb63199f55e070579a5ad031b53e2883fdf838098e5a0209ff0a",
+    "source_replay_filename": "260102_021707_pand0r_pbjt C9t-EHuxu2MZn1XgcFeaWtAxtT4og_34OAmOWgIJ_wo.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 327,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:27 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "0e291de343605c3fefd9fa52e39dad72e83754834c38e2ae4f13cd6d187f4adb",
+    "source_replay_filename": "251127_071459_pand0r_pbjt Dikd40NgXD_v2fpS452tcug3VINMOOKuTxPNbRh_Sts.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 316,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:16 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "0e5728b7d85665d9cc9f5763ef4208c4a7a34bd8e7d9425734d98613a9956516",
+    "source_replay_filename": "250809_222509_pbjt_AetherX Dlcot9hWZdnMn1dj70IIxKejS9jn2UJXNNmGE6mVZRY.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 316,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:16 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "0e7852160fc1177c154fcd54568dba49dac50f36ee59c3ee4d1cb171a409b2b9",
+    "source_replay_filename": "250810_042407_AetherX_pbjt DnhSFg_BF3wVT81UVo26SdrFDzbuWcPuTRyxcaQJsrk.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 328,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:28 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "1436039b59c7c6837e9e33a0b187c79a57e1a602c1cb39c58727789999c5bc91",
+    "source_replay_filename": "251217_044148_pand0r_pbjt FDYDm1nHxoN-njOgsYfHmlfhpgLByznFhyd4mZnFvJE.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 415,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:55 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "14994ff986742b1e479808ceeb7b09a86a6a9a5b039e9c07a3c423b6ed9cc0a2",
+    "source_replay_filename": "250823_220001_AetherX_pbjt FJlP-YZ0Kx5HmAjO63sJqGpqmlsDnpwHo8Qjtu2cwKI.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 324,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:24 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "14d71fff776510e509bf1305e3afe9f7e2b1e990745354c5890f18d9d6fd38e1",
+    "source_replay_filename": "260113_042554_AetherX_pbjt FNcf_3dlEOUJvxMF46_p9-Kx6ZB0U1TFiQ8Y2db9OOE.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 385,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:25 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "15a4119bbda683a2ea306db97a582fc599c8bbc2c69abc76b13265f2b5a850e9",
+    "source_replay_filename": "251217_043021_pbjt_pand0r FaQRm72mg6LqMG25elgvxZnIu8LGmrx2sTJl8rWoUOk.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 313,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:13 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "1a2c9306cde8b43bdf29476a27f946c1c6cbb15c016ae4694057259825666e89",
+    "source_replay_filename": "260102_013255_pbjt_pand0r GiyTBs3otDvfKUdqJ_lGwcbLsVwBauRpQFclmCVmbok.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 322,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:22 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "1a7f455ed67dc2b822a8a3b46802fa740d86a085bf8593343513372c0bb06e9f",
+    "source_replay_filename": "260101_055531_pbjt_pand0r Gn9FXtZ9wrgiqKO0aAL6dA2GoIW_hZM0NRM3LAuwbp8.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 421,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "07:01 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "24c0ae9b1846aebff08aace5eff35d5b75bfe5ebde38f4be973f2060f4b2a5e8",
+    "source_replay_filename": "250920_030727_AetherX_pbjt JMCumxhGrr_wiqzl7_NdW3W_5eveOPS-lz8gYPSypeg.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 333,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:33 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "24df7a44f3c370b57769e344465b815729eff34f9c3b55df494fa90da6888ffe",
+    "source_replay_filename": "260103_215639_pbjt_AetherX JN96RPPDcLV3aeNERluBVynv80-cO1XfSU-pDaaIj_4.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 394,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:34 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "24fccfe8126c9fffbf80a9d0cc641fc0df78e11dc49842eaca842f1ee379775e",
+    "source_replay_filename": "251216_034651_pand0r_pbjt JPzP6BJsn_-_gKnQzGQfwN944R3EmELqyoQvHuN5d14.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 403,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:43 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "2557bbd95afd49fad4293d52418069fe7f14e377948940492e6121fba3490cd5",
+    "source_replay_filename": "251201_033946_pand0r_pbjt JVe72Vr9SfrUKT1SQYBp_n8U43eUiUBJLmEh-6NJDNU.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 320,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:20 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "2e9d219e72bc7a2eea7db7ae51c0df34b36f859d0b0133f823aee0e98c7eb455",
+    "source_replay_filename": "250726_210408_pbjt_AetherX Lp0hnnK8ei7qfbeuUcDfNLNvhZ0LATP4I67g6Yx-tFU.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 407,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:47 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "33dff6ed9bbd6de36f1b53f081f33ff79c7466c7b0b9c1492ac9dee538ca93e8",
+    "source_replay_filename": "250726_213845_pbjt_AetherX M9_27Zu9beNvG1PwgfM_95x0ZsewucFJKsne5TjKk-g.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 323,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:23 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "35decb32edf1053a9ff75d6e9822e290f8450fc465c155981a32640ef9c97a76",
+    "source_replay_filename": "251229_055729_pand0r_pbjt Nd7LMu3xBTqf911umCLikPhFD8RlwVWYGjJkDvnJenY.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 317,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:17 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "36a150d90ef144ca03d17d19914c5f95203a3987711835df71a14e2074e4750d",
+    "source_replay_filename": "260101_060645_pbjt_pand0r NqFQ2Q7xRMoD0X0ZkUxflSA6OYdxGDXfcaFOIHTkdQ0.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 317,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:17 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "372ffa82d3dd5b1a09ec5296e4afbd37350a61d32604bacf35e37e6ef5a00990",
+    "source_replay_filename": "250927_202636_AetherX_pbjt Ny_6gtPdWxoJ7FKW5K-9NzUKYdMmBLrPNeN-bvWgCZA.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 315,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:15 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "436477a956690ff019e40e4c105ffd6a29e47b228c9afc29d89bcb1e6cfa83eb",
+    "source_replay_filename": "250810_032138_pbjt_AetherX Q2R3qVZpD_AZ5A5MEF_9ainkeyKMmvwp2JvLHmz6g-s.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 320,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:20 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "4eb50366e0293f6727f0270b445fdfb6c6ca557eea755a91108883a75f9425a5",
+    "source_replay_filename": "260103_225539_AetherX_pbjt TrUDZuApP2cn8CcLRF_ftsbKVX7qdVqREIiDp1-UJaU.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": null
+  },
+  {
+    "replay_id": "594a263b4a4a70f14a4f4dfae72b1717bc2e690104cf92aa7f058c257c300479",
+    "source_replay_filename": "251203_050510_pbjt_pand0r WUomO0pKcPFKT0365ysXF7wuaQEEz5KqfwWMJXwwBHk.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 325,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:25 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "5b073c0b236fbf5c0d0bfd22e9782d840d5792d6805fa4299315c529762923f7",
+    "source_replay_filename": "251202_042529_pbjt_pand0r Wwc8CyNvv1wNC_0i6XgthA1XktaAX6QpkxXFKXYpI_c.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 375,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:15 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "5c0bffa9be11d9b8b958f1ecedc6577126de002fd726918b7e4236af58363fb8",
+    "source_replay_filename": "250726_231019_pbjt_AetherX XAv_qb4R2bi5WPHs7cZXcSbeAC_XJpGLfkI2r1g2P7g.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 316,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:16 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "5c496bde99cc15fa6ff093726422f73ecf801a2b3fbeae7ddebbc7fde1ba0d92",
+    "source_replay_filename": "260102_014733_pbjt_pand0r XElr3pnMFfpv8JNyZCL3Ps-AGis_vq593rvH_eG6DZI.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 344,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:44 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "5f37523e24c68bdf0ed0a923bddb7020b8fddaa6698141c4943b5361398dc50a",
+    "source_replay_filename": "250823_215431_pbjt_AetherX XzdSPiTGi98O0KkjvdtwILj92qZpgUHElDtTYTmNxQo.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": null
+  },
+  {
+    "replay_id": "62230a37a2aac310ae38f3ffc15029e786b41f35b699160d055184af45f601c4",
+    "source_replay_filename": "251201_041828_pand0r_pbjt YiMKN6KqwxCuOPP_wVAp54a0HzW2mRYNBVGEr0X2AcQ.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 410,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:50 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "6497a1f2ca1077cf617c3b46b2b56069c044083addfdc113c543c4bd4016c4db",
+    "source_replay_filename": "260103_214727_pbjt_AetherX ZJeh8soQd89hfDtGsrVgacBECDrd_cETxUPEvUAWxNs.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 384,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:24 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "687a465666ad83361bc52054225f381d3aa8a0e75ea937b1bb8f78daf84a2a11",
+    "source_replay_filename": "260103_230122_AetherX_pbjt aHpGVmatgzYbxSBUIl84HTqooOdeqTexu4942vhKKhE.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 319,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:19 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "6e380572d54af00c24f89264f4f7d1144bb696ec966da3af1f6df6e298160a7e",
+    "source_replay_filename": "250919_042756_AetherX_pbjt bjgFctVK8Awk-JJk9PfRFEu2luyWbaOvH2324pgWCn4.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 402,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:42 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "6f07e32c4d8026db62aab2a152b1eedb104dff477a8bdd51f3023698f1b5fea7",
+    "source_replay_filename": "251127_032149_pbjt_pand0r bwfjLE2AJttiqrKhUrHu2xBN_0d6i91R8wI2mPG1_qc.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 392,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:32 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "6f0dfa1062beeb9c09154687b7def27e554f79dcd83c0010c807d5859311585e",
+    "source_replay_filename": "251229_052139_pand0r_pbjt bw36EGK-65wJFUaHt97yflVPedzYPAAQyAfVhZMRWF4.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 323,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:23 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "6f33bd8d966c787b44010a5a69cb159ab2f186c37a5e5249673c7ebf391b1b4c",
+    "source_replay_filename": "250726_221434_pbjt_AetherX bzO9jZZseHtEAQpaacsVmrLxhsN6XlJJZzx-vzkbG0w.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 316,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:16 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "71a1718ceed30b699140f5cd1bfd6d463d601d031b079b9892aca772ff6fe8cb",
+    "source_replay_filename": "250726_200817_AetherX_pbjt caFxjO7TC2mRQPXNG_1tRj1gHQMbB5uYkqyncv9v6Ms.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 322,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:22 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "723ef3c32498ef07e776b666aca9db3bc119a0ce8c71b9d6138cfbce9100018c",
+    "source_replay_filename": "260101_230729_pand0r_pbjt cj7zwySY7wfndrZmrKnbO8EZoM6McbnWE4z7zpEAAYw.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 371,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:11 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "72504cb5231e5501130841e71d02c5338f4eaedd938899a5c8798729b198af19",
+    "source_replay_filename": "250916_040346_AetherX_pbjt clBMtSMeVQETCEHnHQLFM49Ort2TiJmlyHmHKbGYrxk.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZvZ",
+    "event": {
+      "time_seconds": 316,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:16 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "736baf22bc380a5ec996a2e73f2710289ea3927242181bc24aa179ea17034070",
+    "source_replay_filename": "250719_032426_pbjt_AetherX c2uvIrw4Cl7JlqLnPycQKJ6jknJCGBvCSqF56hcDQHA.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 316,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:16 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "73d98871284df164c79228b2c8409c440bf8c183eaad6513ad3a45f74841aa4b",
+    "source_replay_filename": "250724_034629_pbjt_AetherX c9mIcShN8WTHkiiyyECcRAv4wYPqrWUTrTpF90hBqks.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 315,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:15 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "75756cd08f5575e79339959abcc29dd0194f7d7a355bf2bd0b28381a89b264cd",
+    "source_replay_filename": "251203_054005_pbjt_pand0r dXVs0I9VdeeTOZWavMKd0BlPfXo1W_K9Cyg4GomyZM0.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": null
+  },
+  {
+    "replay_id": "75ab4efd7ffd26115007ab988434c7cdef9e404c343aa124fcce5b0f0bb021fe",
+    "source_replay_filename": "250722_043506_AetherX_pbjt datO_X_9JhFQB6uYhDTHze-eQEw0OqEk_M5bDwuwIf4.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 319,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:19 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "75bf422081bed9e6f13087b149581115cea2eff4872d5f0cff45a39ca0f77496",
+    "source_replay_filename": "250726_205904_AetherX_pbjt db9CIIG-2ebxMIexSVgRFc6i7_SHLV8M_0WjnKD3dJY.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": null
+  },
+  {
+    "replay_id": "7961e0198bc76b428249aff062a081d9b1adfa37febabf909a94c36879f4f43e",
+    "source_replay_filename": "260101_224358_pand0r_pbjt eWHgGYvHa0KCSa_wYqCB2bGt-jf-ur-QmpTDaHn09D4.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 361,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:01 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "7aefc77b91137e76afbdc307a64e68a1ae8ad5634a75e794d823eb93d80389ef",
+    "source_replay_filename": "260101_234222_pbjt_pand0r eu_He5ETfnavvcMHpk5ooa6K1WNKdeeU2CPrk9gDie8.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 413,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:53 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "8032cf8c61ecf76a5f3819829f77dbaa485303c4e71be87e449069b3237e74c3",
+    "source_replay_filename": "251203_054427_pbjt_pand0r gDLPjGHs92pfOBmCn3fbqkhTA8TnG-h-RJBpsyN-dMM.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 373,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:13 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "88dac51d64100b62feeec992da9f80ccba6c51b00648136313b201136434278f",
+    "source_replay_filename": "250719_041853_pbjt_AetherX iNrFHWQQC2L-7smS2p-AzLpsUbAGSBNjE7IBE2Q0J48.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 320,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:20 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "8a499602803a46a36162ebd52f21f3512848de883d28c9fcf3046bf4dc6b5687",
+    "source_replay_filename": "260113_042012_AetherX_pbjt ikmWAoA6RqNhYuvVLyHzUShI3og9KMn88wRr9NxrVoc.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": null
+  },
+  {
+    "replay_id": "8b5da72091e145a454221126d95e74f4238778c0eee25e077ae195674d8432b5",
+    "source_replay_filename": "250927_211136_pbjt_AetherX i12nIJHhRaRUIhEm2V509COHeMDu4l4HeuGVZ02EMrU.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 410,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:50 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "8d52c7f8f44516a8b1d7dfeb484b5dfcaa931c07ca15e57176af0929d4aed1ac",
+    "source_replay_filename": "250919_035514_AetherX_pbjt jVLH-PRFFqix19_rSEtd_KqTHAfKFeVxdq8JKdSu0aw.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 325,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:25 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "8d7790a5c190df1e2a0c3d4364849244a12410b1578012a0d95094f3e87992cf",
+    "source_replay_filename": "250724_041257_pbjt_AetherX jXeQpcGQ3x4qDD1DZISSRKEkELFXgBKg2VCU8-h5ks8.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 315,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:15 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "8eb2ba35974218139e8e09fe754eb3a46817c97f71ebaccda1599648b6c928ad",
+    "source_replay_filename": "250719_043802_pbjt_AetherX jrK6NZdCGBOejgn-dU6zpGgXyX9x66zNoVmWSLbJKK0.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 347,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:47 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "96781ab90505d2d4f7d0a999fc6a5cc36bd27cdc0fc2b5267b929efaa0743013",
+    "source_replay_filename": "260103_221455_AetherX_pbjt lngauQUF0tT30KmZ_Gpcw2vSfNwPwrUme5Ke-qB0MBM.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 318,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:18 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "987340d1f42acdf97d597a1178d5f350b0a46a113c86025755fcbda70e617821",
+    "source_replay_filename": "251127_064434_pand0r_pbjt mHNA0fQqzfl9WXoReNXzULCkahE8hgJXVfy9pw5heCE.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 315,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:15 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "9b13fa3dbc719aa371062e7a90aa41a371a180c60d2503103f2a5d5a1f90a0a9",
+    "source_replay_filename": "251229_041441_pbjt_pand0r mxP6PbxxmqNxBi56kKpBo3GhgMYNJQMQPypdWh-QoKk.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 328,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:28 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "9dc7a34a03ba16abdecca710915166ed2de0367286077e9deaaf5f84c8463ffa",
+    "source_replay_filename": "250812_021432_pbjt_AetherX ncejSgO6FqvezKcQkVFm7S3gNnKGB36d6q9fhMhGP_o.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 315,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:15 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "a5b13f294dd996ff4f1b03fdaccb31822897affff2d3779f17d54be4b8b09c6a",
+    "source_replay_filename": "250719_034050_pbjt_AetherX pbE_KU3Zlv9PGwP9rMsxgiiXr__y03efF9VL5LiwnGo.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 373,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:13 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "a65c13f6c59b8d092594b21cb4aaf2603bfc2672cb8790722d8b94c8d0f7ce45",
+    "source_replay_filename": "250811_040527_AetherX_pbjt plwT9sWbjQkllLIctKryYDv8JnLLh5ByLYuUyND3zkU.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 316,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:16 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "a8df8b472142964ba7f12acd8a14134ea9a144ab3d1e6cc146f77e917241e80b",
+    "source_replay_filename": "250811_035311_AetherX_pbjt qN-LRyFClkun8SrNihQTTqmhRKs9HmzBRvd-kXJB6As.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 318,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:18 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "aedb1b440dd55ac33b4d384f53c803543b4b8216a8dbdca94777763b955d50a6",
+    "source_replay_filename": "250810_041956_AetherX_pbjt rtsbRA3VWsM7TThPU8gDVDtLghao29ypR3d2O5VdUKY.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": null
+  },
+  {
+    "replay_id": "af4090fc08ddf429b42ef2bcff332ec753281c7e0ded12dea4c44060eb016a89",
+    "source_replay_filename": "250725_032750_AetherX_pbjt r0CQ_Ajd9Cm0LvK8_zMux1MoHH4N7RLepMRAYOsBaok.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 315,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:15 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "b3384ba2d4dbe6ef0aaab48010e3ee0a921813824544257d48b651547e9ac996",
+    "source_replay_filename": "251202_040234_pbjt_pand0r szhLotTb5u8KqrSAEOPuCpIYE4JFRCV9SLZRVH6ayZY.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 314,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:14 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "b512c8b97fd5c53299e1279a5c6600aeacb59db8b9e2c706d8d06ca884276392",
+    "source_replay_filename": "251011_032817_pbjt_AetherX tRLIuX_VxTKZ4SeaXGYArqy1nbi54scG2NBsqIQnY5I.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 316,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:16 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "b7d41d1ec4b67780b79875f7600e16fcaa046f65a818cff59e73f5f4fd01a582",
+    "source_replay_filename": "251203_053352_pbjt_pand0r t9QdHsS2d4C3mHX3YA4W_KoEb2WoGM_1nnP19P0BpYI.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": null
+  },
+  {
+    "replay_id": "b7e145749d503a3c2dceb982dd77d7df96f13b760d64c0620552e867a691f713",
+    "source_replay_filename": "260112_025758_pbjt_pand0r t-FFdJ1QOjwtzrmC3XfX35bxO3YNZMBiBVLoZ6aR9xM.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 317,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:17 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "b8502a7b64093f79ca01ba34fcac29aeaf905293b840f22d368118bedfbb4a5c",
+    "source_replay_filename": "250726_205148_AetherX_pbjt uFAqe2QJP3nKAbo0_Kwprq-QUpO4QPItNoEYvt-7Slw.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 314,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:14 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "b90fe85455b0f9af9bd562c41d4135691ba9c09f7a4bc0374fbc68c34ea49e4f",
+    "source_replay_filename": "251217_021603_pand0r_pbjt uQ_oVFWw-a-b1WLEHUE1aRupwJ96S8A3T7xow06knk8.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": null
+  },
+  {
+    "replay_id": "bd1e94d84caee119863fe167dd7381d7275a87e78ffdf7733d99ccd9ca8b8b02",
+    "source_replay_filename": "251202_041336_pbjt_pand0r vR6U2Eyu4RmGP-Fn3XOB1ydah-eP_fdzPZnM2cqLiwI.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 418,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:58 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "bd9460d0b16371f7e69035a24d50efe9064db7e460ec47f2fdd2b7d6c6cfd353",
+    "source_replay_filename": "260103_220920_pbjt_AetherX vZRg0LFjcffmkDWiTVDv6QZNt-Rg7Efy_dK31sbP01M.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": null
+  },
+  {
+    "replay_id": "c2ac8f8b9c52de8c1c7d9e9cb6d9232e7144df216e7c4e75c2da221efa9eeae5",
+    "source_replay_filename": "251217_023113_pbjt_pand0r wqyPi5xS3owcfZ6cttkjLnFE3yFufE51wtoiHvqe6uU.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 317,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:17 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "c58d24ec3231604beb976f327354c14d57dd9834613ddc583229709bb60eaa69",
+    "source_replay_filename": "250724_044011_pbjt_AetherX xY0k7DIxYEvrl28yc1TBTVfdmDRhPdxYMilwm7YOqmk.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 313,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:13 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "c595b67b17a25a3b23c6d231468fbc14418ec8113b41082da6d303f5e338e7e6",
+    "source_replay_filename": "251229_060832_pbjt_pand0r xZW2exeiWjsjxtIxRo-8FEGOyBE7QQgtptMD9eM45-Y.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 320,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:20 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "c74d564250ede2c613fee9abf1f3435acf9a32c2ccb4664f9c80bf92468ee37d",
+    "source_replay_filename": "250726_204140_pbjt_AetherX x01WQlDt4sYT_umr8fNDWs-aMsLMtGZPnIC_kkaO430.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 318,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:18 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "c84f9f653ed532b317a3c88c42129a85d791d176d40a081c566a842cd02c8488",
+    "source_replay_filename": "260107_040812_pbjt_pand0r yE-fZT7VMrMXo8iMQhKahdeR0XbUCggcVmqELNAshIg.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 314,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:14 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "c88f9403c632874a4b0ceb965dcc5b2ddceb58d667857eae85863206c5fe582d",
+    "source_replay_filename": "260103_222818_AetherX_pbjt yI-UA8Yyh0pLDOuWXcxbLdzrWNZnhX6uhYYyBsX-WC0.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 341,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:41 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "ca85bc268665651b2a852f95118d5eb3a1f2a673d8c38283498591fc0d57110b",
+    "source_replay_filename": "260112_030456_pand0r_pbjt yoW8JoZlZRsqhS-VEY1es6HypnPYw4KDSYWR_A1XEQs.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 370,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:10 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "cab92f87d0f23bc83d946042743701d38d368af406c3f62fd8972956a59620ec",
+    "source_replay_filename": "250919_034219_AetherX_pbjt yrkvh9DyO8g9lGBCdDcB0402ivQGw_Yv2JcpVqWWIOw.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 318,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:18 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "ccd0287892a0ee2cbaca072038295025f481154246d15ca368951d16c5edcfdd",
+    "source_replay_filename": "260103_231407_AetherX_pbjt zNAoeJKg7iy6ygcgOClQJfSBFUJG0VyjaJUdFsXtz90.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 317,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:17 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "cdbdbfe64eb7ad7c6a4877c5ea92019776b3df5764d7ce0076f52cc2428f09ab",
+    "source_replay_filename": "250719_041425_AetherX_pbjt zb2_5k63rXxqSHfF6pIBl3az31dk184AdvUswkKPCas.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": null
+  },
+  {
+    "replay_id": "ce899b1b0fcc2b5ee8667c1bd3bcf67b36e619f848b417a2bf5f2ef922ac1509",
+    "source_replay_filename": "250916_035051_pbjt_AetherX zombGw_MK17oZnwb07z2ezbmGfhItBeiv18u-SKsFQk.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 329,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:29 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "cf7db1d0a03451f1140318214e0a03ca18b51fa37d46076b139a3cf3fe1db7e3",
+    "source_replay_filename": "251229_045216_pand0r_pbjt z32x0KA0UfEUAxghTgoDyhi1H6N9RgdrE5o88_4dt-M.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 407,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:47 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "d0f243ef2c2d126f47e7c9d7dbeff3fb31aad921ed3b92f82fd42f3637f3a5e8",
+    "source_replay_filename": "251229_054555_pbjt_pand0r 0PJD7ywtEm9H58nX2-_z-zGq2SHtO5L4L9QvNjfzpeg.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 426,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "07:06 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "d2a8c814917864399ff26cbfa7182d4bf86e695adab4b82d602bc2b9f2286de1",
+    "source_replay_filename": "251127_061802_pbjt_pand0r 0qjIFJF4ZDmf8my_pxgtS_huaVratLgtYCvCufIobeE.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 315,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:15 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "d42144262e8653b911350d2dade84c66218a66c57d96dae49f2f46dbbeb6650d",
+    "source_replay_filename": "251217_021957_pand0r_pbjt 1CFEJi6GU7kRNQ0trehMZiGKZsV9ltrkny9G2762ZQ0.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 321,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:21 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "d483dc715906428e6735769f563f2ec69275457afaedb709a6881fe23a85244b",
+    "source_replay_filename": "250716_184637_pbjt_AetherX 1IPccVkGQo5nNXafVj8uxpJ1RXr67bcJpogf4jqFJEs.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 353,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:53 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "d82d221025bb4f82bf3e3c81603c18f09d81a315a8214f93884b8e10e35559bf",
+    "source_replay_filename": "260112_045049_pand0r_pbjt 2C0iECW7T4K_PjyBYDwY8J2BoxWoIU-TiEuOEONVWb8.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 318,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:18 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "d96ebf05b3623245267a1e879e8b6d5b0cc18bd8295d21a8b3c87c42f3202464",
+    "source_replay_filename": "250927_212212_pbjt_AetherX 2W6_BbNiMkUmeh6HnottWwzBi9gpXSGos8h8QvMgJGQ.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 319,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:19 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "d9fd132209db561cab8994883983325ba22f796a595aaaf5e8a45f5c86089c79",
+    "source_replay_filename": "250726_223907_AetherX_pbjt 2f0TIgnbVhyriZSIOYMyW6IveWpZWqr16KRfXIYInHk.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 317,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:17 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "dd1ddc2c589a525e7ac2b662955b8f4b965836dbc502e0c87e6d79bf8dcea443",
+    "source_replay_filename": "251201_032702_pand0r_pbjt 3R3cLFiaUl56wrZilVuPS5ZYNtvFAuDIfm15v43OpEM.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 365,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:05 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "ddde03575a0756b3cf59002ca0935f285b3acec24af9421f7ae78b6a4ea5c224",
+    "source_replay_filename": "251229_050733_pand0r_pbjt 3d4DV1oHVrPPWQAsoJNfKFs6zsJK-UIfeueLak6lwiQ.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 314,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:14 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "dfbd8d89d8c5c8ff27257fa8a39f5c4553cc59980ea4d6143727af268fcd33fd",
+    "source_replay_filename": "250719_045018_pbjt_AetherX 372NidjFyP8nJX-oo59cRVPMWZgOpNYUNyevJo_NM_0.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 407,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:47 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "e013d73cdd8332f38d51f2ceccea220eb275fee1cc6f94b82b8cf035d6e92a3c",
+    "source_replay_filename": "251011_034539_AetherX_pbjt 4BPXPN2DMvONUfLOzOoiDrJ1_uHMb5S4K4zwNdbpKjw.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 370,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:10 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "e20fa5381b16ad0eec0fd248b2c08ea8dfbf6206a2772a1c0740bbfc2a01df73",
+    "source_replay_filename": "251201_041034_pand0r_pbjt 4g-lOBsWrQ7sD9JIssCOqN-_YgaidyocB0C7_CoB33M.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 315,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:15 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "e4b0cea62fbf5d6922e6097a28794abafeaeb938492af501e45a4a2250b3bc04",
+    "source_replay_filename": "251127_065342_pbjt_pand0r 5LDOpi-_XWki5gl6KHlKuv6uuThJKvUB5FpKIlCzvAQ.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 371,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:11 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "e5f0a061ebe2fe3f6ccf4777f41f50054ab2fbc26248501780b98c889f949910",
+    "source_replay_filename": "251229_044134_pand0r_pbjt 5fCgYevi_j9sz0d39B9QBUqy-8JiSFAXgLmMiJ-UmRA.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 399,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "06:39 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "e67bebcdb6e8ef270550eb74cccafac6072ba38397ea4150d4b7dc8d73bd8d8c",
+    "source_replay_filename": "250927_214028_pbjt_AetherX 5nvrzbbo7ycFUOt0zMr6xgcro4OX6kFQ1LfcjXO9jYw.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 356,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:56 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "e7a72aab71374e78c6cc740f76c0dacbeeb36d10931786acee22e1e2e85e815b",
+    "source_replay_filename": "251201_034955_pbjt_pand0r 56cqq3E3TnjGzHQPdsDay-6zbRCTF4as7iLh4uhegVs.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 319,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:19 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "ea1dd17a1e71a5070ac688290cceea9efa890cbf878c2feef4b1907362aff052",
+    "source_replay_filename": "250918_032623_pbjt_AetherX 6h3Reh5xpQcKxogpDM7qnvqJDL-HjC_u9LGQc2Kv8FI.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": null
+  },
+  {
+    "replay_id": "ec37a1f0e773251bd6b9ef72d82f7217a8b183dce909fb76ad788dc5e5a63e4a",
+    "source_replay_filename": "250927_205135_AetherX_pbjt 7Deh8OdzJRvWue9y2C9yF6ixg9zpCft2rXiNxeWmPko.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 316,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:16 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "ee144b767c5342b3d63a84276d3df92337b9c8e44e9a8e7ffccbdac8da0e19a7",
+    "source_replay_filename": "250927_213401_pbjt_AetherX 7hRLdnxTQrPWOoQnbT35Ize5yOROmo5__MvayNoOGac.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": null
+  },
+  {
+    "replay_id": "efe03ae4e13d59f1d8fd7ee38f84e4a559ebfa65f0bdc1a2bf59ad7bd9656b2d",
+    "source_replay_filename": "250810_035814_pbjt_AetherX 7-A65OE9WfHY_X7jj4TkpVnr-mXwvcGiv1mte9llay0.rep",
+    "source_replay_path": null,
+    "self_owner": 2,
+    "target_owner": 2,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 327,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:27 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "efe2006798952594433e040389da8effef9530dd611864d9087e3b5e0f16a1b6",
+    "source_replay_filename": "250726_222302_AetherX_pbjt 7-IAZ5iVJZRDPgQDidqO_--VMN1hGGTZCH47Xg8WobY.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 320,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:20 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "f0106680710166847061faa0867414f9ca8594eca21981099beebdbdb961c2ea",
+    "source_replay_filename": "250810_033356_AetherX_pbjt 8BBmgHEBZoRwYfqghnQU-cqFlOyiGYEJm-69vblhwuo.rep",
+    "source_replay_path": null,
+    "self_owner": 3,
+    "target_owner": 3,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "TvZ",
+    "event": {
+      "time_seconds": 317,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:17 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "f592a959698aca670d3b363567d5e0dd1246b65e91e8553248101bf70fbd5447",
+    "source_replay_filename": "250823_222950_pbjt_AetherX 9ZKpWWmKymcNOzY1Z9Xg3RJGtl6R6FUySBAb9w-9VEc.rep",
+    "source_replay_path": null,
+    "self_owner": 0,
+    "target_owner": 0,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 341,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:41 Mutalisk"
+    }
+  },
+  {
+    "replay_id": "f91c30626542d1eccaa0a11757cbd1902afb315ac5a2fab575c563b87b162589",
+    "source_replay_filename": "251011_031549_pbjt_AetherX -RwwYmVC0ezKoKEXV8vRkCr7MVrFovq1dcVjuHsWJYk.rep",
+    "source_replay_path": null,
+    "self_owner": 1,
+    "target_owner": 1,
+    "player_name": "pbjt",
+    "target_name": "pbjt",
+    "matchup": "ZvT",
+    "event": {
+      "time_seconds": 321,
+      "supply_used": null,
+      "supply_max": null,
+      "item": "Mutalisk",
+      "raw_line": "05:21 Mutalisk"
+    }
+  }
+]

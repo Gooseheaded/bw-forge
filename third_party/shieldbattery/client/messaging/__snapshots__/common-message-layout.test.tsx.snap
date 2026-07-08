@@ -1,0 +1,584 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`client/messaging/common-message-layout/TextMessage > message as a normal text 1`] = `
+<div
+  data-testid="message-container"
+>
+  <div
+    class="sc-bjxVRI iuniLv"
+    role="document"
+  >
+    <div
+      class="sc-lcItFd kpvjGC sc-gWaSiO gfmMgj"
+      tabindex="0"
+    >
+      <span
+        class="sc-kSaXSp jwvess"
+      >
+        <i
+          aria-hidden="true"
+          class="sc-fpikKz gekUwi"
+        >
+          [
+        </i>
+        12:00 AM
+        <i
+          aria-hidden="true"
+          class="sc-fpikKz gekUwi"
+        >
+          ] 
+        </i>
+      </span>
+    </div>
+    <span
+      class="sc-zOxLx ityikf sc-ecJghI gFYOmb"
+      tabindex="0"
+    >
+      <span
+        aria-label="Username loading…"
+        class="sc-cgHfjM kozbcJ"
+      >
+                   
+      </span>
+    </span>
+    <i
+      aria-hidden="true"
+      class="sc-fpikKz gekUwi"
+    >
+      : 
+    </i>
+    <span
+      class="sc-iyBeIh cAkauD"
+    >
+      This is test message
+    </span>
+  </div>
+</div>
+`;
+
+exports[`client/messaging/common-message-layout/TextMessage > message with a link 1`] = `
+<div
+  data-testid="message-container"
+>
+  <div
+    class="sc-bjxVRI iuniLv"
+    role="document"
+  >
+    <div
+      class="sc-lcItFd kpvjGC sc-gWaSiO gfmMgj"
+      tabindex="0"
+    >
+      <span
+        class="sc-kSaXSp jwvess"
+      >
+        <i
+          aria-hidden="true"
+          class="sc-fpikKz gekUwi"
+        >
+          [
+        </i>
+        12:00 AM
+        <i
+          aria-hidden="true"
+          class="sc-fpikKz gekUwi"
+        >
+          ] 
+        </i>
+      </span>
+    </div>
+    <span
+      class="sc-zOxLx ityikf sc-ecJghI gFYOmb"
+      tabindex="0"
+    >
+      <span
+        aria-label="Username loading…"
+        class="sc-cgHfjM kozbcJ"
+      >
+                   
+      </span>
+    </span>
+    <i
+      aria-hidden="true"
+      class="sc-fpikKz gekUwi"
+    >
+      : 
+    </i>
+    <span
+      class="sc-iyBeIh cAkauD"
+    >
+      here is a link 
+      <a
+        href="http://www.example.com"
+        rel="nofollow noreferrer noopener"
+        target="_blank"
+      >
+        http://www.example.com
+      </a>
+    </span>
+  </div>
+</div>
+`;
+
+exports[`client/messaging/common-message-layout/TextMessage > message with a link before a mention 1`] = `
+<div
+  data-testid="message-container"
+>
+  <div
+    class="sc-bjxVRI iuniLv"
+    role="document"
+  >
+    <div
+      class="sc-lcItFd kpvjGC sc-gWaSiO gfmMgj"
+      tabindex="0"
+    >
+      <span
+        class="sc-kSaXSp jwvess"
+      >
+        <i
+          aria-hidden="true"
+          class="sc-fpikKz gekUwi"
+        >
+          [
+        </i>
+        12:00 AM
+        <i
+          aria-hidden="true"
+          class="sc-fpikKz gekUwi"
+        >
+          ] 
+        </i>
+      </span>
+    </div>
+    <span
+      class="sc-zOxLx ityikf sc-ecJghI gFYOmb"
+      tabindex="0"
+    >
+      <span
+        aria-label="Username loading…"
+        class="sc-cgHfjM kozbcJ"
+      >
+                   
+      </span>
+    </span>
+    <i
+      aria-hidden="true"
+      class="sc-fpikKz gekUwi"
+    >
+      : 
+    </i>
+    <span
+      class="sc-iyBeIh cAkauD"
+    >
+      <a
+        href="http://www.example.com"
+        rel="nofollow noreferrer noopener"
+        target="_blank"
+      >
+        http://www.example.com
+      </a>
+       go here
+       
+      <span
+        class="sc-zOxLx ityikf sc-xKhEK dwEdca"
+        tabindex="0"
+      >
+        @
+        <span
+          aria-label="Username loading…"
+          class="sc-cgHfjM kozbcJ"
+        >
+                     
+        </span>
+      </span>
+    </span>
+  </div>
+</div>
+`;
+
+exports[`client/messaging/common-message-layout/TextMessage > message with a link between mentions 1`] = `
+<div
+  data-testid="message-container"
+>
+  <div
+    class="sc-bjxVRI iuniLv"
+    role="document"
+  >
+    <div
+      class="sc-lcItFd kpvjGC sc-gWaSiO gfmMgj"
+      tabindex="0"
+    >
+      <span
+        class="sc-kSaXSp jwvess"
+      >
+        <i
+          aria-hidden="true"
+          class="sc-fpikKz gekUwi"
+        >
+          [
+        </i>
+        12:00 AM
+        <i
+          aria-hidden="true"
+          class="sc-fpikKz gekUwi"
+        >
+          ] 
+        </i>
+      </span>
+    </div>
+    <span
+      class="sc-zOxLx ityikf sc-ecJghI gFYOmb"
+      tabindex="0"
+    >
+      <span
+        aria-label="Username loading…"
+        class="sc-cgHfjM kozbcJ"
+      >
+                   
+      </span>
+    </span>
+    <i
+      aria-hidden="true"
+      class="sc-fpikKz gekUwi"
+    >
+      : 
+    </i>
+    <span
+      class="sc-iyBeIh cAkauD"
+    >
+      hey
+       
+      <span
+        class="sc-zOxLx ityikf sc-xKhEK dwEdca"
+        tabindex="0"
+      >
+        @
+        <span
+          aria-label="Username loading…"
+          class="sc-cgHfjM kozbcJ"
+        >
+                     
+        </span>
+      </span>
+       see 
+      <a
+        href="http://www.example.com"
+        rel="nofollow noreferrer noopener"
+        target="_blank"
+      >
+        http://www.example.com
+      </a>
+       go here
+       
+      <span
+        class="sc-zOxLx ityikf sc-xKhEK dwEdca"
+        tabindex="0"
+      >
+        @
+        <span
+          aria-label="Username loading…"
+          class="sc-cgHfjM kozbcJ"
+        >
+                     
+        </span>
+      </span>
+    </span>
+  </div>
+</div>
+`;
+
+exports[`client/messaging/common-message-layout/TextMessage > message with a mention 1`] = `
+<div
+  data-testid="message-container"
+>
+  <div
+    class="sc-bjxVRI iuniLv"
+    role="document"
+  >
+    <div
+      class="sc-lcItFd kpvjGC sc-gWaSiO gfmMgj"
+      tabindex="0"
+    >
+      <span
+        class="sc-kSaXSp jwvess"
+      >
+        <i
+          aria-hidden="true"
+          class="sc-fpikKz gekUwi"
+        >
+          [
+        </i>
+        12:00 AM
+        <i
+          aria-hidden="true"
+          class="sc-fpikKz gekUwi"
+        >
+          ] 
+        </i>
+      </span>
+    </div>
+    <span
+      class="sc-zOxLx ityikf sc-ecJghI gFYOmb"
+      tabindex="0"
+    >
+      <span
+        aria-label="Username loading…"
+        class="sc-cgHfjM kozbcJ"
+      >
+                   
+      </span>
+    </span>
+    <i
+      aria-hidden="true"
+      class="sc-fpikKz gekUwi"
+    >
+      : 
+    </i>
+    <span
+      class="sc-iyBeIh cAkauD"
+    >
+      hey
+       
+      <span
+        class="sc-zOxLx ityikf sc-xKhEK dwEdca"
+        tabindex="0"
+      >
+        @
+        <span
+          aria-label="Username loading…"
+          class="sc-cgHfjM kozbcJ"
+        >
+                     
+        </span>
+      </span>
+    </span>
+  </div>
+</div>
+`;
+
+exports[`client/messaging/common-message-layout/TextMessage > message with a mention before a link 1`] = `
+<div
+  data-testid="message-container"
+>
+  <div
+    class="sc-bjxVRI iuniLv"
+    role="document"
+  >
+    <div
+      class="sc-lcItFd kpvjGC sc-gWaSiO gfmMgj"
+      tabindex="0"
+    >
+      <span
+        class="sc-kSaXSp jwvess"
+      >
+        <i
+          aria-hidden="true"
+          class="sc-fpikKz gekUwi"
+        >
+          [
+        </i>
+        12:00 AM
+        <i
+          aria-hidden="true"
+          class="sc-fpikKz gekUwi"
+        >
+          ] 
+        </i>
+      </span>
+    </div>
+    <span
+      class="sc-zOxLx ityikf sc-ecJghI gFYOmb"
+      tabindex="0"
+    >
+      <span
+        aria-label="Username loading…"
+        class="sc-cgHfjM kozbcJ"
+      >
+                   
+      </span>
+    </span>
+    <i
+      aria-hidden="true"
+      class="sc-fpikKz gekUwi"
+    >
+      : 
+    </i>
+    <span
+      class="sc-iyBeIh cAkauD"
+    >
+      <span
+        class="sc-zOxLx ityikf sc-xKhEK dwEdca"
+        tabindex="0"
+      >
+        @
+        <span
+          aria-label="Username loading…"
+          class="sc-cgHfjM kozbcJ"
+        >
+                     
+        </span>
+      </span>
+       go to 
+      <a
+        href="http://www.example.com"
+        rel="nofollow noreferrer noopener"
+        target="_blank"
+      >
+        http://www.example.com
+      </a>
+    </span>
+  </div>
+</div>
+`;
+
+exports[`client/messaging/common-message-layout/TextMessage > message with a mention between links 1`] = `
+<div
+  data-testid="message-container"
+>
+  <div
+    class="sc-bjxVRI iuniLv"
+    role="document"
+  >
+    <div
+      class="sc-lcItFd kpvjGC sc-gWaSiO gfmMgj"
+      tabindex="0"
+    >
+      <span
+        class="sc-kSaXSp jwvess"
+      >
+        <i
+          aria-hidden="true"
+          class="sc-fpikKz gekUwi"
+        >
+          [
+        </i>
+        12:00 AM
+        <i
+          aria-hidden="true"
+          class="sc-fpikKz gekUwi"
+        >
+          ] 
+        </i>
+      </span>
+    </div>
+    <span
+      class="sc-zOxLx ityikf sc-ecJghI gFYOmb"
+      tabindex="0"
+    >
+      <span
+        aria-label="Username loading…"
+        class="sc-cgHfjM kozbcJ"
+      >
+                   
+      </span>
+    </span>
+    <i
+      aria-hidden="true"
+      class="sc-fpikKz gekUwi"
+    >
+      : 
+    </i>
+    <span
+      class="sc-iyBeIh cAkauD"
+    >
+      <a
+        href="http://www.example.com"
+        rel="nofollow noreferrer noopener"
+        target="_blank"
+      >
+        http://www.example.com
+      </a>
+       go here
+       
+      <span
+        class="sc-zOxLx ityikf sc-xKhEK dwEdca"
+        tabindex="0"
+      >
+        @
+        <span
+          aria-label="Username loading…"
+          class="sc-cgHfjM kozbcJ"
+        >
+                     
+        </span>
+      </span>
+       or here 
+      <a
+        href="http://www.example.com"
+        rel="nofollow noreferrer noopener"
+        target="_blank"
+      >
+        http://www.example.com
+      </a>
+    </span>
+  </div>
+</div>
+`;
+
+exports[`client/messaging/common-message-layout/TextMessage > message with a mention of self user 1`] = `
+<div
+  data-testid="message-container"
+>
+  <div
+    class="sc-bjxVRI kltdvw"
+    role="document"
+  >
+    <div
+      class="sc-lcItFd kpvjGC sc-gWaSiO gfmMgj"
+      tabindex="0"
+    >
+      <span
+        class="sc-kSaXSp jwvess"
+      >
+        <i
+          aria-hidden="true"
+          class="sc-fpikKz gekUwi"
+        >
+          [
+        </i>
+        12:00 AM
+        <i
+          aria-hidden="true"
+          class="sc-fpikKz gekUwi"
+        >
+          ] 
+        </i>
+      </span>
+    </div>
+    <span
+      class="sc-zOxLx ityikf sc-ecJghI gFYOmb"
+      tabindex="0"
+    >
+      <span
+        aria-label="Username loading…"
+        class="sc-cgHfjM kozbcJ"
+      >
+                   
+      </span>
+    </span>
+    <i
+      aria-hidden="true"
+      class="sc-fpikKz gekUwi"
+    >
+      : 
+    </i>
+    <span
+      class="sc-iyBeIh cAkauD"
+    >
+      Hey
+       
+      <span
+        class="sc-zOxLx ityikf sc-xKhEK dwEdca"
+        tabindex="0"
+      >
+        @
+        <span
+          aria-label="Username loading…"
+          class="sc-cgHfjM kozbcJ"
+        >
+                     
+        </span>
+      </span>
+    </span>
+  </div>
+</div>
+`;
