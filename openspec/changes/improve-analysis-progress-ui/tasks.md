@@ -1,7 +1,7 @@
 ## 1. Structured progress model
 
-- [ ] 1.1 Add shared desktop progress types for stage, mode, primary progress, queue progress, and per-replay progress snapshots
-- [ ] 1.2 Add a main-process progress parser/helper for replay-export, timeline-analysis, and ingest log lines
+- [x] 1.1 Add shared desktop progress types for stage, mode, primary progress, queue progress, and per-replay progress snapshots
+- [x] 1.2 Add a main-process progress parser/helper for replay-export, timeline-analysis, and ingest log lines
 
 ## 2. Analysis state orchestration
 

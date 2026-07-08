@@ -241,7 +241,13 @@ function createIdleState(): AnalysisRunState {
     runId: null,
     status: "idle",
     jobs: [],
-    logs: []
+    logs: [],
+    queueProgress: {
+      completed: 0,
+      total: 0,
+      percent: 0
+    },
+    currentJobId: null
   };
 }
 

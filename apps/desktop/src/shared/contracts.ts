@@ -60,11 +60,37 @@ export type ReplayJobStatus =
   | "failed"
   | "cancelled";
 
+export type ProgressMode = "exact" | "estimated" | "indeterminate";
+
+export type AnalysisPhase =
+  | "queued"
+  | "replay_export"
+  | "timeline_analysis"
+  | "finalizing_replay"
+  | "ingest"
+  | "cancelling";
+
+export interface ProgressSnapshot {
+  phase: AnalysisPhase;
+  label: string;
+  detail: string;
+  percent: number | null;
+  mode: ProgressMode;
+  updatedAt: string;
+}
+
+export interface QueueProgress {
+  completed: number;
+  total: number;
+  percent: number;
+}
+
 export interface ReplayJob {
   id: string;
   replayPath: string;
   filename: string;
   status: ReplayJobStatus;
+  progress?: ProgressSnapshot;
   startedAt?: string;
   finishedAt?: string;
   exitCode?: number | null;
@@ -86,6 +112,9 @@ export interface AnalysisRunState {
   status: AnalysisRunStatus;
   jobs: ReplayJob[];
   logs: ProcessLogEntry[];
+  queueProgress: QueueProgress;
+  currentJobId?: string | null;
+  primaryProgress?: ProgressSnapshot;
   startedAt?: string;
   finishedAt?: string;
   ingestExitCode?: number | null;
