@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   AnalysisRunState,
   AppBootstrap,
@@ -11,6 +11,16 @@ import type {
 } from "../../shared/contracts";
 import { getAnalysisCompletionEffects } from "./analysis-completion";
 import { getAnalysisPrimaryProgressView } from "./analysis-progress-view";
+import {
+  getAnalyzeCompletionHeadline,
+  getAnalyzeCompletionSummary,
+  getAnalyzeNavStatus,
+  getAnalyzeWorkflowState,
+  getCancelledReplayPaths,
+  getFailedReplayPaths,
+  getReplayResultLabel,
+  type AnalyzeWorkflowState
+} from "./analyze-workflow";
 
 type View = "analyze" | "library" | "mcp" | "settings";
 
@@ -50,6 +60,7 @@ export function App(): React.JSX.Element {
   const [selectionWarnings, setSelectionWarnings] = useState<string[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>("bootstrap");
+  const [dismissedCompletedRunId, setDismissedCompletedRunId] = useState<string | null>(null);
   const previousAnalysisRef = useRef<AnalysisRunState | null>(null);
 
   useEffect(() => {
@@ -122,6 +133,11 @@ export function App(): React.JSX.Element {
     runAction("library", () => window.bwForge.refreshLibrary(), setLibrary);
 
   const activeAnalysis = ["running", "ingesting", "cancelling"].includes(analysis.status);
+  const analyzeNavStatus = getAnalyzeNavStatus({
+    analysis,
+    pendingReplays,
+    dismissedCompletedRunId
+  });
   const failedChecks = validation?.checks.filter((check) => check.status === "fail").length ?? 0;
   const warningChecks = validation?.checks.filter((check) => check.status === "warning").length ?? 0;
   const failedCheckIds = new Set(
@@ -145,6 +161,7 @@ export function App(): React.JSX.Element {
 
   const startAnalysisFlow = async (): Promise<void> => {
     setActionError(null);
+    setDismissedCompletedRunId(null);
 
     if (!settings) {
       return;
@@ -184,6 +201,15 @@ export function App(): React.JSX.Element {
     );
   };
 
+  const dismissCompletedRun = (): void => {
+    setDismissedCompletedRunId(analysis.runId);
+  };
+
+  const replacePendingReplays = (paths: string[]): void => {
+    setPendingReplays(uniquePaths(paths));
+    setSelectionWarnings([]);
+  };
+
   if (!settings || !validation || busyAction === "bootstrap") {
     return (
       <div className="launch-screen">
@@ -206,7 +232,7 @@ export function App(): React.JSX.Element {
         </div>
 
         <nav aria-label="Primary navigation">
-          <NavButton active={view === "analyze"} onClick={() => setView("analyze")} label="Analyze" meta={activeAnalysis ? "Running" : `${pendingReplays.length} selected`} />
+          <NavButton active={view === "analyze"} onClick={() => setView("analyze")} label="Analyze" meta={analyzeNavStatus} />
           <NavButton active={view === "library"} onClick={() => setView("library")} label="Library" meta={`${library.entries.length} replays`} />
           <NavButton active={view === "mcp"} onClick={() => setView("mcp")} label="MCP server" meta={mcp.status} />
           <NavButton active={view === "settings"} onClick={() => setView("settings")} label="Settings" meta={failedChecks ? `${failedChecks} blocked` : warningChecks ? `${warningChecks} notes` : "Ready"} />
@@ -257,6 +283,24 @@ export function App(): React.JSX.Element {
               onAnalyze={() => void startAnalysisFlow()}
               onCancel={() => void runAction("cancel", () => window.bwForge.cancelAnalysis(), setAnalysis)}
               onOpenSettings={() => setView("settings")}
+              workflowState={getAnalyzeWorkflowState({
+                analysis,
+                pendingReplays,
+                dismissedCompletedRunId
+              })}
+              onViewLibrary={() => setView("library")}
+              onAnalyzeMore={() => {
+                replacePendingReplays([]);
+                dismissCompletedRun();
+              }}
+              onRetryFailed={() => {
+                replacePendingReplays(getFailedReplayPaths(analysis));
+                dismissCompletedRun();
+              }}
+              onAnalyzeRemaining={() => {
+                replacePendingReplays(getCancelledReplayPaths(analysis));
+                dismissCompletedRun();
+              }}
             />
           ) : null}
 
@@ -334,6 +378,7 @@ function AnalyzeView(props: {
   pendingReplays: string[];
   selectionWarnings: string[];
   analysis: AnalysisRunState;
+  workflowState: AnalyzeWorkflowState;
   canAnalyze: boolean;
   canPromptForStarcraft: boolean;
   busyAction: string | null;
@@ -344,32 +389,15 @@ function AnalyzeView(props: {
   onAnalyze: () => void;
   onCancel: () => void;
   onOpenSettings: () => void;
+  onViewLibrary: () => void;
+  onAnalyzeMore: () => void;
+  onRetryFailed: () => void;
+  onAnalyzeRemaining: () => void;
 }): React.JSX.Element {
-  const active = ["running", "ingesting", "cancelling"].includes(props.analysis.status);
-  const primaryProgress = getAnalysisPrimaryProgressView(props.analysis);
-  const queueProgress = props.analysis.queueProgress;
-  const doneCount = props.analysis.jobs.filter((job) => job.status === "succeeded").length;
-  const failedCount = props.analysis.jobs.filter((job) => job.status === "failed").length;
-  const inProgressCount = props.analysis.jobs.filter((job) => job.status === "running").length;
-
+  const active = props.workflowState === "running";
   return (
     <div className="stack">
-      <section className="hero-panel">
-        <div>
-          <p className="eyebrow">ADD REPLAYS</p>
-          <h2>Turn replay files into a browsable history.</h2>
-          <p>
-            Select individual Brood War replays or an entire folder. BW Forge analyzes
-            your replays and updates your local replay database automatically.
-          </p>
-        </div>
-        <div className="hero-actions">
-          <button className="primary" onClick={props.onSelectFiles} disabled={active}>Choose replay files</button>
-          <button className="secondary" onClick={props.onSelectFolder} disabled={active}>Choose folder</button>
-        </div>
-      </section>
-
-      {!props.canAnalyze ? (
+      {!props.canAnalyze && props.workflowState !== "running" ? (
         <Notice tone="warning">
           {props.canPromptForStarcraft
             ? <>Choose your StarCraft folder before starting analysis, or open Settings now. </>
@@ -382,115 +410,260 @@ function AnalyzeView(props: {
         <Notice key={warning} tone="warning">{warning}</Notice>
       ))}
 
-      <div className="split-grid">
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">SELECTED REPLAYS</p>
-              <h2>{props.pendingReplays.length} replay{props.pendingReplays.length === 1 ? "" : "s"} selected</h2>
-            </div>
-            {props.pendingReplays.length ? (
-              <button className="quiet" onClick={props.onClear} disabled={active}>Clear</button>
-            ) : null}
-          </div>
-          <div className="file-list">
-            {props.pendingReplays.length ? props.pendingReplays.map((path) => (
-              <div className="file-row" key={path}>
-                <div className="file-icon">REP</div>
-                <div>
-                  <strong>{fileName(path)}</strong>
-                  <span title={path}>{path}</span>
-                </div>
-                <button className="icon-button" aria-label={`Remove ${fileName(path)}`} onClick={() => props.onRemove(path)} disabled={active}>×</button>
-              </div>
-            )) : (
-              <EmptyState title="No replays selected" body="Choose replay files or a folder to get started." />
-            )}
-          </div>
-          <div className="panel-footer">
-            {active ? (
-              <button className="danger" onClick={props.onCancel} disabled={props.analysis.status === "cancelling" || props.busyAction === "cancel"}>
-                {props.analysis.status === "cancelling" ? "Cancelling…" : "Cancel run"}
-              </button>
-            ) : (
-              <button
-                className="primary"
-                onClick={props.onAnalyze}
-                disabled={
-                  !props.pendingReplays.length ||
-                  (!props.canAnalyze && !props.canPromptForStarcraft) ||
-                  props.busyAction === "analysis"
-                }
-              >
-                {props.busyAction === "analysis"
-                  ? "Starting…"
-                  : props.canAnalyze
-                    ? "Analyze and add to library"
-                    : props.canPromptForStarcraft
-                      ? "Choose StarCraft and start"
-                      : "Analyze and add to library"}
-              </button>
-            )}
-          </div>
-        </section>
+      {props.workflowState === "empty" ? (
+        <AnalyzeEmptyState
+          active={active}
+          onSelectFiles={props.onSelectFiles}
+          onSelectFolder={props.onSelectFolder}
+        />
+      ) : null}
 
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">CURRENT PROGRESS</p>
-              <h2>{primaryProgress.label}</h2>
-            </div>
-            <span className={`state-pill state-${props.analysis.status}`}>{props.analysis.status}</span>
+      {props.workflowState === "queue-review" ? (
+        <AnalyzeQueueReview
+          pendingReplays={props.pendingReplays}
+          canAnalyze={props.canAnalyze}
+          canPromptForStarcraft={props.canPromptForStarcraft}
+          busyAction={props.busyAction}
+          onSelectFiles={props.onSelectFiles}
+          onSelectFolder={props.onSelectFolder}
+          onRemove={props.onRemove}
+          onClear={props.onClear}
+          onAnalyze={props.onAnalyze}
+        />
+      ) : null}
+
+      {props.workflowState === "running" ? (
+        <AnalyzeRunning
+          analysis={props.analysis}
+          busyAction={props.busyAction}
+          onCancel={props.onCancel}
+        />
+      ) : null}
+
+      {props.workflowState === "complete" ? (
+        <AnalyzeComplete
+          analysis={props.analysis}
+          onViewLibrary={props.onViewLibrary}
+          onAnalyzeMore={props.onAnalyzeMore}
+          onRetryFailed={props.onRetryFailed}
+          onAnalyzeRemaining={props.onAnalyzeRemaining}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function AnalyzeEmptyState(props: {
+  active: boolean;
+  onSelectFiles: () => void;
+  onSelectFolder: () => void;
+}): React.JSX.Element {
+  return (
+    <section className="hero-panel analyze-empty-card">
+      <div>
+        <p className="eyebrow">ADD REPLAYS</p>
+        <h2>Add replays</h2>
+        <p>
+          Drop Brood War replay files here or choose files from your computer.
+          Replays are analyzed locally and added to your library.
+        </p>
+      </div>
+      <div className="hero-actions">
+        <button className="primary" onClick={props.onSelectFiles} disabled={props.active}>Choose replay files</button>
+        <button className="secondary" onClick={props.onSelectFolder} disabled={props.active}>Choose folder</button>
+      </div>
+    </section>
+  );
+}
+
+function AnalyzeQueueReview(props: {
+  pendingReplays: string[];
+  canAnalyze: boolean;
+  canPromptForStarcraft: boolean;
+  busyAction: string | null;
+  onSelectFiles: () => void;
+  onSelectFolder: () => void;
+  onRemove: (path: string) => void;
+  onClear: () => void;
+  onAnalyze: () => void;
+}): React.JSX.Element {
+  return (
+    <section className="panel analyze-state-card">
+      <div className="panel-heading">
+        <div>
+          <p className="eyebrow">QUEUE REVIEW</p>
+          <h2>{props.pendingReplays.length} replay{props.pendingReplays.length === 1 ? "" : "s"} selected</h2>
+        </div>
+      </div>
+      <div className="queue-toolbar">
+        <button className="secondary" onClick={props.onSelectFiles}>Add more files</button>
+        <button className="quiet" onClick={props.onSelectFolder}>Add folder</button>
+        <button className="quiet" onClick={props.onClear}>Clear all</button>
+      </div>
+      <ReplayQueueList paths={props.pendingReplays} onRemove={props.onRemove} />
+      <div className="panel-footer">
+        <button
+          className="primary"
+          onClick={props.onAnalyze}
+          disabled={
+            !props.pendingReplays.length ||
+            (!props.canAnalyze && !props.canPromptForStarcraft) ||
+            props.busyAction === "analysis"
+          }
+        >
+          {props.busyAction === "analysis"
+            ? "Starting…"
+            : props.canAnalyze
+              ? `Analyze ${props.pendingReplays.length} replay${props.pendingReplays.length === 1 ? "" : "s"}`
+              : props.canPromptForStarcraft
+                ? "Choose StarCraft and start"
+                : "Analyze selected replays"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function AnalyzeRunning(props: {
+  analysis: AnalysisRunState;
+  busyAction: string | null;
+  onCancel: () => void;
+}): React.JSX.Element {
+  const primaryProgress = getAnalysisPrimaryProgressView(props.analysis);
+  const queueProgress = props.analysis.queueProgress;
+  const doneCount = props.analysis.jobs.filter((job) => job.status === "succeeded").length;
+  const failedCount = props.analysis.jobs.filter((job) => job.status === "failed").length;
+  const inProgressCount = props.analysis.jobs.filter((job) => job.status === "running").length;
+  const queuedCount = props.analysis.jobs.filter((job) => job.status === "queued").length;
+
+  return (
+    <div className="stack">
+      <section className="panel analyze-state-card analyze-running-card">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">ANALYZING REPLAYS</p>
+            <h2>Analyzing {props.analysis.jobs.length} replay{props.analysis.jobs.length === 1 ? "" : "s"}</h2>
+            <p className="running-summary">
+              {doneCount} complete · {inProgressCount} in progress · {queuedCount} queued · {failedCount} failed
+            </p>
           </div>
-          <div className="progress-meta">
-            <div>
-              <strong>{primaryProgress.currentReplayName ?? runLabel(props.analysis.status)}</strong>
-              <span>{primaryProgress.detail}</span>
-            </div>
-            {primaryProgress.mode === "estimated" ? (
-              <span className="progress-badge">Estimated</span>
-            ) : null}
+          <span className={`state-pill state-${props.analysis.status}`}>{props.analysis.status}</span>
+        </div>
+
+        <div className="progress-meta">
+          <div>
+            <strong>{primaryProgress.currentReplayName ?? runLabel(props.analysis.status)}</strong>
+            <span>{primaryProgress.detail}</span>
+          </div>
+          {primaryProgress.mode === "estimated" ? <span className="progress-badge">Estimated</span> : null}
+        </div>
+        <ProgressBar
+          label={primaryProgress.percent === null ? primaryProgress.label : `${primaryProgress.percent}% complete`}
+          percent={primaryProgress.percent}
+        />
+        <div className="sub-progress">
+          <div className="sub-progress-row">
+            <strong>Queue progress</strong>
+            <span>{queueProgress.completed} of {queueProgress.total} complete</span>
           </div>
           <ProgressBar
-            label={primaryProgress.percent === null ? primaryProgress.label : `${primaryProgress.percent}% complete`}
-            percent={primaryProgress.percent}
+            compact
+            label={`${queueProgress.percent}% of selected replays complete`}
+            percent={queueProgress.percent}
           />
-          <div className="sub-progress">
-            <div className="sub-progress-row">
-              <strong>Queue progress</strong>
-              <span>
-                {queueProgress.completed} of {queueProgress.total} replay{queueProgress.total === 1 ? "" : "s"} finished
-              </span>
-            </div>
-            <ProgressBar
-              compact
-              label={`${queueProgress.percent}% of selected replays complete`}
-              percent={queueProgress.percent}
-            />
-          </div>
-          <div className="metric-row">
-            <Metric value={doneCount} label="Done" />
-            <Metric value={failedCount} label="Failed" />
-            <Metric value={inProgressCount} label="In progress" />
-          </div>
-          <div className="job-list">
-            {props.analysis.jobs.map((job) => (
-              <div className="job-row" key={job.id}>
-                <StatusDot status={job.status === "succeeded" ? "ready" : job.status === "failed" ? "blocked" : "working"} />
-                <div>
-                  <strong>{job.filename}</strong>
-                  <span>{job.error ?? job.progress?.detail ?? job.progress?.label ?? job.status}</span>
-                </div>
-              </div>
-            ))}
-            {!props.analysis.jobs.length ? (
-              <EmptyState title="No run yet" body="Replay progress will appear here." />
-            ) : null}
-          </div>
-        </section>
-      </div>
+        </div>
+        <ReplayRunList jobs={props.analysis.jobs} />
+        <div className="panel-footer">
+          <button className="danger" onClick={props.onCancel} disabled={props.analysis.status === "cancelling" || props.busyAction === "cancel"}>
+            {props.analysis.status === "cancelling" ? "Cancelling…" : "Cancel run"}
+          </button>
+        </div>
+      </section>
 
       <LogPanel title="Activity log" logs={props.analysis.logs} collapsedByDefault />
+    </div>
+  );
+}
+
+function AnalyzeComplete(props: {
+  analysis: AnalysisRunState;
+  onViewLibrary: () => void;
+  onAnalyzeMore: () => void;
+  onRetryFailed: () => void;
+  onAnalyzeRemaining: () => void;
+}): React.JSX.Element {
+  const failedReplayPaths = getFailedReplayPaths(props.analysis);
+  const cancelledReplayPaths = getCancelledReplayPaths(props.analysis);
+  const summary = getAnalyzeCompletionSummary(props.analysis);
+
+  return (
+    <div className="stack">
+      <section className="panel analyze-state-card">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">RUN COMPLETE</p>
+            <h2>{getAnalyzeCompletionHeadline(props.analysis)}</h2>
+          </div>
+          <span className={`state-pill state-${props.analysis.status}`}>{props.analysis.status}</span>
+        </div>
+        <div className="completion-metrics">
+          {summary.map((item) => (
+            <Metric key={item.label} value={item.value} label={item.detail ? `${item.label} ${item.detail}` : item.label} />
+          ))}
+        </div>
+        <ReplayRunList jobs={props.analysis.jobs} terminal />
+        <div className="completion-actions">
+          <button className="secondary" onClick={props.onViewLibrary}>View library</button>
+          {failedReplayPaths.length ? (
+            <button className="quiet" onClick={props.onRetryFailed}>Retry failed</button>
+          ) : null}
+          {props.analysis.status === "cancelled" && cancelledReplayPaths.length ? (
+            <button className="quiet" onClick={props.onAnalyzeRemaining}>Analyze remaining</button>
+          ) : null}
+          <button className="primary" onClick={props.onAnalyzeMore}>Analyze more replays</button>
+        </div>
+      </section>
+
+      <LogPanel title="Activity log" logs={props.analysis.logs} collapsedByDefault />
+    </div>
+  );
+}
+
+function ReplayQueueList(props: {
+  paths: string[];
+  onRemove: (path: string) => void;
+}): React.JSX.Element {
+  return (
+    <div className="file-list">
+      {props.paths.map((path) => (
+        <div className="file-row" key={path}>
+          <div className="file-icon">REP</div>
+          <div>
+            <strong>{fileName(path)}</strong>
+            <span title={path}>{path}</span>
+          </div>
+          <button className="icon-button" aria-label={`Remove ${fileName(path)}`} onClick={() => props.onRemove(path)}>×</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ReplayRunList(props: {
+  jobs: AnalysisRunState["jobs"];
+  terminal?: boolean;
+}): React.JSX.Element {
+  return (
+    <div className="job-list">
+      {props.jobs.map((job) => (
+        <div className="job-row" key={job.id}>
+          <StatusDot status={job.status === "succeeded" ? "ready" : job.status === "failed" ? "blocked" : "working"} />
+          <div>
+            <strong>{job.filename}</strong>
+            <span>{props.terminal ? getReplayResultLabel(job) : job.error ?? job.progress?.detail ?? job.progress?.label ?? job.status}</span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

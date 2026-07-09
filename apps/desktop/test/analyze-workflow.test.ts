@@ -104,8 +104,8 @@ describe("analyze completion summaries", () => {
         })
       )
     ).toEqual([
-      { label: "Completed before cancellation", value: "1 of 2" },
-      { label: "Not analyzed", value: "1" }
+      { label: "Completed before cancellation", value: 1, detail: "of 2" },
+      { label: "Not analyzed", value: 1 }
     ]);
   });
 });

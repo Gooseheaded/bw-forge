@@ -90,7 +90,8 @@ export function getAnalyzeCompletionHeadline(analysis: AnalysisRunState): string
 
 export function getAnalyzeCompletionSummary(analysis: AnalysisRunState): Array<{
   label: string;
-  value: string;
+  value: number;
+  detail?: string;
 }> {
   const processed = analysis.jobs.length;
   const added = analysis.jobs.filter((job) => job.status === "succeeded").length;
@@ -101,11 +102,12 @@ export function getAnalyzeCompletionSummary(analysis: AnalysisRunState): Array<{
     return [
       {
         label: "Completed before cancellation",
-        value: `${added} of ${processed}`
+        value: added,
+        detail: `of ${processed}`
       },
       {
         label: "Not analyzed",
-        value: String(cancelled)
+        value: cancelled
       }
     ];
   }
@@ -113,15 +115,15 @@ export function getAnalyzeCompletionSummary(analysis: AnalysisRunState): Array<{
   return [
     {
       label: "Replays processed",
-      value: String(processed)
+      value: processed
     },
     {
       label: "Added to library",
-      value: String(added)
+      value: added
     },
     {
       label: "Failed",
-      value: String(failed)
+      value: failed
     }
   ];
 }

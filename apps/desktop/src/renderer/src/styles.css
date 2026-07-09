@@ -58,6 +58,9 @@ nav { display: grid; gap: 7px; }
 .panel, .hero-panel { border: 1px solid var(--line); border-radius: 13px; background: linear-gradient(180deg, rgba(21,35,49,.94), rgba(15,26,37,.94)); box-shadow: 0 14px 50px rgba(0,0,0,.16); }
 .panel { padding: 21px; }
 .hero-panel { display: flex; align-items: center; justify-content: space-between; gap: 28px; min-height: 190px; padding: 32px; overflow: hidden; position: relative; }
+.analyze-empty-card { min-height: 260px; }
+.analyze-state-card { padding: 28px; }
+.analyze-running-card { padding-bottom: 24px; }
 .hero-panel::after { content: ""; position: absolute; right: -120px; width: 360px; height: 360px; border: 1px solid rgba(69,216,209,.1); border-radius: 50%; box-shadow: 0 0 80px rgba(69,216,209,.08); pointer-events: none; }
 .hero-panel h2 { max-width: 650px; font-size: 30px; }
 .hero-panel p:not(.eyebrow), .section-heading p:not(.eyebrow), .mcp-hero p:not(.eyebrow) { max-width: 680px; margin-bottom: 0; color: var(--muted); line-height: 1.55; }
@@ -68,6 +71,9 @@ nav { display: grid; gap: 7px; }
 .section-heading { padding: 5px 2px 10px; }
 .panel-heading h2, .section-heading h2 { margin-bottom: 0; }
 .panel-footer { display: flex; justify-content: flex-end; padding-top: 18px; border-top: 1px solid var(--line-soft); }
+.queue-toolbar, .completion-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.running-summary { color: var(--muted); font-size: 13px; }
+.completion-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
 
 button { border-radius: 8px; border: 1px solid transparent; padding: 9px 14px; color: var(--text); font-weight: 650; transition: border-color .15s, background .15s, transform .15s; }
 button:active:not(:disabled) { transform: translateY(1px); }
@@ -191,6 +197,7 @@ summary { padding-top: 10px; cursor: pointer; }
   .check-panel { position: static; max-height: none; }
   .hero-panel { align-items: flex-start; flex-direction: column; }
   .hero-actions { justify-content: flex-start; }
+  .completion-metrics { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 780px) {
