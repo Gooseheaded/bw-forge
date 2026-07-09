@@ -45,6 +45,9 @@ nav { display: grid; gap: 7px; }
 .nav-button:hover { background: rgba(255,255,255,.035); }
 .nav-button.active { border-color: rgba(69,216,209,.18); color: var(--text); background: rgba(69,216,209,.08); }
 .nav-button.active small { color: var(--cyan); }
+.nav-button-highlight { position: relative; border-color: rgba(69,216,209,.24); color: #dffefd; background: linear-gradient(90deg, rgba(69,216,209,.12), rgba(69,216,209,.03)); overflow: hidden; box-shadow: inset 0 0 0 1px rgba(69,216,209,.08), 0 0 22px rgba(69,216,209,.08); }
+.nav-button-highlight small { color: #92ebe7; }
+.nav-button-highlight::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 0%, transparent 38%, rgba(255,255,255,.14) 48%, transparent 58%, transparent 100%); transform: translateX(-140%); animation: nav-sheen 2.4s ease-in-out infinite; pointer-events: none; }
 .sidebar-foot { display: flex; align-items: center; gap: 10px; margin-top: auto; padding: 14px 10px 4px; border-top: 1px solid var(--line-soft); }
 .sidebar-foot div { display: grid; gap: 2px; }
 .sidebar-foot strong { font-size: 12px; }
@@ -143,6 +146,12 @@ button:active:not(:disabled) { transform: translateY(1px); }
 @keyframes progress-slide {
   0% { transform: translateX(-120%); }
   100% { transform: translateX(320%); }
+}
+
+@keyframes nav-sheen {
+  0% { transform: translateX(-140%); }
+  45% { transform: translateX(180%); }
+  100% { transform: translateX(180%); }
 }
 
 .library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 16px; }

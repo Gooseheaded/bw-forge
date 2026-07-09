@@ -21,6 +21,7 @@ import {
   getReplayResultLabel,
   type AnalyzeWorkflowState
 } from "./analyze-workflow";
+import { shouldHighlightLibraryNav } from "./library-nav-highlight";
 
 type View = "analyze" | "library" | "mcp" | "settings";
 
@@ -61,7 +62,9 @@ export function App(): React.JSX.Element {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>("bootstrap");
   const [dismissedCompletedRunId, setDismissedCompletedRunId] = useState<string | null>(null);
+  const [libraryHasNewItems, setLibraryHasNewItems] = useState(false);
   const previousAnalysisRef = useRef<AnalysisRunState | null>(null);
+  const previousLibraryCountRef = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -87,6 +90,7 @@ export function App(): React.JSX.Element {
         setValidation(result.validation);
         setAnalysis(result.analysis);
         setLibrary(result.library);
+        previousLibraryCountRef.current = result.library.entries.length;
         setMcp(result.mcp);
       })
       .catch((error: unknown) => {
@@ -158,6 +162,27 @@ export function App(): React.JSX.Element {
       void refreshLibrary();
     }
   }, [analysis]);
+
+  useEffect(() => {
+    const previousCount = previousLibraryCountRef.current;
+    const nextCount = library.entries.length;
+    if (
+      shouldHighlightLibraryNav({
+        previousCount,
+        nextCount,
+        currentView: view
+      })
+    ) {
+      setLibraryHasNewItems(true);
+    }
+    previousLibraryCountRef.current = nextCount;
+  }, [library.entries.length, view]);
+
+  useEffect(() => {
+    if (view === "library" && libraryHasNewItems) {
+      setLibraryHasNewItems(false);
+    }
+  }, [view, libraryHasNewItems]);
 
   const startAnalysisFlow = async (): Promise<void> => {
     setActionError(null);
@@ -233,7 +258,7 @@ export function App(): React.JSX.Element {
 
         <nav aria-label="Primary navigation">
           <NavButton active={view === "analyze"} onClick={() => setView("analyze")} label="Analyze" meta={analyzeNavStatus} />
-          <NavButton active={view === "library"} onClick={() => setView("library")} label="Library" meta={`${library.entries.length} replays`} />
+          <NavButton active={view === "library"} highlight={libraryHasNewItems} onClick={() => setView("library")} label="Library" meta={`${library.entries.length} replays`} />
           <NavButton active={view === "mcp"} onClick={() => setView("mcp")} label="MCP server" meta={mcp.status} />
           <NavButton active={view === "settings"} onClick={() => setView("settings")} label="Settings" meta={failedChecks ? `${failedChecks} blocked` : warningChecks ? `${warningChecks} notes` : "Ready"} />
         </nav>
@@ -916,8 +941,8 @@ function SettingsView(props: {
   );
 }
 
-function NavButton(props: { active: boolean; onClick: () => void; label: string; meta: string }): React.JSX.Element {
-  return <button className={props.active ? "nav-button active" : "nav-button"} onClick={props.onClick}><span>{props.label}</span><small>{props.meta}</small></button>;
+function NavButton(props: { active: boolean; highlight?: boolean; onClick: () => void; label: string; meta: string }): React.JSX.Element {
+  return <button className={["nav-button", props.active ? "active" : "", props.highlight ? "nav-button-highlight" : ""].filter(Boolean).join(" ")} onClick={props.onClick}><span>{props.label}</span><small>{props.meta}</small></button>;
 }
 
 function Notice(props: { tone: "warning" | "info"; children: React.ReactNode }): React.JSX.Element {
