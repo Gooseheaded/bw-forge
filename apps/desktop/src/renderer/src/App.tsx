@@ -327,9 +327,9 @@ export function App(): React.JSX.Element {
               library={library}
               busy={busyAction === "library"}
               onRefresh={() => void refreshLibrary()}
-              onOpen={(replayId, reportName, mode) =>
+              onOpen={(replayId, reportName) =>
                 void runAction("report", () =>
-                  window.bwForge.openReport({ replayId, reportName, mode })
+                  window.bwForge.openReport({ replayId, reportName, mode: "browser" })
                 )
               }
             />
@@ -690,7 +690,7 @@ function LibraryView(props: {
   library: ReplayLibrary;
   busy: boolean;
   onRefresh: () => void;
-  onOpen: (replayId: string, reportName: string, mode: "app" | "browser") => void;
+  onOpen: (replayId: string, reportName: string) => void;
 }): React.JSX.Element {
   return (
     <div className="stack">
@@ -729,10 +729,7 @@ function LibraryView(props: {
             </div>
             <div className="report-actions">
               {entry.reportNames.length ? (
-                <>
-                  <button className="primary small" onClick={() => props.onOpen(entry.replayId, entry.reportNames[0], "app")}>Open report</button>
-                  <button className="quiet small" onClick={() => props.onOpen(entry.replayId, entry.reportNames[0], "browser")}>Open in browser</button>
-                </>
+                <button className="primary small" onClick={() => props.onOpen(entry.replayId, entry.reportNames[0])}>Open report</button>
               ) : (
                 <span className="muted">No report yet</span>
               )}
