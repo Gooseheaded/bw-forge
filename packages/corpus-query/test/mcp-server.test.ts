@@ -109,7 +109,7 @@ test("MCP server exposes generic tools and returns structured replay query resul
     });
     assert.equal(infoResult.isError, undefined);
     assert.equal((infoResult.structuredContent as { package_name: string }).package_name, "bw-replay-corpus-query");
-    assert.equal((infoResult.structuredContent as { package_version: string }).package_version, "0.1.0");
+    assert.equal((infoResult.structuredContent as { package_version: string }).package_version, "0.2.0");
     assert.deepEqual(
       (infoResult.structuredContent as { supported_tools: string[] }).supported_tools,
       [

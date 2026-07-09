@@ -181,21 +181,21 @@ pnpm test
 pnpm pack
 ```
 
-This produces a tarball like `bw-replay-corpus-query-0.1.0.tgz`.
+This produces a tarball like `bw-replay-corpus-query-0.2.0.tgz`.
 
 ### Install From Tarball
 
 In a clean temp directory:
 
 ```powershell
-npm install C:/path/to/bw-replay-corpus-query-0.1.0.tgz
+npm install C:/path/to/bw-replay-corpus-query-0.2.0.tgz
 npx bw-replays-mcp
 ```
 
 Or globally:
 
 ```powershell
-npm install -g C:/path/to/bw-replay-corpus-query-0.1.0.tgz
+npm install -g C:/path/to/bw-replay-corpus-query-0.2.0.tgz
 bw-replays-mcp
 ```
 
@@ -447,7 +447,7 @@ The repo ships a packaging smoke-test helper:
 
 ```powershell
 pnpm pack
-pnpm verify:packaged .\bw-replay-corpus-query-0.1.0.tgz
+pnpm verify:packaged .\bw-replay-corpus-query-0.2.0.tgz
 ```
 
 It installs the tarball into a clean temp directory, launches the packaged `bw-replays-mcp` binary over stdio, calls `server_info`, and prints the observed package/build metadata and tool surface.

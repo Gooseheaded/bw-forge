@@ -12,11 +12,11 @@
     },
     "apps/cli": {
       "name": "@bw-forge/cli",
-      "version": "0.1.0",
+      "version": "0.2.0",
     },
     "apps/desktop": {
       "name": "@bw-forge/desktop",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
@@ -36,7 +36,7 @@
     },
     "packages/schemas": {
       "name": "@bw-forge/schemas",
-      "version": "0.1.0",
+      "version": "0.2.0",
     },
   },
   "packages": {

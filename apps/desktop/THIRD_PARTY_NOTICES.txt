@@ -28,12 +28,12 @@ Bundled components
 
 4. Corpus query runtime
    - Source package: bw-replay-corpus-query
-   - Version: 0.1.0
+   - Version: 0.2.0
    - License: MIT
 
 5. BW Forge desktop shell
    - Source package: @bw-forge/desktop
-   - Version: 0.1.0
+   - Version: 0.2.0
 
 Not bundled
 -----------

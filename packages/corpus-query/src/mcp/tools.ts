@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ErrorCode, McpError, ReadResourceRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { Database } from "../db/sqlite.js";
@@ -1868,17 +1869,15 @@ function loadServerInfo(): {
   current_working_directory: string;
   node_version: string;
 } {
-  const entrypointDir = dirname(
-    process.argv[1] ? resolve(process.argv[1]) : process.cwd()
-  );
-  const packageJsonPath = resolve(entrypointDir, "..", "..", "package.json");
+  const moduleDir = dirname(fileURLToPath(import.meta.url));
+  const packageJsonPath = resolve(moduleDir, "..", "..", "package.json");
   const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
     name?: string;
     version?: string;
   };
 
   let buildTimestamp: string | null = null;
-  const buildInfoPath = resolve(entrypointDir, "..", "build-info.json");
+  const buildInfoPath = resolve(moduleDir, "..", "build-info.json");
   if (existsSync(buildInfoPath)) {
     const buildInfo = JSON.parse(readFileSync(buildInfoPath, "utf8")) as { build_timestamp?: unknown };
     buildTimestamp = typeof buildInfo.build_timestamp === "string" ? buildInfo.build_timestamp : null;
