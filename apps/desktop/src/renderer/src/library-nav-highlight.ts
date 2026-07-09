@@ -1,10 +1,6 @@
 export function shouldHighlightLibraryNav(params: {
-  previousCount: number;
-  nextCount: number;
+  triggeredByAnalysisCompletion: boolean;
   currentView: "analyze" | "library" | "mcp" | "settings";
 }): boolean {
-  return (
-    params.currentView !== "library" &&
-    params.nextCount > params.previousCount
-  );
+  return params.triggeredByAnalysisCompletion && params.currentView !== "library";
 }

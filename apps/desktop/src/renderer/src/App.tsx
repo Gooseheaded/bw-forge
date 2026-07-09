@@ -64,7 +64,6 @@ export function App(): React.JSX.Element {
   const [dismissedCompletedRunId, setDismissedCompletedRunId] = useState<string | null>(null);
   const [libraryHasNewItems, setLibraryHasNewItems] = useState(false);
   const previousAnalysisRef = useRef<AnalysisRunState | null>(null);
-  const previousLibraryCountRef = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -90,7 +89,6 @@ export function App(): React.JSX.Element {
         setValidation(result.validation);
         setAnalysis(result.analysis);
         setLibrary(result.library);
-        previousLibraryCountRef.current = result.library.entries.length;
         setMcp(result.mcp);
       })
       .catch((error: unknown) => {
@@ -133,8 +131,18 @@ export function App(): React.JSX.Element {
     setSelectionWarnings(result.warnings);
   };
 
-  const refreshLibrary = (): Promise<void> =>
-    runAction("library", () => window.bwForge.refreshLibrary(), setLibrary);
+  const refreshLibrary = (triggeredByAnalysisCompletion = false): Promise<void> =>
+    runAction("library", () => window.bwForge.refreshLibrary(), (nextLibrary) => {
+      setLibrary(nextLibrary);
+      if (
+        shouldHighlightLibraryNav({
+          triggeredByAnalysisCompletion,
+          currentView: view
+        })
+      ) {
+        setLibraryHasNewItems(true);
+      }
+    });
 
   const activeAnalysis = ["running", "ingesting", "cancelling"].includes(analysis.status);
   const analyzeNavStatus = getAnalyzeNavStatus({
@@ -159,24 +167,9 @@ export function App(): React.JSX.Element {
       setSelectionWarnings([]);
     }
     if (effects.refreshLibrary) {
-      void refreshLibrary();
+      void refreshLibrary(true);
     }
   }, [analysis]);
-
-  useEffect(() => {
-    const previousCount = previousLibraryCountRef.current;
-    const nextCount = library.entries.length;
-    if (
-      shouldHighlightLibraryNav({
-        previousCount,
-        nextCount,
-        currentView: view
-      })
-    ) {
-      setLibraryHasNewItems(true);
-    }
-    previousLibraryCountRef.current = nextCount;
-  }, [library.entries.length, view]);
 
   useEffect(() => {
     if (view === "library" && libraryHasNewItems) {
@@ -942,7 +935,7 @@ function SettingsView(props: {
 }
 
 function NavButton(props: { active: boolean; highlight?: boolean; onClick: () => void; label: string; meta: string }): React.JSX.Element {
-  return <button className={["nav-button", props.active ? "active" : "", props.highlight ? "nav-button-highlight" : ""].filter(Boolean).join(" ")} onClick={props.onClick}><span>{props.label}</span><small>{props.meta}</small></button>;
+  return <button className={["nav-button", props.active ? "active" : "", props.highlight ? "nav-button-highlight" : ""].filter(Boolean).join(" ")} onClick={props.onClick}><span>{props.label}{props.highlight ? <em className="nav-button-new">New</em> : null}</span><small>{props.meta}</small></button>;
 }
 
 function Notice(props: { tone: "warning" | "info"; children: React.ReactNode }): React.JSX.Element {

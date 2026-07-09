@@ -2,11 +2,10 @@ import { describe, expect, test } from "vitest";
 import { shouldHighlightLibraryNav } from "../src/renderer/src/library-nav-highlight";
 
 describe("library nav highlight", () => {
-  test("highlights when the library count increases away from the library page", () => {
+  test("highlights when analysis completion refreshes the library away from the library page", () => {
     expect(
       shouldHighlightLibraryNav({
-        previousCount: 3,
-        nextCount: 5,
+        triggeredByAnalysisCompletion: true,
         currentView: "analyze"
       })
     ).toBe(true);
@@ -15,18 +14,16 @@ describe("library nav highlight", () => {
   test("does not highlight when already viewing the library", () => {
     expect(
       shouldHighlightLibraryNav({
-        previousCount: 3,
-        nextCount: 5,
+        triggeredByAnalysisCompletion: true,
         currentView: "library"
       })
     ).toBe(false);
   });
 
-  test("does not highlight when the count stays the same", () => {
+  test("does not highlight when the refresh was not caused by analysis completion", () => {
     expect(
       shouldHighlightLibraryNav({
-        previousCount: 5,
-        nextCount: 5,
+        triggeredByAnalysisCompletion: false,
         currentView: "analyze"
       })
     ).toBe(false);

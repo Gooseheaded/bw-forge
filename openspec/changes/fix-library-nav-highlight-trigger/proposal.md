@@ -4,7 +4,7 @@ The first Library-nav highlight implementation proved too fragile in practice an
 
 ## What Changes
 
-- Change the Library highlight trigger from count-only comparison to replay-ID comparison.
+- Change the Library highlight trigger from count-only comparison to successful analysis-driven library refreshes.
 - Add a more explicit nav indicator in addition to the existing sheen treatment.
 - Keep the dismiss-on-open behavior unchanged.
 
@@ -16,9 +16,9 @@ None.
 
 ### Modified Capabilities
 
-- `desktop-application`: the Library navigation highlight for newly added entries is now triggered from replay-ID deltas and uses a more obvious visual indicator.
+- `desktop-application`: the Library navigation highlight is triggered by successful analysis-driven library refreshes and uses a more obvious visual indicator.
 
 ## Impact
 
-- Affects renderer-side library highlight detection and nav-button presentation.
+- Affects renderer-side library highlight detection after analysis completion and nav-button presentation.
 - Extends the renderer tests for Library-nav highlight behavior.

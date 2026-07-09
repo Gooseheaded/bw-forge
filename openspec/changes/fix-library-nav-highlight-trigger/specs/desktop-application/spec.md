@@ -1,10 +1,10 @@
 ## MODIFIED Requirements
 
 ### Requirement: Replay library
-The system SHALL signal newly added replay entries in the Library navigation item until the user opens the Library page, based on whether newly loaded replay IDs were not present in the prior loaded library.
+The system SHALL signal that the Library has been refreshed by a completed analysis run in the Library navigation item until the user opens the Library page.
 
-#### Scenario: New replay IDs arrive while viewing another page
-- **WHEN** the loaded library contains one or more replay IDs that were not present in the previously loaded library and the current page is not Library
+#### Scenario: Analysis completes while viewing another page
+- **WHEN** a completed analysis run triggers a successful library refresh and the current page is not Library
 - **THEN** the Library navigation item shows a temporary and visually obvious highlight indicating new items are available
 
 #### Scenario: User opens the Library page

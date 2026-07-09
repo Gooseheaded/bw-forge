@@ -40,7 +40,7 @@ code, .mono { font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospac
 .brand-mark { display: grid; width: 42px; height: 42px; place-items: center; border: 1px solid rgba(69, 216, 209, .5); border-radius: 11px; color: var(--cyan); background: rgba(69, 216, 209, .08); font-size: 13px; font-weight: 800; letter-spacing: .08em; box-shadow: inset 0 0 20px rgba(69, 216, 209, .05); }
 nav { display: grid; gap: 7px; }
 .nav-button { display: grid; gap: 3px; width: 100%; padding: 12px 13px; border: 1px solid transparent; border-radius: 9px; color: var(--muted); background: transparent; text-align: left; }
-.nav-button span { color: inherit; font-weight: 650; }
+.nav-button span { display: inline-flex; align-items: center; gap: 8px; color: inherit; font-weight: 650; }
 .nav-button small { color: #647689; font-size: 11px; text-transform: capitalize; }
 .nav-button:hover { background: rgba(255,255,255,.035); }
 .nav-button.active { border-color: rgba(69,216,209,.18); color: var(--text); background: rgba(69,216,209,.08); }
@@ -48,6 +48,7 @@ nav { display: grid; gap: 7px; }
 .nav-button-highlight { position: relative; border-color: rgba(69,216,209,.24); color: #dffefd; background: linear-gradient(90deg, rgba(69,216,209,.12), rgba(69,216,209,.03)); overflow: hidden; box-shadow: inset 0 0 0 1px rgba(69,216,209,.08), 0 0 22px rgba(69,216,209,.08); }
 .nav-button-highlight small { color: #92ebe7; }
 .nav-button-highlight::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 0%, transparent 38%, rgba(255,255,255,.14) 48%, transparent 58%, transparent 100%); transform: translateX(-140%); animation: nav-sheen 2.4s ease-in-out infinite; pointer-events: none; }
+.nav-button-new { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; padding: 2px 7px; border: 1px solid rgba(69,216,209,.45); border-radius: 999px; color: #03171b; background: linear-gradient(180deg, #8cf3ee, #45d8d1); box-shadow: 0 0 14px rgba(69,216,209,.28); font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .sidebar-foot { display: flex; align-items: center; gap: 10px; margin-top: auto; padding: 14px 10px 4px; border-top: 1px solid var(--line-soft); }
 .sidebar-foot div { display: grid; gap: 2px; }
 .sidebar-foot strong { font-size: 12px; }
