@@ -1,7 +1,7 @@
 ## 1. OpenSpec and workflow-state foundation
 
-- [ ] 1.1 Add the OpenSpec proposal, design, spec delta, and task list for the stateful Analyze workflow page
-- [ ] 1.2 Add renderer helpers for deriving Analyze workflow state and Analyze sidebar status from the existing queue and analysis model
+- [x] 1.1 Add the OpenSpec proposal, design, spec delta, and task list for the stateful Analyze workflow page
+- [x] 1.2 Add renderer helpers for deriving Analyze workflow state and Analyze sidebar status from the existing queue and analysis model
 
 ## 2. Stateful Analyze page views
 
