@@ -7,6 +7,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { assertSafeAnalyzeOutputRoot } from "./analyze-output-path.js";
+import { buildCommandSpawnOptions } from "./child-process.js";
 import type {
   BwForgeCorpusManifest,
   BwForgeReplayManifest,
@@ -767,12 +768,11 @@ async function runCommand(params: {
   env: NodeJS.ProcessEnv;
 }): Promise<void> {
   await new Promise<void>((resolvePromise, rejectPromise) => {
-    const child = spawn(params.command, params.args, {
-      cwd: params.cwd,
-      env: params.env,
-      stdio: "inherit",
-      shell: false
-    });
+    const child = spawn(
+      params.command,
+      params.args,
+      buildCommandSpawnOptions({ cwd: params.cwd, env: params.env })
+    );
 
     child.on("error", rejectPromise);
     child.on("exit", (code) => {
