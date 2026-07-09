@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 import {
   IPC_CHANNELS,
   type AnalysisRunState,
@@ -11,6 +11,8 @@ const api: DesktopApi = {
   bootstrap: () => ipcRenderer.invoke(IPC_CHANNELS.bootstrap),
   selectReplayFiles: () => ipcRenderer.invoke(IPC_CHANNELS.selectReplayFiles),
   selectReplayFolder: () => ipcRenderer.invoke(IPC_CHANNELS.selectReplayFolder),
+  discoverDroppedReplayPaths: (paths) => ipcRenderer.invoke(IPC_CHANNELS.discoverDroppedReplayPaths, paths),
+  getPathForDroppedFile: (file: File) => webUtils.getPathForFile(file),
   chooseRuntimeDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.chooseRuntimeDirectory),
   chooseStarcraftDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.chooseStarcraftDirectory),
   chooseOutputDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.chooseOutputDirectory),

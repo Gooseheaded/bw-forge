@@ -80,6 +80,10 @@ export function registerDesktopIpc(services: DesktopServices): void {
       : discoverReplayPaths(result.filePaths);
   });
 
+  ipcMain.handle(IPC_CHANNELS.discoverDroppedReplayPaths, async (_event, paths: string[]) => {
+    return discoverReplayPaths(paths);
+  });
+
   ipcMain.handle(IPC_CHANNELS.chooseRuntimeDirectory, async () => {
     const result = await dialog.showOpenDialog({
       title: "Choose project folder",

@@ -21,6 +21,7 @@ import {
   getReplayResultLabel,
   type AnalyzeWorkflowState
 } from "./analyze-workflow";
+import { hasDroppedFiles, normalizeDroppedReplayPaths } from "./analyze-drag-drop";
 import { shouldHighlightLibraryNav } from "./library-nav-highlight";
 
 type View = "analyze" | "library" | "mcp" | "settings";
@@ -293,6 +294,13 @@ export function App(): React.JSX.Element {
               busyAction={busyAction}
               onSelectFiles={() => void runAction("select-files", () => window.bwForge.selectReplayFiles(), addSelection)}
               onSelectFolder={() => void runAction("select-folder", () => window.bwForge.selectReplayFolder(), addSelection)}
+              onDropReplayPaths={(paths) =>
+                void runAction(
+                  "drop-replays",
+                  () => window.bwForge.discoverDroppedReplayPaths(paths),
+                  addSelection
+                )
+              }
               onRemove={(path) => setPendingReplays((current) => current.filter((item) => item !== path))}
               onClear={() => {
                 setPendingReplays([]);
@@ -402,6 +410,7 @@ function AnalyzeView(props: {
   busyAction: string | null;
   onSelectFiles: () => void;
   onSelectFolder: () => void;
+  onDropReplayPaths: (paths: string[]) => void;
   onRemove: (path: string) => void;
   onClear: () => void;
   onAnalyze: () => void;
@@ -413,8 +422,74 @@ function AnalyzeView(props: {
   onAnalyzeRemaining: () => void;
 }): React.JSX.Element {
   const active = props.workflowState === "running";
+  const [dropActive, setDropActive] = useState(false);
+  const dragDepthRef = useRef(0);
+  const acceptsDrop = props.workflowState !== "running";
+
+  const clearDrop = (): void => {
+    dragDepthRef.current = 0;
+    setDropActive(false);
+  };
+
+  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>): void => {
+    if (!acceptsDrop || !hasDroppedFiles(event.dataTransfer)) {
+      return;
+    }
+    event.preventDefault();
+    dragDepthRef.current += 1;
+    setDropActive(true);
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>): void => {
+    if (!acceptsDrop || !hasDroppedFiles(event.dataTransfer)) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    setDropActive(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>): void => {
+    if (!acceptsDrop || !hasDroppedFiles(event.dataTransfer)) {
+      return;
+    }
+    event.preventDefault();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) {
+      setDropActive(false);
+    }
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>): void => {
+    if (!acceptsDrop || !hasDroppedFiles(event.dataTransfer)) {
+      return;
+    }
+    event.preventDefault();
+    const paths = normalizeDroppedReplayPaths(
+      Array.from(event.dataTransfer.files, (file) => window.bwForge.getPathForDroppedFile(file))
+    );
+    clearDrop();
+    if (paths.length > 0) {
+      props.onDropReplayPaths(paths);
+    }
+  };
+
   return (
-    <div className="stack">
+    <div
+      className={["stack", "analyze-drop-zone", dropActive ? "analyze-drop-zone-active" : ""].filter(Boolean).join(" ")}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {dropActive ? (
+        <div className="analyze-drop-overlay">
+          <div className="empty-state">
+            <strong>Drop replays to add them</strong>
+            <span>Replay files and folders will be added to the analysis queue.</span>
+          </div>
+        </div>
+      ) : null}
       {!props.canAnalyze && props.workflowState !== "running" ? (
         <Notice tone="warning">
           {props.canPromptForStarcraft

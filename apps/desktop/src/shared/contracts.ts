@@ -187,6 +187,8 @@ export interface DesktopApi {
   bootstrap(): Promise<AppBootstrap>;
   selectReplayFiles(): Promise<ReplaySelectionResult>;
   selectReplayFolder(): Promise<ReplaySelectionResult>;
+  discoverDroppedReplayPaths(paths: string[]): Promise<ReplaySelectionResult>;
+  getPathForDroppedFile(file: File): string;
   chooseRuntimeDirectory(): Promise<string | null>;
   chooseStarcraftDirectory(): Promise<string | null>;
   chooseOutputDirectory(): Promise<string | null>;
@@ -209,6 +211,7 @@ export const IPC_CHANNELS = {
   bootstrap: "desktop:bootstrap",
   selectReplayFiles: "desktop:select-replay-files",
   selectReplayFolder: "desktop:select-replay-folder",
+  discoverDroppedReplayPaths: "desktop:discover-dropped-replay-paths",
   chooseRuntimeDirectory: "desktop:choose-runtime-directory",
   chooseStarcraftDirectory: "desktop:choose-starcraft-directory",
   chooseOutputDirectory: "desktop:choose-output-directory",

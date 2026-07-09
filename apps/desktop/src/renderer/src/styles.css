@@ -63,6 +63,12 @@ nav { display: grid; gap: 7px; }
 .panel { padding: 21px; }
 .hero-panel { display: flex; align-items: center; justify-content: space-between; gap: 28px; min-height: 190px; padding: 32px; overflow: hidden; position: relative; }
 .analyze-empty-card { min-height: 260px; }
+.analyze-drop-zone { position: relative; }
+.analyze-drop-zone-active > .hero-panel,
+.analyze-drop-zone-active > .panel { border-color: rgba(69,216,209,.45); box-shadow: 0 0 0 1px rgba(69,216,209,.22), 0 14px 50px rgba(0,0,0,.16); }
+.analyze-drop-overlay { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; border: 1px dashed rgba(69,216,209,.5); border-radius: 13px; color: #dffefd; background: rgba(8, 18, 28, .78); pointer-events: none; }
+.analyze-drop-overlay strong { font-size: 18px; }
+.analyze-drop-overlay span { color: #9adfdb; font-size: 12px; }
 .analyze-state-card { padding: 28px; }
 .analyze-running-card { padding-bottom: 24px; }
 .hero-panel::after { content: ""; position: absolute; right: -120px; width: 360px; height: 360px; border: 1px solid rgba(69,216,209,.1); border-radius: 50%; box-shadow: 0 0 80px rgba(69,216,209,.08); pointer-events: none; }
