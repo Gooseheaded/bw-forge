@@ -1,0 +1,112 @@
+{
+  "source": {
+    "replay_sha256": "44b77091c689e59a4657215aff6bd281d6329dca73e4b6e1c7e9670117461ec6",
+    "telemetry_schema": "sb-unit-timeline-v2",
+    "time_unit": "frames",
+    "configured_stride": 1,
+    "owner_filter": null,
+    "replay_export_speed": 128,
+    "raw_queue_representation": "Producer emits ordered non-empty entries from five BW queue slots; *_five_slots pads the compact list with trailing nulls."
+  },
+  "capture": {
+    "snapshots_captured": 32937,
+    "first_frame": 1,
+    "last_frame": 32937,
+    "inclusive_frame_span": 32937,
+    "duplicate_frames": 0,
+    "non_monotonic_frames": 0,
+    "frame_gaps": [],
+    "owner_ids_present": [
+      0,
+      3
+    ],
+    "owner_set_change_snapshots": 0,
+    "obvious_sampling_or_export_gap": false,
+    "frame_zero_emitted": false,
+    "boundary_note": "Normal ShieldBattery replay export begins at frame 1; frames 1 through 32937 are consecutive with no internal gaps."
+  },
+  "zerg_owners": [
+    0
+  ],
+  "positive_queue_transitions": {
+    "transition_records_all_targets": 343,
+    "target_additions_all_targets": 343,
+    "counts_by_target_all": {
+      "creep_colony": 19,
+      "drone": 99,
+      "evolution_chamber": 2,
+      "extractor": 4,
+      "hatchery": 11,
+      "hydralisk": 103,
+      "hydralisk_den": 1,
+      "lair": 2,
+      "mutalisk": 57,
+      "overlord": 14,
+      "queen": 4,
+      "queens_nest": 2,
+      "spawning_pool": 1,
+      "spire": 3,
+      "sunken_colony": 13,
+      "zergling": 8
+    },
+    "zerg_nonbuilding_unit_target_additions": 285,
+    "counts_by_zerg_nonbuilding_unit_target": {
+      "drone": 99,
+      "hydralisk": 103,
+      "mutalisk": 57,
+      "overlord": 14,
+      "queen": 4,
+      "zergling": 8
+    },
+    "building_target_additions": 58,
+    "counts_by_building_target": {
+      "creep_colony": 19,
+      "evolution_chamber": 2,
+      "extractor": 4,
+      "hatchery": 11,
+      "hydralisk_den": 1,
+      "lair": 2,
+      "queens_nest": 2,
+      "spawning_pool": 1,
+      "spire": 3,
+      "sunken_colony": 13
+    },
+    "special_unit_morph_target_additions": 0,
+    "counts_by_special_unit_morph_target": {}
+  },
+  "requested_focus_comparison": {
+    "shieldbattery_counts": {
+      "drone": 99,
+      "zergling": 8,
+      "hydralisk": 103,
+      "mutalisk": 57,
+      "overlord": 14,
+      "queen": 4
+    },
+    "shieldbattery_total": 285,
+    "bwsim_counts_from_existing_conformance": {
+      "drone": 99,
+      "hydralisk": 103,
+      "mutalisk": 57,
+      "overlord": 14,
+      "queen": 4,
+      "zergling": 8
+    },
+    "bwsim_total_from_existing_conformance": 285,
+    "shieldbattery_has_fewer": false
+  },
+  "artifacts": {
+    "raw_telemetry": {
+      "relative_path": "howdidilosethis/replays/44b77091c689e59a4657215aff6bd281d6329dca73e4b6e1c7e9670117461ec6/debug/LastReplay.shieldbattery.jsonl",
+      "bytes": 5817518215,
+      "sha256": "107e417af9c7bd957e820d10c655e4c178f1509440208ac167a05d6dcc0c9131"
+    },
+    "zerg_queue_transitions": {
+      "relative_path": "howdidilosethis/replays/44b77091c689e59a4657215aff6bd281d6329dca73e4b6e1c7e9670117461ec6/debug/LastReplay.shieldbattery.zerg-queue-transitions.jsonl",
+      "bytes": 154048,
+      "sha256": "fcc4507240d3ddd549cdf6e4997390933718923aabe2d7709c8e47003fb86a48",
+      "records": 343
+    }
+  },
+  "extraction": "Positive queue deltas were computed directly from consecutive raw producer snapshots as ordered duplicate-preserving multiset additions; the Python build-order reducer was not used."
+}
