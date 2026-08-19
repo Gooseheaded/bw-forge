@@ -59,6 +59,79 @@ def pack_msgpack(value):
 
 
 class ReplayAnalysisTest(unittest.TestCase):
+    def test_accepts_bwsim_compatible_jsonl_with_omitted_gathered_resources(self):
+        snapshots = [
+            {
+                "schema_version": "sb-unit-timeline-v2",
+                "frame": 1,
+                "owners": {
+                    "0": {
+                        "name": "Zerg Player",
+                        "minerals": 50,
+                        "gas": 0,
+                        "workers_alive": 4,
+                        "supply_current": 4,
+                        "supply_max": 9,
+                        "unit_counts": {"hatchery": 1},
+                        "units": [{
+                            "id": 0x10001,
+                            "owner": 0,
+                            "unit_type": "hatchery",
+                            "unit_type_id": 131,
+                            "category": "building",
+                            "build_queue_unit_ids": [],
+                            "morphing_building": False,
+                            "completed": True,
+                            "pos_x": 100,
+                            "pos_y": 100,
+                        }],
+                    }
+                },
+                "deaths": [],
+            },
+            {
+                "schema_version": "sb-unit-timeline-v2",
+                "frame": 2,
+                "owners": {
+                    "0": {
+                        "name": "Zerg Player",
+                        "minerals": 50,
+                        "gas": 0,
+                        "workers_alive": 4,
+                        "supply_current": 4,
+                        "supply_max": 9,
+                        "unit_counts": {"hatchery": 1},
+                        "units": [{
+                            "id": 0x10001,
+                            "owner": 0,
+                            "unit_type": "hatchery",
+                            "unit_type_id": 131,
+                            "category": "building",
+                            "build_queue_unit_ids": [41],
+                            "morphing_building": False,
+                            "completed": True,
+                            "pos_x": 100,
+                            "pos_y": 100,
+                        }],
+                    }
+                },
+                "deaths": [],
+            },
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "bwsim.jsonl"
+            path.write_text("\n".join(json.dumps(x) for x in snapshots), encoding="utf-8")
+            result = replay_analysis.analyze_timeline(
+                path,
+                replay_analysis.Analyzer({0}, False, False, False),
+                {0},
+            )
+
+        self.assertEqual(result.last_frame, 2)
+        self.assertEqual(result.events, [replay_analysis.Event(2, 0, "Drone")])
+        self.assertNotIn("gathered_minerals", result.economy[0][0])
+        self.assertNotIn("gathered_gas", result.economy[0][0])
+
     def test_per_owner_exports(self):
         snapshots = [
             {

@@ -1,0 +1,1 @@
+{"version":3,"file":"asset-pack.d.ts","sourceRoot":"","sources":["../src/asset-pack.ts"],"names":[],"mappings":"AAEA,MAAM,WAAW,cAAc;IAC7B,QAAQ,CAAC,IAAI,EAAE,MAAM,CAAC;IACtB,QAAQ,CAAC,KAAK,EAAE,UAAU,CAAC;CAC5B;AAWD,mEAAmE;AACnE,wBAAgB,cAAc,CAAC,KAAK,EAAE,UAAU,GAAG,SAAS,cAAc,EAAE,CAyD3E"}

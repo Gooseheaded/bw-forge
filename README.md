@@ -14,10 +14,11 @@ read-only SQL work.
 ```text
 .rep replay
     |
-    v
-ShieldBattery replay exporter
+    +-- ShieldBattery replay exporter (default)
     |
-    | per-frame MessagePack timeline (.sbtl)
+    +-- vendored headless-bwsim exporter (--backend bwsim)
+    |
+    | compatible per-frame timeline (.sbtl or .jsonl)
     v
 Python replay analyzer
     |
@@ -57,7 +58,7 @@ The design deliberately separates two responsibilities:
 - computes a SHA-256 replay ID and copies the original replay into canonical
   output;
 - builds the current `sc-forge` standalone report template when necessary;
-- invokes the ShieldBattery exporter and Python analyzer;
+- invokes the selected ShieldBattery or headless-bwsim exporter and the same Python analyzer;
 - writes normalized replay and corpus manifests;
 - delegates ingestion and MCP serving to `packages/corpus-query`; and
 - refuses to place analysis output in protected repository/source paths.
@@ -99,6 +100,20 @@ mode. Custom Rust instrumentation in
 The preferred timeline format is the compact `sb-unit-timeline-v2`
 MessagePack format (`.sbtl`). JSONL remains supported for debugging and
 compatibility.
+
+### headless-bwsim replay execution
+
+`third_party/bwsim` is a pinned, offline runtime copy of upstream
+`Gooseheaded/headless-bwsim` v0.1.1. The upstream repository remains the source
+of truth; provenance and artifact hashes are recorded in
+`third_party/bwsim/VENDORED.md`.
+
+The migration backend is selected explicitly with `--backend bwsim`; the
+default remains `shieldbattery`. bwsim runs in a Node 24.5+ worker because its
+Wasm uses Memory64, emits `sb-unit-timeline-v2` JSONL, and then invokes the
+unchanged Python reducer. It does not require StarCraft, Electron, an injected
+DLL, or a separate headless-bwsim checkout. Cumulative gathered mineral/gas
+fields and Scanner Sweep are intentionally absent in this first milestone.
 
 ### Python replay reduction
 
@@ -297,21 +312,30 @@ bun run desktop:pack:win
       raw/
         <original replay>.rep
       debug/
-        <replay-id>.sbtl       # only with --keep-snapshots
+        <replay-id>.sbtl       # ShieldBattery, only with --keep-snapshots
+        <replay-id>.jsonl      # bwsim, only with --keep-snapshots
       legacy/
         manifest.json
         player_<owner>.zip
         <standalone report>.html
 ```
 
-By default the intermediate `.sbtl` timeline is temporary.
+By default the intermediate timeline is temporary.
 `--keep-snapshots` preserves it for debugging, and `--snapshot-dir` can
 override its location.
 
+Select the migration backend explicitly:
+
+```powershell
+bun run bw-forge -- analyze .\LastReplay.rep --out .\out --backend bwsim
+```
+
 ## Runtime Requirements and Boundaries
 
-- Replay analysis is currently Windows-only because it runs the imported
-  ShieldBattery/Electron/StarCraft replay exporter.
+- The default ShieldBattery replay backend is Windows-only and requires the
+  imported ShieldBattery/Electron/StarCraft replay exporter.
+- The bwsim backend is self-contained apart from Node 24.5+ and Python 3; its
+  runtime is included in packaged/offline layouts.
 - The root package uses Bun 1.3.x.
 - The desktop shell uses Electron, React, TypeScript, Vite, and
   electron-builder. Its Windows distributable now bundles the BW Forge runtime

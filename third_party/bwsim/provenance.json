@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "package": {
+    "name": "bwsim-wasm-node",
+    "version": "0.1.1",
+    "minimumNodeVersion": "24.5.0"
+  },
+  "artifacts": {
+    "originalWasm": {
+      "path": "bwsim_wasm.wasm",
+      "sha256": "b321eb4f274d2602be1ccdf3cefa72b0ba934e2025d76d7c25379a18af4d1226",
+      "includedInNpmPackage": false
+    },
+    "patchedWasm": {
+      "path": "bwsim_wasm.bwforge.wasm",
+      "sha256": "aec4109937e4d1efefa921cf4fef8bfd2febc772809a026510ff1a6e88ca9a7d",
+      "includedInNpmPackage": false
+    },
+    "simulationAssetPack": {
+      "path": "sim.pack.gz",
+      "sha256": "32f8cc3561e11d2756a579dc54675e0758e94c15b9f767a66a1ba533a9856a44",
+      "entryCount": 1044,
+      "includedInNpmPackage": false
+    },
+    "validationReplay": {
+      "path": "LastReplay.rep",
+      "sha256": "44b77091c689e59a4657215aff6bd281d6329dca73e4b6e1c7e9670117461ec6",
+      "includedInNpmPackage": false
+    }
+  },
+  "patch": {
+    "script": "scripts/patch-unit-instance-id.mjs",
+    "addedExport": "bw_unit_instance_id",
+    "signature": "(i32) -> i32"
+  }
+}

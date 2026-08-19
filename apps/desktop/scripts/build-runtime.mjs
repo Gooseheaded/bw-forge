@@ -30,10 +30,16 @@ async function main() {
   await packageEmbeddedPython(embeddedPythonArchive);
   await packageScForgeTemplate();
   await packageReplayEngineRuntime();
+  await packageBwsimRuntime();
 
   await bundleEntrypoint(esbuildExecutable, {
     entrypoint: resolve(REPO_ROOT, "apps", "cli", "src", "main.ts"),
     outfile: resolve(OUTPUT_ROOT, "apps", "cli", "src", "main.js"),
+    format: "esm"
+  });
+  await bundleEntrypoint(esbuildExecutable, {
+    entrypoint: resolve(REPO_ROOT, "apps", "cli", "src", "bwsim-exporter.ts"),
+    outfile: resolve(OUTPUT_ROOT, "apps", "cli", "src", "bwsim-exporter.js"),
     format: "esm"
   });
   await copyFile(
@@ -241,6 +247,22 @@ async function packageScForgeTemplate() {
   );
   await mkdir(dirname(runtimeTemplatePath), { recursive: true });
   await copyFile(templatePath, runtimeTemplatePath);
+}
+
+async function packageBwsimRuntime() {
+  const sourceRoot = resolve(REPO_ROOT, "third_party", "bwsim");
+  const targetRoot = resolve(OUTPUT_ROOT, "third_party", "bwsim");
+  await mkdir(targetRoot, { recursive: true });
+  for (const filename of [
+    "bwsim_wasm.wasm",
+    "bwsim_wasm.bwforge.wasm",
+    "sim.pack.gz",
+    "package.json",
+    "provenance.json",
+    "VENDORED.md"
+  ]) {
+    await copyFile(resolve(sourceRoot, filename), resolve(targetRoot, filename));
+  }
 }
 
 async function ensureScForgeTemplateBuilt() {

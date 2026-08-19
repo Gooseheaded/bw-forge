@@ -26,12 +26,19 @@ Bundled components
    - This distribution embeds a BW Forge-specific replay-engine build derived
      from the imported fork under third_party\shieldbattery in the source tree.
 
-4. Corpus query runtime
+4. headless-bwsim replay runtime
+   - Source project: Gooseheaded/headless-bwsim
+   - Version: 0.1.1
+   - License declared upstream: MIT
+   - Provenance, commit, and artifact hashes are bundled under:
+     - resources\runtime\third_party\bwsim\VENDORED.md
+
+5. Corpus query runtime
    - Source package: bw-replay-corpus-query
    - Version: 0.2.0
    - License: MIT
 
-5. BW Forge desktop shell
+6. BW Forge desktop shell
    - Source package: @bw-forge/desktop
    - Version: 0.2.0
 
@@ -46,6 +53,7 @@ Source-tree references
 
 The corresponding source imports in this repository are located at:
   - third_party\shieldbattery
+  - third_party\bwsim
   - packages\corpus-query
   - apps\desktop
 

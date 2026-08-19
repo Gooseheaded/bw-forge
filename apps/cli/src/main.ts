@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { copyFile, cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, cp, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { assertSafeAnalyzeOutputRoot } from "./analyze-output-path.js";
 import { buildCommandSpawnOptions } from "./child-process.js";
 import type {
@@ -27,6 +27,9 @@ const PATHS = {
   scForgeTemplateBuilder: resolve(REPO_ROOT, "apps", "sc-forge", "build_single_file.js"),
   scForgeTemplateBuilt: resolve(REPO_ROOT, "apps", "sc-forge", "dist", "build-order.single-file.html"),
   shieldbatteryDir: resolve(REPO_ROOT, "third_party", "shieldbattery"),
+  bwsimDir: resolve(REPO_ROOT, "third_party", "bwsim"),
+  bwsimExporterSource: resolve(REPO_ROOT, "apps", "cli", "src", "bwsim-exporter.ts"),
+  bwsimExporterBuilt: resolve(REPO_ROOT, "apps", "cli", "src", "bwsim-exporter.js"),
   corpusQueryDir: resolve(REPO_ROOT, "packages", "corpus-query"),
   corpusQueryCliDist: resolve(REPO_ROOT, "packages", "corpus-query", "dist", "cli.cjs"),
   corpusQueryMcpDist: resolve(REPO_ROOT, "packages", "corpus-query", "dist", "mcp", "server.cjs"),
@@ -92,6 +95,8 @@ async function analyzeCommand(argv: string[]): Promise<void> {
       outputRoot,
       keepSnapshots: options.keepSnapshots,
       snapshotDir: options.snapshotDir ? resolveOptionPath(options.snapshotDir) : undefined,
+      backend: options.backend,
+      bwsimDir: options.bwsimDir ? resolveOptionPath(options.bwsimDir) : PATHS.bwsimDir,
       shieldbatteryDir: options.shieldbatteryDir ? resolveOptionPath(options.shieldbatteryDir) : PATHS.shieldbatteryDir,
       replayExportSpeed: options.replayExportSpeed
     });
@@ -141,6 +146,8 @@ async function analyzeReplay(params: {
   outputRoot: string;
   keepSnapshots: boolean;
   snapshotDir?: string;
+  backend: ReplayExtractionBackend;
+  bwsimDir: string;
   shieldbatteryDir: string;
   replayExportSpeed: number;
 }): Promise<void> {
@@ -155,12 +162,44 @@ async function analyzeReplay(params: {
   await copyFile(params.replayPath, copiedReplayPath);
 
   let snapshotPath: string | undefined;
-  if (params.keepSnapshots) {
+  let retainedSnapshotPath: string | undefined;
+  let temporarySnapshotDir: string | undefined;
+  if (params.backend === "bwsim") {
+    const snapshotBaseDir = params.snapshotDir
+      ? resolve(params.snapshotDir)
+      : params.keepSnapshots
+        ? join(replayDir, "debug")
+        : await mkdtemp(join(tmpdir(), "bw-forge-bwsim-"));
+    if (!params.keepSnapshots) {
+      temporarySnapshotDir = snapshotBaseDir;
+    }
+    await mkdir(snapshotBaseDir, { recursive: true });
+    snapshotPath = join(snapshotBaseDir, `${replayId}.jsonl`);
+    retainedSnapshotPath = params.keepSnapshots ? snapshotPath : undefined;
+    const extractionStartedAt = performance.now();
+    try {
+      await runBwsimExporter({
+        replayPath: params.replayPath,
+        snapshotPath,
+        bwsimDir: params.bwsimDir
+      });
+    } catch (error) {
+      if (temporarySnapshotDir) {
+        await rm(temporarySnapshotDir, { recursive: true, force: true });
+        temporarySnapshotDir = undefined;
+      }
+      throw error;
+    }
+    console.log(
+      `[bwsim] extraction completed in ${((performance.now() - extractionStartedAt) / 1000).toFixed(2)}s`
+    );
+  } else if (params.keepSnapshots) {
     const snapshotBaseDir = params.snapshotDir
       ? resolve(params.snapshotDir)
       : join(replayDir, "debug");
     await mkdir(snapshotBaseDir, { recursive: true });
     snapshotPath = join(snapshotBaseDir, `${replayId}.sbtl`);
+    retainedSnapshotPath = snapshotPath;
     await exportReplaySnapshot({
       replayPath: params.replayPath,
       snapshotPath,
@@ -169,24 +208,58 @@ async function analyzeReplay(params: {
     });
   }
 
-  await runLegacyReplayAnalysis({
-    analysisInput: snapshotPath ?? params.replayPath,
-    legacyDir,
-    shieldbatteryDir: params.shieldbatteryDir,
-    embeddedReplayInput: snapshotPath ? params.replayPath : undefined
-  });
+  try {
+    await runLegacyReplayAnalysis({
+      analysisInput: snapshotPath ?? params.replayPath,
+      legacyDir,
+      shieldbatteryDir: params.shieldbatteryDir,
+      embeddedReplayInput: snapshotPath ? params.replayPath : undefined,
+      requiresReplayEngine: params.backend === "shieldbattery" && snapshotPath === undefined
+    });
 
-  const legacyManifestPath = join(legacyDir, "manifest.json");
-  const legacyManifest = await readJsonFile<LegacyReplayAnalysisManifest>(legacyManifestPath);
-  const replayManifest = await buildReplayManifest({
-    replayId,
-    replayDir,
-    replayPath: params.replayPath,
-    copiedReplayPath,
-    legacyManifest,
-    snapshotPath
+    const legacyManifestPath = join(legacyDir, "manifest.json");
+    const legacyManifest = await readJsonFile<LegacyReplayAnalysisManifest>(legacyManifestPath);
+    const replayManifest = await buildReplayManifest({
+      replayId,
+      replayDir,
+      replayPath: params.replayPath,
+      copiedReplayPath,
+      legacyManifest,
+      snapshotPath: retainedSnapshotPath
+    });
+    await writeJsonFile(join(replayDir, "replay-manifest.json"), replayManifest);
+  } finally {
+    if (temporarySnapshotDir) {
+      await rm(temporarySnapshotDir, { recursive: true, force: true });
+    }
+  }
+}
+
+async function runBwsimExporter(params: {
+  replayPath: string;
+  snapshotPath: string;
+  bwsimDir: string;
+}): Promise<void> {
+  const exporterPath = existsSync(PATHS.bwsimExporterBuilt)
+    ? PATHS.bwsimExporterBuilt
+    : PATHS.bwsimExporterSource;
+  await runCommand({
+    command: resolveNodeCommand(),
+    args: [
+      ...(exporterPath.endsWith(".ts") ? ["--experimental-strip-types"] : []),
+      exporterPath,
+      "--replay",
+      params.replayPath,
+      "--out",
+      params.snapshotPath,
+      "--wasm",
+      join(params.bwsimDir, "bwsim_wasm.bwforge.wasm"),
+      "--asset-pack",
+      join(params.bwsimDir, "sim.pack.gz")
+    ],
+    cwd: PATHS.repoRoot,
+    env: process.env
   });
-  await writeJsonFile(join(replayDir, "replay-manifest.json"), replayManifest);
 }
 
 async function exportReplaySnapshot(params: {
@@ -235,8 +308,9 @@ async function runLegacyReplayAnalysis(params: {
   legacyDir: string;
   shieldbatteryDir: string;
   embeddedReplayInput?: string;
+  requiresReplayEngine: boolean;
 }): Promise<void> {
-  const replayEngineEnv = await resolveReplayEngineLaunchEnv()
+  const replayEngineEnv = params.requiresReplayEngine ? await resolveReplayEngineLaunchEnv() : {};
   const templatePath = await ensureScForgeTemplate();
   const args = [
     PATHS.legacyReplayAnalysisScript,
@@ -430,6 +504,8 @@ function parseAnalyzeArgs(argv: string[]): {
   out: string;
   keepSnapshots: boolean;
   snapshotDir?: string;
+  backend: ReplayExtractionBackend;
+  bwsimDir?: string;
   shieldbatteryDir?: string;
   replayExportSpeed: number;
 } {
@@ -440,6 +516,12 @@ function parseAnalyzeArgs(argv: string[]): {
   const out = requireOption(argv.slice(1), "--out");
   const keepSnapshots = hasFlag(argv.slice(1), "--keep-snapshots");
   const snapshotDir = optionalOption(argv.slice(1), "--snapshot-dir");
+  const backendValue = (optionalOption(argv.slice(1), "--backend") ?? "shieldbattery").toLowerCase();
+  if (backendValue !== "shieldbattery" && backendValue !== "bwsim") {
+    throw new Error(`Invalid --backend value: ${backendValue}`);
+  }
+  const backend: ReplayExtractionBackend = backendValue;
+  const bwsimDir = optionalOption(argv.slice(1), "--bwsim-dir");
   const shieldbatteryDir = optionalOption(argv.slice(1), "--shieldbattery-dir");
   const replayExportSpeed = Number(optionalOption(argv.slice(1), "--replay-export-speed") ?? "128");
   if (!Number.isInteger(replayExportSpeed) || replayExportSpeed <= 0) {
@@ -448,8 +530,10 @@ function parseAnalyzeArgs(argv: string[]): {
   if (snapshotDir && !keepSnapshots) {
     throw new Error("--snapshot-dir requires --keep-snapshots.");
   }
-  return { input, out, keepSnapshots, snapshotDir, shieldbatteryDir, replayExportSpeed };
+  return { input, out, keepSnapshots, snapshotDir, backend, bwsimDir, shieldbatteryDir, replayExportSpeed };
 }
+
+type ReplayExtractionBackend = "shieldbattery" | "bwsim";
 
 function parseIngestArgs(argv: string[]): { analysisDir: string; db: string } {
   if (argv.length === 0) {
@@ -831,7 +915,7 @@ function printHelp(): void {
   console.log(`bw-forge
 
 Commands:
-  bw-forge analyze <replay-or-dir> --out <dir> [--keep-snapshots] [--snapshot-dir <path>] [--shieldbattery-dir <path>] [--replay-export-speed <n>]
+  bw-forge analyze <replay-or-dir> --out <dir> [--backend shieldbattery|bwsim] [--keep-snapshots] [--snapshot-dir <path>] [--shieldbattery-dir <path>] [--bwsim-dir <path>] [--replay-export-speed <n>]
   bw-forge ingest <analysis-dir> --db <path>
   bw-forge mcp --db <path> [--transport stdio|http] [--host <host>] [--port <port>] [--path <path>]
 
