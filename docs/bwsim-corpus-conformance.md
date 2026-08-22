@@ -75,6 +75,14 @@ This ID difference does not indicate a remaining replay-action failure, but it
 is retained as an explicit downstream artifact-parity issue rather than hidden
 by the corpus comparator.
 
+The focused trace and inverse proof are documented in
+[`bwsim-scr-unit-id-parity.md`](bwsim-scr-unit-id-parity.md). The inverse is
+exact for all 36 deaths and all 598,022 common live records, but no adapter
+normalization was added: v0.1.3 computes and then discards the replay namespace
+mode, and its public API cannot safely tell BW Forge whether conversion would
+be required or would double-convert a native replay. `bwf-8uu` remains open on
+that upstream API requirement.
+
 ### Competitive per-replay results
 
 The table contains only the audited competitive/Melee-style set: 3 literal
