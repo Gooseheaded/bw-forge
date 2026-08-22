@@ -1,5 +1,177 @@
 # bwsim corpus conformance
 
+## v0.1.2 follow-up — 2026-08-22
+
+Upstream runtime tested: `headless-bwsim` `v0.1.2`, commit
+`31d7613f9dfec86897c69ea2e69e6f55ac19724e`. BW Forge's vendored runtime was
+refreshed from that exact checkout. All 29 vendored release files match upstream
+by SHA-256. The original Wasm, patched Wasm, and `sim.pack.gz` remain unchanged
+at their previously pinned hashes.
+
+### Verdict
+
+Do **not** make bwsim the default backend yet.
+
+Version 0.1.2 fixes the total silent no-action symptom: all three affected
+replays now mine, produce units, reach the expected terminal frame, and rerun
+byte-deterministically through the production BW Forge backend and unchanged
+Python reducer. It does **not** restore correct replay execution for those
+fixtures. Their downstream state diverges almost immediately and their build
+orders remain severely incomplete. The existing `bwf-uf2` issue therefore
+remains open.
+
+The broader aggregate is unchanged from v0.1.1: 9 of 19 replays have exact
+downstream parity after only the accepted gathered-resource and Scanner Sweep
+transformations; one more has only the accepted PlayerLeave+1 difference; 9
+retain unexplained defects. All 38 final production runs exited successfully.
+
+### Vendor refresh
+
+- Upstream tag: `v0.1.2`
+- Upstream commit: `31d7613f9dfec86897c69ea2e69e6f55ac19724e`
+- Package/provenance version: `0.1.2`
+- Original Wasm SHA-256: `b321eb4f274d2602be1ccdf3cefa72b0ba934e2025d76d7c25379a18af4d1226`
+- Patched Wasm SHA-256: `aec4109937e4d1efefa921cf4fef8bfd2febc772809a026510ff1a6e88ca9a7d`
+- `sim.pack.gz` SHA-256: `32f8cc3561e11d2756a579dc54675e0758e94c15b9f767a66a1ba533a9856a44`
+
+No BW Forge adapter-side DRPL normalization exists. The only new normalization
+code in `third_party/bwsim` is the unchanged built output from upstream v0.1.2.
+The default backend remains ShieldBattery.
+
+### Three formerly silent fixtures
+
+All three production JSONL files contain non-initial economy and production.
+At frame 1,000 their `(minerals, completed workers)` values are exactly the
+upstream v0.1.2 regression expectations:
+
+| Replay | Owners | Frame-1,000 values | Final frame / stop | Build orders Shield / bwsim | Result |
+|---|---|---|---|---:|---|
+| `zvt_mid` | 0 / 3 | `(84, 5)` / `(60, 5)` | 21,949 / PlayerLeave+1 | 421 / 22 | actions execute partially; not conformant |
+| `tvz_mid` | 0 / 1 | `(60, 5)` / `(76, 5)` | 11,950 / header | 154 / 27 | actions execute partially; not conformant |
+| `pvt_mid` | 0 / 1 | `(26, 7)` / `(42, 6)` | 11,819 / header | 103 / 71 | actions execute partially; not conformant |
+
+Each replay was then rerun through the production backend into a separate output
+root. For all three, JSONL bytes, semantic manifest, and every player ZIP member
+were identical across runs.
+
+The downstream classification is:
+
+| Replay | Build order | Supply | Economy without gathered counters | Unit counts without Scanner Sweep | Deaths without Scanner Sweep | Player metadata | Legacy manifest |
+|---|---|---|---|---|---|---|---|
+| `zvt_mid` | 404 missing events; 5 extras | differs | minerals, gas, and workers differ | differs | differs | exact | duration differs due accepted PlayerLeave+1 stop |
+| `tvz_mid` | 132 missing events; 5 extras | differs | minerals, gas, and workers differ | differs | differs | exact | exact |
+| `pvt_mid` | 39 missing events; 7 extras | differs | minerals, gas, and workers differ | differs | differs | exact | duration differs because ShieldBattery emits header+1 |
+
+These differences are not reducer filtering or formatting differences. The
+simulated economy/composition already differs, so v0.1.2 has corrected only the
+initial UnitId failure mode, not full replay action execution.
+
+### v0.1.2 per-replay results
+
+The same selection, production commands, reducer, comparator, and intentional
+transformations from the original run were used. Timing cells are
+extraction/reduction/total seconds.
+
+| Replay | Matchup | Header | Final Shield / bwsim | bwsim stop | Shield E/R/T | bwsim E/R/T | Classification |
+|---|---:|---:|---:|---|---:|---:|---|
+| `early_zvz_6` | ZvZ | 66 | 6 / 6 | player-leave | 12.6/0.0/12.6 | 2.3/0.0/2.8 | EXACT MATCH |
+| `early_pvz_197` | PvZ | 224 | 197 / 197 | player-leave | 10.8/0.1/10.9 | 2.5/0.1/3.0 | EXACT MATCH |
+| `early_pvz_622` | PvZ | 677 | 622 / 622 | player-leave | 12.6/0.3/12.9 | 3.4/0.1/3.9 | EXACT MATCH |
+| `zvt_reference` | ZvT | 32937 | 32937 / 32937 | header | 149.8/137.1/286.9 | 267.1/35.3/302.9 | EXACT MATCH |
+| `zvt_mid` | ZvT | 22012 | 22012 / 21949 | player-leave | 109.9/79.0/188.9 | 128.9/5.3/135.6 | BUG / UNEXPLAINED |
+| `zvp_mid` | ZvP | 11983 | 11983 / 11983 | header | 55.6/21.1/76.7 | 51.1/6.3/58.0 | EXACT MATCH |
+| `zvp_cap` | ZvP | 45017 | 43200 / 43200 | safety-cap | 209.9/229.0/438.9 | 521.5/56.1/578.1 | BUG / UNEXPLAINED |
+| `zvz_long` | ZvZ | 34924 | 34846 / 34846 | player-leave | 143.9/109.5/253.4 | 265.0/34.8/300.3 | EXACT MATCH |
+| `tvz_mid` | TvZ | 11950 | 11950 / 11950 | header | 52.0/23.6/75.6 | 32.1/2.8/35.3 | BUG / UNEXPLAINED |
+| `tvz_long` | TvZ | 35044 | 35044 / 35044 | header | 172.6/158.8/331.4 | 468.4/43.9/512.7 | BUG / UNEXPLAINED |
+| `tvp_mid` | TvP | 12312 | 12312 / 12312 | header | 52.2/18.7/70.9 | 49.4/5.9/55.7 | EXACT MATCH |
+| `tvp_long` | TvP | 34506 | 34506 / 34296 | player-leave | 145.5/195.5/341.0 | 463.7/55.0/519.1 | BUG / UNEXPLAINED |
+| `tvt_mid` | TvT | 12172 | 12172 / 12072 | player-leave | 60.2/27.3/87.5 | 103.2/7.3/111.0 | KNOWN INTENTIONAL DIFFERENCE |
+| `tvt_long` | TvT | 34649 | 34649 / 34579 | player-leave | 166.6/192.6/359.2 | 422.3/53.6/476.4 | BUG / UNEXPLAINED |
+| `pvz_mid` | PvZ | 21969 | 21969 / 21969 | header | 89.0/52.9/141.9 | 98.2/14.7/113.3 | EXACT MATCH |
+| `pvt_mid` | PvT | 11819 | 11820 / 11819 | header | 51.4/16.8/68.2 | 34.3/4.1/38.9 | BUG / UNEXPLAINED |
+| `pvt_long` | PvT | 33156 | 33156 / 33016 | player-leave | 159.8/185.0/344.8 | 399.5/53.2/453.2 | BUG / UNEXPLAINED |
+| `pvp_mid` | PvP | 17242 | 17242 / 17242 | header | 80.3/42.2/122.5 | 141.3/11.8/153.6 | EXACT MATCH |
+| `pvp_long` | PvP | 26726 | 26726 / 26726 | header | 112.3/93.7/206.0 | 173.9/25.9/200.2 | BUG / UNEXPLAINED |
+
+Final artifact aggregate counts are also unchanged:
+
+- build-order sets byte-identical: 13/19;
+- supply sets identical: 10/19;
+- economy sets identical after gathered-field removal: 12/19;
+- unit-count sets identical after Scanner Sweep removal: 14/19;
+- death sets identical after Scanner Sweep removal: 11/19;
+- player metadata identical: 19/19 replays, all 38 players;
+- legacy manifests identical: 13/19;
+- production runs/reducers successful: 38/38, with no final crash, timeout,
+  malformed output, or unsupported replay.
+
+An interrupted outer test harness initially left several generated snapshot
+files incomplete or associated with a subsequent ShieldBattery execution. Those
+discarded test-run directories were not used for comparison or timing. Every
+affected backend was rerun in isolation, its player roster was verified against
+the pinned corpus, and the final 38 records above all completed successfully.
+
+### Previously known smaller blockers
+
+All four still reproduce unchanged:
+
+1. **Supply cap:** the legacy maximum still exceeds 200 in `zvp_cap`,
+   `tvp_long`, `tvt_long`, `pvt_long`, and `pvp_long` (7 player bundles). The
+   three partially repaired replays also have supply differences caused by
+   incorrect simulation, but those are distinct from the cap defect.
+2. **Death categories:** 23 otherwise matching deaths still classify Observer
+   or Devourer as `unit` instead of ShieldBattery's `air`: `zvp_cap` (5
+   Observers), `tvz_long` (3 Devourers), `tvp_long` (7 Observers), `pvt_long`
+   (6 Observers), and `pvp_long` (2 Observers).
+3. **Construction backdating:** `tvz_long` still renders Control Tower at 12:13
+   instead of 12:14; `tvt_long` still renders Comsat Station at 06:02 instead
+   of 06:03. The `tvz_long` simultaneous same-second ordering difference also
+   remains.
+4. **ShieldBattery header+1:** `pvt_mid` still emits through frame 11,820 for a
+   header end of 11,819; bwsim includes and stops at frame 11,819.
+
+### v0.1.2 performance
+
+Seconds across the 19 isolated final runs:
+
+| Backend | Phase | Min | Median | Max |
+|---|---|---:|---:|---:|
+| ShieldBattery | extraction (derived) | 10.79 | 89.04 | 209.88 |
+| ShieldBattery | Python reduction | 0.00 | 52.90 | 229.00 |
+| ShieldBattery | total | 10.89 | 141.94 | 438.88 |
+| bwsim | extraction | 2.33 | 128.88 | 521.49 |
+| bwsim | Python reduction | 0.00 | 11.80 | 56.10 |
+| bwsim | total | 2.76 | 135.64 | 578.08 |
+
+bwsim again has a slightly lower median total and a materially worse long-game
+tail. Extraction dominates bwsim; its JSONL reducer phase remains substantially
+faster. No optimization was attempted.
+
+### Validation
+
+- Upstream v0.1.2 suite: 21/21 passed, including the three SCR regression
+  fixtures, native SCR byte-identity control, and LastReplay byte-identity
+  control.
+- BW Forge CLI suite: 12/12 passed.
+- BW Forge full test script: CLI 12/12, desktop 52/52, corpus-query 49/49.
+- Repository typecheck: passed for root, desktop, and corpus-query packages.
+- Three repaired production reruns: JSONL byte-identical, ZIP members exact,
+  and manifests semantically exact across reruns.
+
+### Updated decision answers
+
+1. **Replays compared:** 19, with 38 successful final production runs.
+2. **Exact parity after intentional field removal:** 9.
+3. **Known/acceptable-only differences:** 1 (`tvt_mid`, PlayerLeave+1).
+4. **Unexplained-defect replays:** 9.
+5. **Silent no-action symptom:** removed, but all three affected replays remain
+   materially incorrect under v0.1.2.
+6. **Other four blockers:** all still reproduce on the same fixtures.
+7. **Default-backend decision:** no. The partial replay-execution failure in
+   `zvt_mid`, `tvz_mid`, and `pvt_mid` remains the highest-priority blocker;
+   the four smaller defects also remain open.
+
 Date: 2026-08-19  
 Production implementation tested: `9bcc921eadc2fa014612babc36568c34477f2a10`
 

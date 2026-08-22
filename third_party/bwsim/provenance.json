@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "package": {
     "name": "bwsim-wasm-node",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "minimumNodeVersion": "24.5.0"
   },
   "artifacts": {
@@ -25,6 +25,26 @@
     "validationReplay": {
       "path": "LastReplay.rep",
       "sha256": "44b77091c689e59a4657215aff6bd281d6329dca73e4b6e1c7e9670117461ec6",
+      "includedInNpmPackage": false
+    },
+    "scrNativeValidationReplay": {
+      "path": "test/fixtures/scr-native-zvp.rep",
+      "sha256": "4062ec495b0a446e23c07e130ecb92a98aed53b6659b841624c50fa3291fba7c",
+      "includedInNpmPackage": false
+    },
+    "scrOffsetZvtValidationReplay": {
+      "path": "test/fixtures/scr-offset-zvt.rep",
+      "sha256": "736baf22bc380a5ec996a2e73f2710289ea3927242181bc24aa179ea17034070",
+      "includedInNpmPackage": false
+    },
+    "scrOffsetTvzValidationReplay": {
+      "path": "test/fixtures/scr-offset-tvz.rep",
+      "sha256": "26fc5135c69878ff97a8fe02b1e48c529e051c0b3c1a03f4a98f606da815dd2f",
+      "includedInNpmPackage": false
+    },
+    "scrOffsetPvtValidationReplay": {
+      "path": "test/fixtures/scr-offset-pvt.rep",
+      "sha256": "779481fbd1d08e659c672b929d9173326f52c27d4a498f034eeea3cd0d19af30",
       "includedInNpmPackage": false
     }
   },

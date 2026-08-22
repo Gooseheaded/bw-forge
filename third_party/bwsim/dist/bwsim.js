@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { parseAssetPack } from "./asset-pack.js";
+import { normalizeScrReplayUnitIds } from "./replay-unit-id.js";
 const MiB = 1024 * 1024;
 const INITIAL_DRPL_CAPACITY = 8 * MiB;
 const MAX_DRPL_CAPACITY = 64 * MiB;
@@ -85,8 +86,21 @@ export class Bwsim {
     }
     async loadReplayBytes(bytes) {
         const raw = Uint8Array.from(bytes);
-        const drpl = this.#convertReplay(raw);
-        this.#loadDrpl(drpl);
+        const convertedDrpl = this.#convertReplay(raw);
+        this.#loadDrpl(convertedDrpl);
+        // Resolve the SCR replay command namespace against the exact generation-
+        // bearing IDs in the freshly loaded initial state. Affected replay-local
+        // IDs are normalized in DRPL, then the corrected replay is loaded once.
+        const initialLiveUnitIds = new Set();
+        for (const unit of this.units()) {
+            const id = this.unitInstanceId(unit.index);
+            if (id !== null)
+                initialLiveUnitIds.add(id);
+        }
+        const normalized = normalizeScrReplayUnitIds(convertedDrpl, initialLiveUnitIds);
+        const drpl = normalized.drpl;
+        if (normalized.mode === "translated")
+            this.#loadDrpl(drpl);
         this.#rawReplay = raw;
         this.#drplReplay = drpl;
     }
