@@ -1,7 +1,34 @@
 const DRPL_COMMAND_LENGTH_OFFSET = 637;
 const DRPL_COMMANDS_OFFSET = 641;
-/** Translation between the two SCR UnitId namespaces observed in replay commands. */
-export const SCR_REPLAY_UNIT_ID_OFFSET = 0x1ea4;
+const SCR_REPLAY_GENERATION_BITS = 11;
+const BWSIM_GENERATION_BITS = 13;
+const SCR_REPLAY_COMPONENT_MASK = 0x07ff;
+const BWSIM_COMPONENT_OFFSET = 0x06a4;
+/** Translate one non-native SCR replay UnitId into bwsim's UnitId namespace. */
+export function translateScrReplayUnitId(id) {
+    const unsignedId = id >>> 0;
+    if (unsignedId === 0)
+        return 0;
+    const generation = unsignedId >>> SCR_REPLAY_GENERATION_BITS;
+    const component = unsignedId & SCR_REPLAY_COMPONENT_MASK;
+    return ((generation << BWSIM_GENERATION_BITS) |
+        (component + BWSIM_COMPONENT_OFFSET)) >>> 0;
+}
+/** Enumerate normalized UnitId fields without exposing the parser as public package API. */
+export function scrUnitIdReferences(drpl) {
+    const references = [];
+    const view = dataView(drpl);
+    for (const action of actions(drpl)) {
+        for (const offset of unitIdFieldOffsets(drpl, action)) {
+            references.push({
+                frame: action.frame,
+                opcode: action.opcode,
+                id: view.getUint32(offset, true),
+            });
+        }
+    }
+    return references;
+}
 /**
  * Normalize SCR replay UnitIds against the generation-bearing IDs of the
  * simulator's freshly loaded initial unit set.
@@ -22,7 +49,7 @@ export function normalizeScrReplayUnitIds(drpl, initialLiveUnitIds) {
         if (ids.length === 0)
             continue;
         const directMatches = ids.filter((id) => initialLiveUnitIds.has(id)).length;
-        const translatedMatches = ids.filter((id) => initialLiveUnitIds.has(addUnitIdOffset(id))).length;
+        const translatedMatches = ids.filter((id) => initialLiveUnitIds.has(translateScrReplayUnitId(id))).length;
         if (directMatches !== 0 && translatedMatches !== 0) {
             throw new Error("ambiguous SCR replay UnitId namespace in initial selection");
         }
@@ -45,34 +72,36 @@ export function normalizeScrReplayUnitIds(drpl, initialLiveUnitIds) {
     const normalized = drpl.slice();
     let rewrittenFields = 0;
     for (const action of actions(normalized)) {
-        switch (action.opcode) {
-            case 0x60:
-            case 0x61:
-                rewrittenFields += rewriteUnitId(normalized, action.payloadOffset + 4);
-                break;
-            case 0x63:
-            case 0x64:
-            case 0x65: {
-                const count = normalized[action.payloadOffset];
-                for (let item = 0; item < count; item += 1) {
-                    rewrittenFields += rewriteUnitId(normalized, action.payloadOffset + 1 + item * 4);
-                }
-                break;
-            }
+        for (const offset of unitIdFieldOffsets(normalized, action)) {
+            rewrittenFields += rewriteUnitId(normalized, offset);
         }
     }
     return { drpl: normalized, mode, rewrittenFields };
-}
-function addUnitIdOffset(id) {
-    return (id + SCR_REPLAY_UNIT_ID_OFFSET) >>> 0;
 }
 function rewriteUnitId(bytes, offset) {
     const view = dataView(bytes);
     const id = view.getUint32(offset, true);
     if (id === 0)
         return 0;
-    view.setUint32(offset, addUnitIdOffset(id), true);
+    view.setUint32(offset, translateScrReplayUnitId(id), true);
     return 1;
+}
+function unitIdFieldOffsets(bytes, action) {
+    switch (action.opcode) {
+        case 0x60:
+        case 0x61:
+            return [action.payloadOffset + 4];
+        case 0x62:
+            return [action.payloadOffset];
+        case 0x63:
+        case 0x64:
+        case 0x65: {
+            const count = bytes[action.payloadOffset];
+            return Array.from({ length: count }, (_, item) => action.payloadOffset + 1 + item * Uint32Array.BYTES_PER_ELEMENT);
+        }
+        default:
+            return [];
+    }
 }
 function selectionIds(bytes, action) {
     const count = bytes[action.payloadOffset];
@@ -90,6 +119,7 @@ function* actions(bytes) {
     let frameOffset = DRPL_COMMANDS_OFFSET;
     while (frameOffset < commandEnd) {
         requireRange(frameOffset, 5, commandEnd, "DRPL frame header");
+        const frame = view.getUint32(frameOffset, true);
         const actionBytes = bytes[frameOffset + 4];
         const frameEnd = frameOffset + 5 + actionBytes;
         requireRange(frameOffset, 5 + actionBytes, commandEnd, "DRPL frame actions");
@@ -101,9 +131,9 @@ function* actions(bytes) {
             const length = actionLength(bytes, opcodeOffset, frameEnd);
             requireRange(opcodeOffset, length, frameEnd, `DRPL action 0x${opcode.toString(16)}`);
             yield {
+                frame,
                 opcode,
                 payloadOffset: opcodeOffset + 1,
-                payloadLength: length - 1,
             };
             actionOffset = opcodeOffset + length;
         }

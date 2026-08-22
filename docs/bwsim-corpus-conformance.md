@@ -1,5 +1,182 @@
 # bwsim corpus conformance
 
+## v0.1.3 competitive-baseline follow-up — 2026-08-23
+
+Upstream runtime tested: `headless-bwsim` `v0.1.3`, commit
+`68ebdfd70d8d7a58d55c2ad206cc08da5697e7fa`. BW Forge's vendored runtime was
+refreshed from that exact clean checkout. All 29 vendored release files match
+upstream by SHA-256. The original Wasm, patched Wasm, and `sim.pack.gz` hashes
+remain unchanged.
+
+### Verdict
+
+The competitive SCR action-execution defect is fixed. `pvt_mid` now reproduces
+all 103 ShieldBattery build events, and its state agrees through the inclusive
+header frame 11,819. No competitive fixture retains an unexplained missing-action
+or simulation-state defect.
+
+Do **not** make bwsim the default backend yet under the current artifact-parity
+gate. The four pre-existing smaller blocker classes all remain, and `pvt_mid`
+also exposes a representational difference in stable death IDs: ShieldBattery
+retains SCR replay-local IDs while bwsim emits the corresponding native engine
+IDs. All durable death fields match after the documented namespace transform,
+but `deaths.json` is not byte- or object-identical.
+
+The 17-fixture competitive classification is:
+
+- 9 exact after the accepted gathered-resource and Scanner Sweep transforms;
+- 1 accepted-intentional-only (`tvt_mid`, PlayerLeave+1 truncation);
+- 7 with known normalization issues;
+- 0 with an unexplained competitive action/state defect.
+
+This improves the prior competitive result from 9 exact, 1 accepted-only, and
+7 unexplained. `pvt_mid` leaves the unexplained action-execution group; it
+remains non-exact only for the separately tracked header+1 behavior and its
+stable-ID namespace representation.
+
+### Vendor refresh
+
+- Upstream tag: `v0.1.3`
+- Upstream commit: `68ebdfd70d8d7a58d55c2ad206cc08da5697e7fa`
+- Package/provenance version: `0.1.3`
+- Original Wasm SHA-256: `b321eb4f274d2602be1ccdf3cefa72b0ba934e2025d76d7c25379a18af4d1226`
+- Patched Wasm SHA-256: `aec4109937e4d1efefa921cf4fef8bfd2febc772809a026510ff1a6e88ca9a7d`
+- `sim.pack.gz` SHA-256: `32f8cc3561e11d2756a579dc54675e0758e94c15b9f767a66a1ba533a9856a44`
+
+No local vendor patch or BW Forge DRPL normalization was added. The conversion
+change is solely upstream v0.1.3 built output. ShieldBattery remains the default
+backend.
+
+### `pvt_mid` end-to-end result
+
+Both production backends and the unchanged Python reducer succeeded.
+
+| Target | Result |
+|---|---|
+| `build_order.txt` | Exact: owner 0 is 67/67, owner 1 is 36/36, total 103/103; 0 missing, 0 extra, 0 timing differences |
+| `supply.json` | Exact for both players |
+| `economy.json` | Minerals, gas, and workers match at every common frame 1..11,819; ShieldBattery has one extra frame 11,820; gathered counters remain intentionally absent from bwsim |
+| `unit_counts.json` | Exact after the accepted Scanner Sweep transform |
+| `deaths.json` | 11/11 and 25/25 events; frame, owner, DAT type, category, and position all exact; all 36 stable IDs use the corresponding native bwsim namespace instead of ShieldBattery's replay-local namespace |
+| Player metadata | Exact for both players |
+| Legacy manifest | All fields exact except duration: ShieldBattery 496.440s versus bwsim 496.398s |
+| Final frame | ShieldBattery 11,820; bwsim/header 11,819 |
+
+For every death, applying the upstream v0.1.3 conversion to ShieldBattery's
+replay-local ID makes the record exact:
+
+```text
+generation = replayId >>> 11
+component  = replayId & 0x07ff
+bwsimId    = ((generation << 13) | (component + 0x06a4)) >>> 0
+```
+
+This ID difference does not indicate a remaining replay-action failure, but it
+is retained as an explicit downstream artifact-parity issue rather than hidden
+by the corpus comparator.
+
+### Competitive per-replay results
+
+The table contains only the audited competitive/Melee-style set: 3 literal
+Melee and 14 Top vs Bottom fixtures. Timing cells are
+extraction/reduction/total seconds.
+
+| Replay | Matchup | Header | Final Shield / bwsim | bwsim stop | Shield E/R/T | bwsim E/R/T | Classification |
+|---|---:|---:|---:|---|---:|---:|---|
+| `early_zvz_6` | ZvZ | 66 | 6 / 6 | player-leave | 17.2/0.0/17.2 | 3.6/0.1/4.3 | EXACT MATCH |
+| `early_pvz_197` | PvZ | 224 | 197 / 197 | player-leave | 17.1/0.2/17.3 | 4.8/0.2/5.8 | EXACT MATCH |
+| `early_pvz_622` | PvZ | 677 | 622 / 622 | player-leave | 20.3/0.6/20.9 | 6.3/0.2/7.5 | EXACT MATCH |
+| `zvt_reference` | ZvT | 32,937 | 32,937 / 32,937 | header | 278.8/272.3/551.1 | 516.8/72.3/590.0 | EXACT MATCH |
+| `zvp_mid` | ZvP | 11,983 | 11,983 / 11,983 | header | 96.4/35.3/131.7 | 86.1/10.4/97.4 | EXACT MATCH |
+| `zvp_cap` | ZvP | 45,017 | 43,200 / 43,200 | safety-cap | 368.4/381.6/750.0 | 534.0/70.9/605.4 | KNOWN NORMALIZATION ISSUE |
+| `zvz_long` | ZvZ | 34,924 | 34,846 / 34,846 | player-leave | 150.6/138.7/289.3 | 255.4/38.2/294.1 | EXACT MATCH |
+| `tvz_long` | TvZ | 35,044 | 35,044 / 35,044 | header | 169.8/183.2/353.0 | 527.8/78.6/607.1 | KNOWN NORMALIZATION ISSUE |
+| `tvp_mid` | TvP | 12,312 | 12,312 / 12,312 | header | 132.4/36.2/168.6 | 58.8/8.6/68.1 | EXACT MATCH |
+| `tvp_long` | TvP | 34,506 | 34,506 / 34,296 | player-leave | 289.6/394.4/684.0 | 691.4/103.3/795.6 | KNOWN NORMALIZATION ISSUE |
+| `tvt_mid` | TvT | 12,172 | 12,172 / 12,072 | player-leave | 114.7/47.5/162.2 | 162.3/11.5/174.6 | ACCEPTED INTENTIONAL DIFFERENCE |
+| `tvt_long` | TvT | 34,649 | 34,649 / 34,579 | player-leave | 195.6/305.5/501.1 | 506.9/82.6/590.0 | KNOWN NORMALIZATION ISSUE |
+| `pvz_mid` | PvZ | 21,969 | 21,969 / 21,969 | header | 110.6/69.3/179.9 | 133.1/21.6/155.3 | EXACT MATCH |
+| `pvt_mid` | PvT | 11,819 | 11,820 / 11,819 | header | 69.5/21.2/90.7 | 76.1/8.4/85.4 | KNOWN NORMALIZATION ISSUE |
+| `pvt_long` | PvT | 33,156 | 33,156 / 33,016 | player-leave | 189.0/283.1/472.1 | 528.1/76.9/605.6 | KNOWN NORMALIZATION ISSUE |
+| `pvp_mid` | PvP | 17,242 | 17,242 / 17,242 | header | 95.8/58.9/154.7 | 182.9/15.5/198.9 | EXACT MATCH |
+| `pvp_long` | PvP | 26,726 | 26,726 / 26,726 | header | 136.8/131.6/268.4 | 229.7/36.9/267.2 | KNOWN NORMALIZATION ISSUE |
+
+All 34 production backend/reducer executions succeeded with no backend/reducer
+timeout, crash, malformed output, or unsupported replay. Artifact-level replay
+counts before classifying known causes are:
+
+- build orders semantically exact: 14/17;
+- supply exact: 11/17;
+- economy exact after gathered-field removal: 12/17;
+- unit counts exact after Scanner Sweep removal: 15/17;
+- deaths exact after Scanner Sweep removal, including raw IDs/categories: 11/17;
+- player metadata exact: 17/17, all 34 players;
+- legacy manifests exact: 12/17;
+- final emitted frames exact: 12/17.
+
+The first all-corpus command exceeded its two-hour outer harness guard after 25
+records. Its child process briefly overlapped a resume, making the post-timeout
+tail timings untrustworthy. Those tail records were discarded. `tvt_long`,
+`pvz_mid`, `pvt_long`, `pvp_mid`, and `pvp_long` were rerun through both
+backends in a fresh single-writer root; their recorded timings were checked
+against their own logs. The table and aggregate use only the clean records.
+
+### Smaller known blockers
+
+All four still reproduce; none was fixed in this pass.
+
+1. **Supply maximum cap:** 7 player bundles still exceed legacy 200:
+   `zvp_cap` owner 2 (244), `tvp_long` owners 2/3 (210/236), `tvt_long`
+   owner 3 (260), `pvt_long` owners 0/1 (245/216), and `pvp_long` owner 0
+   (204). `tvt_mid` also has a supply-series tail difference, but its maximum
+   is 108/108 and the cause is accepted PlayerLeave+1 truncation, not the cap.
+2. **Observer/Devourer death category:** all 23 durable deaths still match
+   except `air` versus `unit`: `zvp_cap` (5 Observers), `tvz_long`
+   (3 Devourers), `tvp_long` (7 Observers), `pvt_long` (6 Observers), and
+   `pvp_long` (2 Observers).
+3. **Construction backdating:** `tvz_long` still renders Control Tower at
+   12:13 instead of 12:14; `tvt_long` still renders Comsat Station at 06:02
+   instead of 06:03. The `tvz_long` same-second ordering difference remains.
+4. **ShieldBattery header+1:** `pvt_mid` still emits frame 11,820 for header
+   end 11,819; bwsim includes and stops at 11,819.
+
+### UMS compatibility — not rerun
+
+`zvt_mid` and `tvz_mid` are Use Map Settings fixtures. They were deliberately
+excluded from every v0.1.3 production run, aggregate, performance statistic,
+and default-backend verdict in this section. Their last retained evidence is
+the separate v0.1.2 result: replay actions execute only partially and downstream
+artifacts are materially incomplete. No conclusion about v0.1.3 UMS behavior
+is made here.
+
+### Competitive performance
+
+Seconds across the 17 authoritative competitive runs:
+
+| Backend | Phase | Min | Median | Max | Max fixture |
+|---|---|---:|---:|---:|---|
+| ShieldBattery | extraction (derived) | 17.13 | 132.40 | 368.37 | `zvp_cap` |
+| ShieldBattery | Python reduction | 0.00 | 69.30 | 394.40 | `tvp_long` |
+| ShieldBattery | total | 17.17 | 179.87 | 749.97 | `zvp_cap` |
+| bwsim | extraction | 3.56 | 182.91 | 691.38 | `tvp_long` |
+| bwsim | Python reduction | 0.10 | 21.60 | 103.30 | `tvp_long` |
+| bwsim | total | 4.32 | 198.91 | 795.57 | `tvp_long` |
+
+bwsim's five longest totals were `tvp_long` 795.57s, `tvz_long` 607.12s,
+`pvt_long` 605.59s, `zvp_cap` 605.42s, and `tvt_long` 590.01s. Extraction
+continues to dominate bwsim, while its reducer phase is substantially faster.
+No optimization was attempted.
+
+### Validation
+
+- Upstream v0.1.3 suite: 23/23 passed from the exact tagged checkout.
+- Vendored release verification: 29/29 files match upstream by SHA-256.
+- BW Forge CLI suite: 12/12 passed.
+- BW Forge desktop suite: 52/52 passed.
+- BW Forge corpus-query suite: 49/49 passed.
+- Repository typecheck: passed for root, desktop, and corpus-query packages.
+- Production competitive corpus: 34/34 backend/reducer executions succeeded.
+
 ## v0.1.2 follow-up — 2026-08-22
 
 Upstream runtime tested: `headless-bwsim` `v0.1.2`, commit

@@ -40,7 +40,7 @@ describe("vendored headless-bwsim", () => {
       "32f8cc3561e11d2756a579dc54675e0758e94c15b9f767a66a1ba533a9856a44"
     );
     const provenance = JSON.parse(await readFile(resolve(runtimeRoot, "provenance.json"), "utf8"));
-    expect(provenance.package.version).toBe("0.1.2");
+    expect(provenance.package.version).toBe("0.1.3");
   });
 
   test("loads the tracked golden replay with the patched runtime", async () => {

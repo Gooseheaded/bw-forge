@@ -1,6 +1,6 @@
 {
   "name": "bwsim-wasm-node",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "description": "Headless Node.js wrapper for CWAL's bwsim WebAssembly engine",
   "main": "./dist/index.js",

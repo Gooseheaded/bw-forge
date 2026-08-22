@@ -1,11 +1,19 @@
-/** Translation between the two SCR UnitId namespaces observed in replay commands. */
-export declare const SCR_REPLAY_UNIT_ID_OFFSET = 7844;
 export type ScrUnitIdMode = "not-applicable" | "native" | "translated";
 export interface ScrUnitIdNormalization {
     readonly drpl: Uint8Array;
     readonly mode: ScrUnitIdMode;
     readonly rewrittenFields: number;
 }
+/** Internal diagnostic record used by converter regression tests. */
+export interface ScrUnitIdReference {
+    readonly frame: number;
+    readonly opcode: number;
+    readonly id: number;
+}
+/** Translate one non-native SCR replay UnitId into bwsim's UnitId namespace. */
+export declare function translateScrReplayUnitId(id: number): number;
+/** Enumerate normalized UnitId fields without exposing the parser as public package API. */
+export declare function scrUnitIdReferences(drpl: Uint8Array): readonly ScrUnitIdReference[];
 /**
  * Normalize SCR replay UnitIds against the generation-bearing IDs of the
  * simulator's freshly loaded initial unit set.

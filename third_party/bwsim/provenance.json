@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "package": {
     "name": "bwsim-wasm-node",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "minimumNodeVersion": "24.5.0"
   },
   "artifacts": {
@@ -30,6 +30,11 @@
     "scrNativeValidationReplay": {
       "path": "test/fixtures/scr-native-zvp.rep",
       "sha256": "4062ec495b0a446e23c07e130ecb92a98aed53b6659b841624c50fa3291fba7c",
+      "includedInNpmPackage": false
+    },
+    "scrNativeTvpValidationReplay": {
+      "path": "test/fixtures/scr-native-tvp.rep",
+      "sha256": "1b58458bb761087de0e7194aeb7c187c4fb822a0f26451bf9500875ea1cb52c0",
       "includedInNpmPackage": false
     },
     "scrOffsetZvtValidationReplay": {
