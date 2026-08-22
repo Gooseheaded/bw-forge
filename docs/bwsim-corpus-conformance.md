@@ -38,6 +38,53 @@ No BW Forge adapter-side DRPL normalization exists. The only new normalization
 code in `third_party/bwsim` is the unchanged built output from upstream v0.1.2.
 The default backend remains ShieldBattery.
 
+### Game-type audit
+
+Audited 2026-08-22 with `screp.exe -overview` and screp's structured JSON
+header output. The SHA-256 of every file matched the pinned corpus selection.
+All 19 fixtures use engine `BW 1.21+`.
+
+For corpus policy, literal `Melee` and standard `Top vs Bottom` 1v1 fixtures are
+the **baseline competitive / Melee-style** set. `Use map settings` is kept as a
+separate **nonstandard / UMS compatibility** set. This preserves the UMS
+coverage without allowing a UMS-only failure to determine ordinary competitive
+backend readiness.
+
+| Fixture | SHA-256 | screp type | Engine | Matchup | Map | Corpus class |
+|---|---|---|---|---|---|---|
+| `early_zvz_6` | `af10cb48aa30f22416f1a56ad63ab48fb3f108d6f819ec402bbf7a88ee7940d1` | Top vs Bottom | BW 1.21+ | ZvZ | Pole Star 1.1 | baseline competitive |
+| `early_pvz_197` | `6dc182c3ed881271b22d54d51fe34c3ca30a35da462e983d00b99631e81b178e` | Melee | BW 1.21+ | PvZ | KnockOut 1.4 | baseline competitive |
+| `early_pvz_622` | `82e32ff5f71a9bdb0a0e400503e6d551847a554a705c0c45f9ebb93e597ae9c6` | Top vs Bottom | BW 1.21+ | PvZ | Octagon 1.0 | baseline competitive |
+| `zvt_reference` | `44b77091c689e59a4657215aff6bd281d6329dca73e4b6e1c7e9670117461ec6` | Top vs Bottom | BW 1.21+ | ZvT | KnockOut 1.4 | baseline competitive |
+| `zvt_mid` | `736baf22bc380a5ec996a2e73f2710289ea3927242181bc24aa179ea17034070` | Use map settings | BW 1.21+ | ZvT | Pole Star 1.0 | nonstandard / UMS |
+| `zvp_mid` | `4062ec495b0a446e23c07e130ecb92a98aed53b6659b841624c50fa3291fba7c` | Top vs Bottom | BW 1.21+ | PvZ | Polypoid 1.75 | baseline competitive |
+| `zvp_cap` | `037d708ab9356eff138b4281c724a764970a52bb203b2492ac2a28f0ec29ec7c` | Melee | BW 1.21+ | ZvP | KnockOut 1.1 | baseline competitive |
+| `zvz_long` | `86a77e447bcf870df252a6c7172617963e8c157243e59fa41db81b91722d5d9b` | Top vs Bottom | BW 1.21+ | ZvZ | KnockOut 1.1 | baseline competitive |
+| `tvz_mid` | `26fc5135c69878ff97a8fe02b1e48c529e051c0b3c1a03f4a98f606da815dd2f` | Use map settings | BW 1.21+ | TvZ | Attitude 1.0 | nonstandard / UMS |
+| `tvz_long` | `046a24fcb7d8f1e5467d898278d4c04ecd246cb144040c51dc9c6e6001c836d2` | Melee | BW 1.21+ | TvZ | Pole Star 1.1 | baseline competitive |
+| `tvp_mid` | `1b58458bb761087de0e7194aeb7c187c4fb822a0f26451bf9500875ea1cb52c0` | Top vs Bottom | BW 1.21+ | PvT | Litmus 1.1 | baseline competitive |
+| `tvp_long` | `28bc8cd833051ba74fd8c335ed4b27101f8dae5a2ff0bdbdfb376ddcf422e841` | Top vs Bottom | BW 1.21+ | PvT | Polypoid 1.75 | baseline competitive |
+| `tvt_mid` | `7c37903c73d51be5a0ef416b8619c3a31b8d537726d0a675b6e6f33953ceb009` | Top vs Bottom | BW 1.21+ | TvT | Pole Star 1.0 | baseline competitive |
+| `tvt_long` | `c2a1aba3eeba70bcc3eac249681ff15297ece25ff22e6a039e06eee5fb4aec41` | Top vs Bottom | BW 1.21+ | TvT | Radeon 1.2 | baseline competitive |
+| `pvz_mid` | `2afed7db16517c10cdcc5908464981378fd42da954572a8595d5e007a00ede23` | Top vs Bottom | BW 1.21+ | PvZ | Neo Sylphid 3.2 | baseline competitive |
+| `pvt_mid` | `779481fbd1d08e659c672b929d9173326f52c27d4a498f034eeea3cd0d19af30` | Melee | BW 1.21+ | PvT | Litmus 1.1 | baseline competitive |
+| `pvt_long` | `c380b6f260a857fb6d0878c26604a5156c03d0bb4c54fa8ccf44e121b0bf9644` | Top vs Bottom | BW 1.21+ | TvP | Radeon 1.2 | baseline competitive |
+| `pvp_mid` | `34116743f4cfb929bc0641a48e7226d93b6e5f44cd8f55fcb7673eba8c8d3899` | Top vs Bottom | BW 1.21+ | PvP | Pole Star 1.1 | baseline competitive |
+| `pvp_long` | `19b08d9ecbe948e857b48909b2c6b6020878200d7b258b7c081c7dd79cdab6d3` | Top vs Bottom | BW 1.21+ | PvP | Radeon 1.2 | baseline competitive |
+
+Raw type totals are 3 Melee, 14 Top vs Bottom, and 2 Use Map Settings.
+Therefore the policy split is 17 baseline competitive/Melee-style and 2 UMS,
+with no other nonstandard game type.
+
+Two of the three incomplete SCR action fixtures are UMS: `zvt_mid` and
+`tvz_mid`. The third, `pvt_mid`, is literal Melee. The defect is therefore
+overrepresented in this tiny UMS sample but is not UMS-specific. Excluding UMS,
+the v0.1.2 unexplained-defect count changes from 9/19 (47.4%) to 7/17 (41.2%):
+9 exact, 1 accepted-only, and 7 unexplained among baseline fixtures. The
+existing `bwf-uf2` issue must remain a general SCR replay-execution issue because
+its Melee fixture still fails; its two UMS cases should be interpreted only as
+UMS compatibility evidence.
+
 ### Three formerly silent fixtures
 
 All three production JSONL files contain non-initial economy and production.
