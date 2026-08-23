@@ -10,10 +10,12 @@ import type { BwsimPlayer, BwsimReplayHeader, BwsimUnit } from "../../../third_p
 
 import {
   BWSIM_TIMELINE_SCHEMA,
+  LEGACY_MAX_SUPPLY,
   UNIT_NAMES,
   captureBwsimSnapshot,
   exportBwsimTimeline,
   findStandalonePlayerLeaveFrame,
+  normalizeLegacySupply,
   resolveBwsimTermination
 } from "./bwsim-backend.js";
 
@@ -162,6 +164,40 @@ describe("bwsim legacy timeline adapter", () => {
     expect(resolveBwsimTermination(66, drpl)).toEqual({ frame: 6, reason: "player-leave" });
     expect(resolveBwsimTermination(32_937)).toEqual({ frame: 32_937, reason: "header" });
     expect(resolveBwsimTermination(50_000)).toEqual({ frame: 43_200, reason: "safety-cap" });
+  });
+
+  test("normalizes active-race supply and caps only the legacy maximum", () => {
+    const cases = [
+      {
+        race: "Zerg",
+        raceIndex: 0,
+        used: [401, 0, 0],
+        max: [398, 0, 0],
+        expected: { current: 201, max: 199 }
+      },
+      {
+        race: "Terran",
+        raceIndex: 1,
+        used: [0, 401, 0],
+        max: [0, 400, 0],
+        expected: { current: 201, max: 200 }
+      },
+      {
+        race: "Protoss",
+        raceIndex: 2,
+        used: [0, 0, 451],
+        max: [0, 0, 520],
+        expected: { current: 226, max: 200 }
+      }
+    ] as const;
+
+    expect(LEGACY_MAX_SUPPLY).toBe(200);
+    for (const item of cases) {
+      expect(
+        normalizeLegacySupply(item.used, item.max, item.raceIndex),
+        item.race
+      ).toEqual(item.expected);
+    }
   });
 
   test("serializes replay-local live and death IDs while retaining native internal keys", () => {

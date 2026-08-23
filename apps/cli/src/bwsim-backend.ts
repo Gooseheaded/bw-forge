@@ -12,6 +12,7 @@ import type {
 
 export const BWSIM_TIMELINE_SCHEMA = "sb-unit-timeline-v2";
 export const BWSIM_SAFETY_FRAME_CAP = 43_200;
+export const LEGACY_MAX_SUPPLY = 200;
 const DRPL_COMMANDS_OFFSET = 641;
 const PLAYER_LEAVE_COMMAND = 0x57;
 const EMPTY_QUEUE_SLOT = 0xffff;
@@ -260,6 +261,7 @@ export function captureBwsimSnapshot(
     }
     const race = header.players[owner]?.race ?? 0;
     const raceIndex = race >= 0 && race <= 2 ? race : 0;
+    const supply = normalizeLegacySupply(state.usedSupplyRaw, state.maxSupplyRaw, raceIndex);
     const unitCounts: Record<string, number> = {};
     for (const unit of units) {
       unitCounts[unit.unit_type] = (unitCounts[unit.unit_type] ?? 0) + 1;
@@ -272,8 +274,8 @@ export function captureBwsimSnapshot(
       name: header.players[owner]?.name || `Player ${owner + 1}`,
       minerals: state.minerals,
       gas: state.gas,
-      supply_current: Math.floor((state.usedSupplyRaw[raceIndex] + 1) / 2),
-      supply_max: Math.floor(state.maxSupplyRaw[raceIndex] / 2),
+      supply_current: supply.current,
+      supply_max: supply.max,
       workers_alive: state.completedWorkers,
       unit_counts: unitCounts,
       units: serializedUnits
@@ -285,6 +287,17 @@ export function captureBwsimSnapshot(
     .map(([, unit]) => serializeLegacyUnitRecord(simulation, unit, context))
     .sort((left, right) => left.id - right.id);
   return { owners, deaths, currentUnits };
+}
+
+export function normalizeLegacySupply(
+  usedSupplyRaw: readonly [number, number, number],
+  maxSupplyRaw: readonly [number, number, number],
+  raceIndex: number
+): { current: number; max: number } {
+  return {
+    current: Math.floor((usedSupplyRaw[raceIndex] + 1) / 2),
+    max: Math.min(Math.floor(maxSupplyRaw[raceIndex] / 2), LEGACY_MAX_SUPPLY)
+  };
 }
 
 function serializeLegacyUnitRecord(

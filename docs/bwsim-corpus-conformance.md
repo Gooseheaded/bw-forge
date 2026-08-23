@@ -1,5 +1,29 @@
 # bwsim corpus conformance
 
+## v0.1.4 legacy supply-cap follow-up — 2026-08-23
+
+The focused supply-cap investigation and production reruns are documented in
+[`bwsim-supply-cap-conformance.md`](bwsim-supply-cap-conformance.md).
+ShieldBattery caps raw emitted maximum supply through
+`min(supply_provided, supply_max)` before dividing by two; Python does not
+clamp it later. BW Forge now applies the equivalent bwsim compatibility rule:
+
+```text
+maxSupply = min(floor(rawMaxForActiveRace / 2), 200)
+```
+
+All seven affected player bundles match ShieldBattery through common emitted
+frames, fresh affected JSONL contains no maximum above 200, all embedded HTML
+supply datasets match their ZIP data, and unaffected Zerg/Terran/Protoss
+controls are byte-identical. Across the 17-fixture competitive baseline, all
+34 player bundles have exact common-frame supply parity under the implemented
+rule. No competitive max-supply mismatch remains; `bwf-pee` is closed.
+
+One full-file tail remains for `tvp_long` owner 2 because ShieldBattery records
+a used-supply transition after bwsim's existing terminal frame. That is the
+pre-existing out-of-scope termination behavior, not a max-supply discrepancy.
+No default-backend decision changes in this focused pass.
+
 ## v0.1.3 competitive-baseline follow-up — 2026-08-23
 
 Upstream runtime tested: `headless-bwsim` `v0.1.3`, commit
