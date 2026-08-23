@@ -38,7 +38,7 @@ describe("analysis job state", () => {
     expect(refreshCount).toBe(1);
   });
 
-  test("tracks exact replay and ingest progress from child output", async () => {
+  test("tracks bwsim, reducer, and ingest progress from child output", async () => {
     const settings = await createDefaultSettings({
       documentsPath: "C:\\Users\\tester\\Documents",
       runtimeRoot: "C:\\runtime\\bw-forge"
@@ -53,7 +53,7 @@ describe("analysis job state", () => {
       startProcess: scriptedProcesses([
         {
           outputs: [
-            { stream: "stdout", message: "[replay-export] progress gameId=abc frame=123/456 time=00:12 27.0%" },
+            { stream: "stdout", message: "[bwsim] extraction completed in 12.4s" },
             { stream: "stdout", message: "[analysis]  37.5% elapsed 4.0s" },
             { stream: "stdout", message: "[analysis] 100.0% elapsed 7.0s" }
           ],
@@ -78,39 +78,6 @@ describe("analysis job state", () => {
     expect(finalStateValue.jobs[0]?.progress?.percent).toBe(100);
     expect(finalStateValue.queueProgress.percent).toBe(100);
     expect(finalStateValue.ingestExitCode).toBe(0);
-  });
-
-  test("uses estimated progress when replay export only emits heartbeats", async () => {
-    const settings = await createDefaultSettings({
-      documentsPath: "C:\\Users\\tester\\Documents",
-      runtimeRoot: "C:\\runtime\\bw-forge"
-    });
-    let latestState: AnalysisRunState;
-    let latest = new AnalysisManager({
-      getSettings: () => settings,
-      onUpdate: (state) => {
-        latestState = state;
-      },
-      refreshLibrary: async () => {},
-      startProcess: scriptedProcesses([
-        {
-          outputs: [
-            { stream: "stdout", message: "[replay-export] running... elapsed 12.4s" }
-          ],
-          result: { code: 1, signal: null }
-        }
-      ])
-    });
-    latestState = latest.snapshot();
-
-    latest.start({
-      replayPaths: ["C:\\replays\\bad.rep"]
-    });
-    await waitFor(() => latestState.status === "failed");
-
-    expect(latestState.jobs[0]?.progress?.phase).toBe("replay_export");
-    expect(latestState.jobs[0]?.progress?.mode).toBe("estimated");
-    expect((latestState.jobs[0]?.progress?.percent ?? 0)).toBeGreaterThan(0);
   });
 
   test("cancellation marks queued work cancelled", async () => {

@@ -33,13 +33,11 @@ describe("desktop settings and path policy", () => {
     const normalized = normalizeSettings(
       {
         ...defaults,
-        replayExportSpeed: -2,
         mcpPort: 70_000,
         mcpPath: "custom"
       },
       defaults
     );
-    expect(normalized.replayExportSpeed).toBe(128);
     expect(normalized.mcpPort).toBe(8089);
     expect(normalized.mcpPath).toBe("/custom");
   });

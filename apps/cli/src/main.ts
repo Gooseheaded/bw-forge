@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { copyFile, cp, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -26,7 +26,6 @@ const PATHS = {
   scForgeTemplateOverride: resolve(REPO_ROOT, "apps", "sc-forge", "build-order.override.js"),
   scForgeTemplateBuilder: resolve(REPO_ROOT, "apps", "sc-forge", "build_single_file.js"),
   scForgeTemplateBuilt: resolve(REPO_ROOT, "apps", "sc-forge", "dist", "build-order.single-file.html"),
-  shieldbatteryDir: resolve(REPO_ROOT, "third_party", "shieldbattery"),
   bwsimDir: resolve(REPO_ROOT, "third_party", "bwsim"),
   bwsimExporterSource: resolve(REPO_ROOT, "apps", "cli", "src", "bwsim-exporter.ts"),
   bwsimExporterBuilt: resolve(REPO_ROOT, "apps", "cli", "src", "bwsim-exporter.js"),
@@ -35,25 +34,7 @@ const PATHS = {
   corpusQueryMcpDist: resolve(REPO_ROOT, "packages", "corpus-query", "dist", "mcp", "server.cjs"),
   corpusQueryCli: resolve(REPO_ROOT, "packages", "corpus-query", "src", "cli.ts"),
   corpusQueryMcp: resolve(REPO_ROOT, "packages", "corpus-query", "src", "mcp", "server.ts"),
-  corpusQueryTsx: resolve(REPO_ROOT, "packages", "corpus-query", "node_modules", "tsx", "dist", "cli.mjs"),
-  packagedReplayEngineExecutable: resolve(
-    REPO_ROOT,
-    "third_party",
-    "shieldbattery",
-    "dist",
-    "bw-forge-replay-engine",
-    "win-unpacked",
-    "BW Forge Replay Engine.exe"
-  ),
-  packagedReplayEngineRoot: resolve(
-    REPO_ROOT,
-    "third_party",
-    "shieldbattery",
-    "dist",
-    "bw-forge-replay-engine",
-    "win-unpacked"
-  ),
-  runtimeManifest: resolve(REPO_ROOT, "manifest.json")
+  corpusQueryTsx: resolve(REPO_ROOT, "packages", "corpus-query", "node_modules", "tsx", "dist", "cli.mjs")
 } as const;
 
 async function main(): Promise<void> {
@@ -95,10 +76,7 @@ async function analyzeCommand(argv: string[]): Promise<void> {
       outputRoot,
       keepSnapshots: options.keepSnapshots,
       snapshotDir: options.snapshotDir ? resolveOptionPath(options.snapshotDir) : undefined,
-      backend: options.backend,
-      bwsimDir: options.bwsimDir ? resolveOptionPath(options.bwsimDir) : PATHS.bwsimDir,
-      shieldbatteryDir: options.shieldbatteryDir ? resolveOptionPath(options.shieldbatteryDir) : PATHS.shieldbatteryDir,
-      replayExportSpeed: options.replayExportSpeed
+      bwsimDir: options.bwsimDir ? resolveOptionPath(options.bwsimDir) : PATHS.bwsimDir
     });
   }
 
@@ -146,10 +124,7 @@ async function analyzeReplay(params: {
   outputRoot: string;
   keepSnapshots: boolean;
   snapshotDir?: string;
-  backend: ReplayExtractionBackend;
   bwsimDir: string;
-  shieldbatteryDir: string;
-  replayExportSpeed: number;
 }): Promise<void> {
   const replayId = await computeReplayId(params.replayPath);
   const replayDir = join(params.outputRoot, "replays", replayId);
@@ -161,60 +136,31 @@ async function analyzeReplay(params: {
   const copiedReplayPath = join(rawDir, basename(params.replayPath));
   await copyFile(params.replayPath, copiedReplayPath);
 
-  let snapshotPath: string | undefined;
-  let retainedSnapshotPath: string | undefined;
-  let temporarySnapshotDir: string | undefined;
-  if (params.backend === "bwsim") {
-    const snapshotBaseDir = params.snapshotDir
-      ? resolve(params.snapshotDir)
-      : params.keepSnapshots
-        ? join(replayDir, "debug")
-        : await mkdtemp(join(tmpdir(), "bw-forge-bwsim-"));
-    if (!params.keepSnapshots) {
-      temporarySnapshotDir = snapshotBaseDir;
-    }
-    await mkdir(snapshotBaseDir, { recursive: true });
-    snapshotPath = join(snapshotBaseDir, `${replayId}.jsonl`);
-    retainedSnapshotPath = params.keepSnapshots ? snapshotPath : undefined;
+  const snapshotBaseDir = params.snapshotDir
+    ? resolve(params.snapshotDir)
+    : params.keepSnapshots
+      ? join(replayDir, "debug")
+      : await mkdtemp(join(tmpdir(), "bw-forge-bwsim-"));
+  const temporarySnapshotDir = params.keepSnapshots ? undefined : snapshotBaseDir;
+  const snapshotPath = join(snapshotBaseDir, `${replayId}.jsonl`);
+  const retainedSnapshotPath = params.keepSnapshots ? snapshotPath : undefined;
+  await mkdir(snapshotBaseDir, { recursive: true });
+
+  try {
     const extractionStartedAt = performance.now();
-    try {
-      await runBwsimExporter({
-        replayPath: params.replayPath,
-        snapshotPath,
-        bwsimDir: params.bwsimDir
-      });
-    } catch (error) {
-      if (temporarySnapshotDir) {
-        await rm(temporarySnapshotDir, { recursive: true, force: true });
-        temporarySnapshotDir = undefined;
-      }
-      throw error;
-    }
+    await runBwsimExporter({
+      replayPath: params.replayPath,
+      snapshotPath,
+      bwsimDir: params.bwsimDir
+    });
     console.log(
       `[bwsim] extraction completed in ${((performance.now() - extractionStartedAt) / 1000).toFixed(2)}s`
     );
-  } else if (params.keepSnapshots) {
-    const snapshotBaseDir = params.snapshotDir
-      ? resolve(params.snapshotDir)
-      : join(replayDir, "debug");
-    await mkdir(snapshotBaseDir, { recursive: true });
-    snapshotPath = join(snapshotBaseDir, `${replayId}.sbtl`);
-    retainedSnapshotPath = snapshotPath;
-    await exportReplaySnapshot({
-      replayPath: params.replayPath,
-      snapshotPath,
-      shieldbatteryDir: params.shieldbatteryDir,
-      replayExportSpeed: params.replayExportSpeed
-    });
-  }
 
-  try {
     await runLegacyReplayAnalysis({
-      analysisInput: snapshotPath ?? params.replayPath,
+      analysisInput: snapshotPath,
       legacyDir,
-      shieldbatteryDir: params.shieldbatteryDir,
-      embeddedReplayInput: snapshotPath ? params.replayPath : undefined,
-      requiresReplayEngine: params.backend === "shieldbattery" && snapshotPath === undefined
+      embeddedReplayInput: params.replayPath
     });
 
     const legacyManifestPath = join(legacyDir, "manifest.json");
@@ -262,77 +208,22 @@ async function runBwsimExporter(params: {
   });
 }
 
-async function exportReplaySnapshot(params: {
-  replayPath: string;
-  snapshotPath: string;
-  shieldbatteryDir: string;
-  replayExportSpeed: number;
-}): Promise<void> {
-  await ensureReplayEngineStarcraftPath();
-  const env: NodeJS.ProcessEnv = {
-    ...withoutElectronRunAsNode(process.env),
-    SB_UNIT_TIMELINE: "1",
-    SB_UNIT_TIMELINE_FORMAT: "msgpack",
-    SB_UNIT_TIMELINE_OUT: params.snapshotPath,
-    SB_UNIT_TIMELINE_TIME_UNIT: "frames",
-    SB_UNIT_TIMELINE_STRIDE: "1",
-    ...(await resolveReplayEngineLaunchEnv())
-  };
-  const packagedReplayEngine = env.BW_FORGE_REPLAY_ENGINE_EXE;
-  if (packagedReplayEngine) {
-    await runCommand({
-      command: packagedReplayEngine,
-      args: [
-        "--replay-export",
-        params.replayPath,
-        "--replay-export-speed",
-        String(params.replayExportSpeed),
-        "--replay-export-disable-render",
-        "1"
-      ],
-      cwd: env.BW_FORGE_REPLAY_ENGINE_CWD ?? dirname(packagedReplayEngine),
-      env
-    });
-    return;
-  }
-  await runCommand({
-    command: resolvePnpmCommand(),
-    args: ["run", "replay-export", "--", params.replayPath, "--replay-export-speed", String(params.replayExportSpeed)],
-    cwd: params.shieldbatteryDir,
-    env
-  });
-}
-
 async function runLegacyReplayAnalysis(params: {
   analysisInput: string;
   legacyDir: string;
-  shieldbatteryDir: string;
-  embeddedReplayInput?: string;
-  requiresReplayEngine: boolean;
+  embeddedReplayInput: string;
 }): Promise<void> {
-  const replayEngineEnv = params.requiresReplayEngine ? await resolveReplayEngineLaunchEnv() : {};
   const templatePath = await ensureScForgeTemplate();
   const args = [
     PATHS.legacyReplayAnalysisScript,
     params.analysisInput,
     params.legacyDir,
-    "--shieldbattery-dir",
-    params.shieldbatteryDir,
     "--build-order-template",
-    templatePath
+    templatePath,
+    "--embedded-replay-input",
+    params.embeddedReplayInput
   ];
-  if (params.embeddedReplayInput) {
-    args.push("--embedded-replay-input", params.embeddedReplayInput);
-  }
-
-  const commands = buildPythonCommandFallbacks(args);
-  for (const command of commands) {
-    command.env = {
-      ...command.env,
-      ...replayEngineEnv,
-    }
-  }
-  await runCommandWithFallbacks(commands);
+  await runCommandWithFallbacks(buildPythonCommandFallbacks(args));
 }
 
 async function ensureScForgeTemplate(): Promise<string> {
@@ -504,10 +395,7 @@ function parseAnalyzeArgs(argv: string[]): {
   out: string;
   keepSnapshots: boolean;
   snapshotDir?: string;
-  backend: ReplayExtractionBackend;
   bwsimDir?: string;
-  shieldbatteryDir?: string;
-  replayExportSpeed: number;
 } {
   if (argv.length === 0) {
     throw new Error("Missing analyze input path.");
@@ -516,24 +404,17 @@ function parseAnalyzeArgs(argv: string[]): {
   const out = requireOption(argv.slice(1), "--out");
   const keepSnapshots = hasFlag(argv.slice(1), "--keep-snapshots");
   const snapshotDir = optionalOption(argv.slice(1), "--snapshot-dir");
-  const backendValue = (optionalOption(argv.slice(1), "--backend") ?? "shieldbattery").toLowerCase();
-  if (backendValue !== "shieldbattery" && backendValue !== "bwsim") {
-    throw new Error(`Invalid --backend value: ${backendValue}`);
+  for (const removedOption of ["--backend", "--shieldbattery-dir", "--replay-export-speed"]) {
+    if (optionalOption(argv.slice(1), removedOption) !== undefined || hasFlag(argv.slice(1), removedOption)) {
+      throw new Error(`${removedOption} was removed; replay analysis always uses the bundled bwsim backend.`);
+    }
   }
-  const backend: ReplayExtractionBackend = backendValue;
   const bwsimDir = optionalOption(argv.slice(1), "--bwsim-dir");
-  const shieldbatteryDir = optionalOption(argv.slice(1), "--shieldbattery-dir");
-  const replayExportSpeed = Number(optionalOption(argv.slice(1), "--replay-export-speed") ?? "128");
-  if (!Number.isInteger(replayExportSpeed) || replayExportSpeed <= 0) {
-    throw new Error(`Invalid --replay-export-speed value: ${replayExportSpeed}`);
-  }
   if (snapshotDir && !keepSnapshots) {
     throw new Error("--snapshot-dir requires --keep-snapshots.");
   }
-  return { input, out, keepSnapshots, snapshotDir, backend, bwsimDir, shieldbatteryDir, replayExportSpeed };
+  return { input, out, keepSnapshots, snapshotDir, bwsimDir };
 }
-
-type ReplayExtractionBackend = "shieldbattery" | "bwsim";
 
 function parseIngestArgs(argv: string[]): { analysisDir: string; db: string } {
   if (argv.length === 0) {
@@ -601,156 +482,8 @@ function resolveOptionPath(pathValue: string): string {
   return isAbsolute(pathValue) ? pathValue : resolve(process.cwd(), pathValue);
 }
 
-function resolvePnpmCommand(): string {
-  if (process.env.BW_FORGE_PNPM) {
-    return process.env.BW_FORGE_PNPM;
-  }
-  return process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-}
-
 function resolveNodeCommand(): string {
   return process.env.BW_FORGE_NODE ?? "node";
-}
-
-function resolvePackagedReplayEngineExecutable(): string | undefined {
-  const explicitPath = process.env.BW_FORGE_REPLAY_ENGINE_EXE?.trim();
-  if (explicitPath && existsSync(explicitPath)) {
-    return explicitPath;
-  }
-  return existsSync(PATHS.packagedReplayEngineExecutable)
-    ? PATHS.packagedReplayEngineExecutable
-    : undefined;
-}
-
-async function ensureReplayEngineStarcraftPath(): Promise<void> {
-  const starcraftPath = process.env.BW_FORGE_STARCRAFT_PATH?.trim();
-  if (!starcraftPath) {
-    return;
-  }
-
-  const userDataDir = resolveReplayEngineUserDataDirectory();
-  const settingsPath = join(
-    userDataDir,
-    process.env.SB_SESSION?.trim()
-      ? `settings-${process.env.SB_SESSION.trim()}.json`
-      : "settings.json"
-  );
-
-  await mkdir(userDataDir, { recursive: true });
-  const current = await readJsonFileIfExists<Record<string, unknown>>(settingsPath);
-  const nextSettings = {
-    ...defaultReplayEngineLocalSettings(),
-    ...(current ?? {}),
-    starcraftPath,
-    version: 15
-  };
-  await writeFile(settingsPath, `${JSON.stringify(nextSettings, null, 2)}\n`, "utf8");
-}
-
-function resolveReplayEngineUserDataDirectory(): string {
-  const explicitExe = process.env.BW_FORGE_REPLAY_ENGINE_EXE?.trim();
-  const appName = explicitExe ? basename(explicitExe, extname(explicitExe)) : "BW Forge Replay Engine";
-  const appDataRoot = process.env.APPDATA
-    ? resolve(process.env.APPDATA)
-    : join(homedir(), "AppData", "Roaming");
-  return join(appDataRoot, appName);
-}
-
-function defaultReplayEngineLocalSettings(): Record<string, unknown> {
-  return {
-    version: 15,
-    winX: -1,
-    winY: -1,
-    winWidth: -1,
-    winHeight: -1,
-    winMaximized: false,
-    runAppAtSystemStart: false,
-    runAppAtSystemStartMinimized: false,
-    starcraftPath: "",
-    masterVolume: 50,
-    quickOpenReplays: false,
-    startingFog: "transparent",
-    legacyCursorSizing: false,
-    useCustomCursorSize: false,
-    customCursorSize: 0.25
-  };
-}
-
-async function resolveReplayEngineLaunchEnv(): Promise<NodeJS.ProcessEnv> {
-  const packagedReplayEngine = resolvePackagedReplayEngineExecutable();
-  if (!packagedReplayEngine) {
-    return {};
-  }
-
-  const sourceRoot = (
-    process.env.BW_FORGE_REPLAY_ENGINE_CWD?.trim()
-      ? resolve(process.env.BW_FORGE_REPLAY_ENGINE_CWD)
-      : dirname(packagedReplayEngine)
-  );
-  const stagedRoot = await stageReplayEngineRuntime(sourceRoot);
-  return {
-    BW_FORGE_REPLAY_ENGINE_EXE: join(stagedRoot, "BW Forge Replay Engine.exe"),
-    BW_FORGE_REPLAY_ENGINE_CWD: stagedRoot,
-  };
-}
-
-async function stageReplayEngineRuntime(sourceRoot: string): Promise<string> {
-  const runtimeKey = await replayEngineRuntimeKey(sourceRoot);
-  const cacheBase = process.env.LOCALAPPDATA
-    ? join(process.env.LOCALAPPDATA, "BW Forge", "runtime-cache", "replay-engine")
-    : join(homedir(), "AppData", "Local", "BW Forge", "runtime-cache", "replay-engine");
-  const stagedRoot = join(cacheBase, runtimeKey);
-  const stagedExecutable = join(stagedRoot, "BW Forge Replay Engine.exe");
-  const stagedGameDist = join(stagedRoot, "resources", "game", "dist");
-
-  if (existsSync(stagedExecutable) && existsSync(join(stagedGameDist, "shieldbattery.dll"))) {
-    validateReplayEngineStagePath(stagedExecutable);
-    return stagedRoot;
-  }
-
-  await mkdir(dirname(stagedRoot), { recursive: true });
-  await rm(stagedRoot, { recursive: true, force: true });
-  await mkdir(stagedRoot, { recursive: true });
-  if (process.platform === "win32") {
-    await runCommand({
-      command: "powershell",
-      args: [
-        "-NoProfile",
-        "-Command",
-        `Copy-Item -Path ${toPowerShellLiteral(join(sourceRoot, "*"))} -Destination ${toPowerShellLiteral(stagedRoot)} -Recurse -Force`
-      ],
-      cwd: PATHS.repoRoot,
-      env: process.env
-    });
-  } else {
-    await cp(sourceRoot, stagedRoot, { recursive: true });
-  }
-  validateReplayEngineStagePath(stagedExecutable);
-  return stagedRoot;
-}
-
-async function replayEngineRuntimeKey(sourceRoot: string): Promise<string> {
-  const hash = createHash("sha256");
-  const manifestPath = PATHS.runtimeManifest;
-  if (existsSync(manifestPath)) {
-    hash.update(await readFile(manifestPath));
-  } else {
-    hash.update(sourceRoot);
-    hash.update(String((await stat(join(sourceRoot, "BW Forge Replay Engine.exe"))).mtimeMs));
-  }
-  return hash.digest("hex").slice(0, 12);
-}
-
-function validateReplayEngineStagePath(executablePath: string): void {
-  if (executablePath.length > 120) {
-    throw new Error(
-      `Staged replay engine path is still too long (${executablePath.length} chars): ${executablePath}`
-    );
-  }
-}
-
-function toPowerShellLiteral(value: string): string {
-  return `'${value.replace(/'/gu, "''")}'`;
 }
 
 function buildPythonCommandFallbacks(args: string[]): Array<{
@@ -887,18 +620,6 @@ async function safeStat(pathValue: string): Promise<Awaited<ReturnType<typeof st
   }
 }
 
-async function readJsonFileIfExists<T>(pathValue: string): Promise<T | undefined> {
-  try {
-    return JSON.parse(await readFile(pathValue, "utf8")) as T;
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (code === "ENOENT") {
-      return undefined;
-    }
-    throw error;
-  }
-}
-
 async function readJsonFile<T>(pathValue: string): Promise<T> {
   return JSON.parse(await readFile(pathValue, "utf8")) as T;
 }
@@ -915,14 +636,13 @@ function printHelp(): void {
   console.log(`bw-forge
 
 Commands:
-  bw-forge analyze <replay-or-dir> --out <dir> [--backend shieldbattery|bwsim] [--keep-snapshots] [--snapshot-dir <path>] [--shieldbattery-dir <path>] [--bwsim-dir <path>] [--replay-export-speed <n>]
+  bw-forge analyze <replay-or-dir> --out <dir> [--keep-snapshots] [--snapshot-dir <path>] [--bwsim-dir <path>]
   bw-forge ingest <analysis-dir> --db <path>
   bw-forge mcp --db <path> [--transport stdio|http] [--host <host>] [--port <port>] [--path <path>]
 
 Environment overrides:
   BW_FORGE_PYTHON
   BW_FORGE_NODE
-  BW_FORGE_PNPM
 `);
 }
 

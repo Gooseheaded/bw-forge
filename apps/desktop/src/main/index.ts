@@ -7,6 +7,7 @@ import { broadcast, registerDesktopIpc } from "./ipc";
 import { McpManager } from "./mcp-manager";
 import { ReplayLibraryService } from "./replay-library";
 import { createDefaultSettings, SettingsStore } from "./settings-store";
+import { removeObsoleteReplayEngineCache } from "./legacy-cache";
 
 let mainWindow: BrowserWindow | null = null;
 let analysisManager: AnalysisManager | null = null;
@@ -42,6 +43,11 @@ function createMainWindow(): BrowserWindow {
 }
 
 app.whenReady().then(async () => {
+  try {
+    await removeObsoleteReplayEngineCache();
+  } catch (error) {
+    console.warn("Could not remove the obsolete BW Forge replay-engine cache.", error);
+  }
   const defaultSettings = await createDefaultSettings({
     documentsPath: app.getPath("documents"),
     runtimeRoot: inferRuntimeRoot()

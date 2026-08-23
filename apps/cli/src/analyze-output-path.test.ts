@@ -11,7 +11,7 @@ describe("assertSafeAnalyzeOutputRoot", () => {
   test("rejects source directories", () => {
     expect(() => assertSafeAnalyzeOutputRoot(String.raw`C:\Users\gctri\Documents\_\bw-forge\apps`, repoRoot)).toThrow(/protected path/u);
     expect(() => assertSafeAnalyzeOutputRoot(String.raw`C:\Users\gctri\Documents\_\bw-forge\packages\legacy-replay-analysis\out`, repoRoot)).toThrow(/protected source directory/u);
-    expect(() => assertSafeAnalyzeOutputRoot(String.raw`C:\Users\gctri\Documents\_\bw-forge\third_party\shieldbattery\tmp`, repoRoot)).toThrow(/protected source directory/u);
+    expect(() => assertSafeAnalyzeOutputRoot(String.raw`C:\Users\gctri\Documents\_\bw-forge\third_party\bwsim\tmp`, repoRoot)).toThrow(/protected source directory/u);
   });
 
   test("allows generated output directories inside the repo", () => {
@@ -25,4 +25,3 @@ describe("assertSafeAnalyzeOutputRoot", () => {
     expect(() => assertSafeAnalyzeOutputRoot(String.raw`D:\bwforge-output\commit-smoke`, repoRoot)).not.toThrow();
   });
 });
-

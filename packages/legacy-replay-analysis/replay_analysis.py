@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert ShieldBattery unit timeline JSONL into per-owner replay summary files."""
+"""Convert BW Forge replay telemetry into per-owner replay summary files."""
 
 from __future__ import annotations
 
@@ -8,13 +8,9 @@ import base64
 import hashlib
 import io
 import json
-import os
 import re
-import shutil
 import struct
-import subprocess
 import sys
-import tempfile
 import time
 import unicodedata
 import zipfile
@@ -24,9 +20,6 @@ from pathlib import Path
 from typing import Any, Callable, Iterable
 
 FRAME_DURATION_MS = 42
-DEFAULT_SHIELDBATTERY_DIR = Path(__file__).resolve().parents[2] / "third_party" / "shieldbattery"
-DEFAULT_REPLAY_EXPORT_SPEED = 128
-DEFAULT_TIMELINE_FORMAT = "msgpack"
 DEFAULT_BUILD_ORDER_TEMPLATE = Path(__file__).with_name("build-order.html")
 DEFAULT_EMBEDDED_BUILD_ORDER_NAME = "build-order.embedded.html"
 
@@ -1176,32 +1169,12 @@ def default_embedded_html_name(input_path: Path) -> str:
     return DEFAULT_EMBEDDED_BUILD_ORDER_NAME
 
 
-def default_batch_output_name(input_path: Path) -> str:
-    normalized = normalize_filename(input_path.stem)
-    return normalized or "replay"
-
-
-def collect_replay_files(input_dir: Path) -> list[Path]:
-    return sorted(path for path in input_dir.rglob("*.rep") if path.is_file())
-
-
 def collect_refreshable_html_files(input_dir: Path) -> list[Path]:
     refreshable_paths: list[Path] = []
     for path in sorted(input_dir.rglob("*.html")):
         if path.is_file() and is_embedded_report_html(path):
             refreshable_paths.append(path)
     return refreshable_paths
-
-
-def unique_batch_output_dirs(replay_paths: list[Path]) -> dict[Path, str]:
-    used_names: dict[str, int] = {}
-    output_names: dict[Path, str] = {}
-    for replay_path in replay_paths:
-        base_name = default_batch_output_name(replay_path)
-        count = used_names.get(base_name, 0) + 1
-        used_names[base_name] = count
-        output_names[replay_path] = base_name if count == 1 else f"{base_name}_{count}"
-    return output_names
 
 
 def economy_payload(
@@ -1771,98 +1744,9 @@ def render_events(events: Iterable[Event], include_owner: bool) -> str:
     return "\n".join(lines) + ("\n" if lines else "")
 
 
-def is_replay_path(path: Path) -> bool:
-    return path.suffix.lower() == ".rep"
-
-
-def replay_export_command(replay_path: Path, replay_export_speed: int) -> list[str]:
-    replay_path = replay_path.resolve()
-    packaged_replay_engine = os.environ.get("BW_FORGE_REPLAY_ENGINE_EXE")
-    if packaged_replay_engine:
-        packaged_path = Path(packaged_replay_engine).expanduser().resolve()
-        if packaged_path.is_file():
-            return [
-                str(packaged_path),
-                "--replay-export",
-                str(replay_path),
-                "--replay-export-speed",
-                str(replay_export_speed),
-                "--replay-export-disable-render",
-                "1",
-            ]
-
-    pnpm_executable = shutil.which("pnpm.cmd") or shutil.which("pnpm") or shutil.which("corepack.cmd") or shutil.which("corepack")
-    if pnpm_executable is None:
-        raise OSError("could not find pnpm or corepack on PATH")
-
-    node_executable = shutil.which("node.exe") or shutil.which("node")
-    if node_executable is not None:
-        node_dir = Path(node_executable).resolve().parent
-        corepack_pnpm = node_dir / "node_modules" / "corepack" / "dist" / "pnpm.js"
-        if corepack_pnpm.is_file():
-            command = [str(Path(node_executable).resolve()), str(corepack_pnpm)]
-        else:
-            command = [pnpm_executable]
-            if Path(pnpm_executable).stem.lower().startswith("corepack"):
-                command.append("pnpm")
-    else:
-        command = [pnpm_executable]
-        if Path(pnpm_executable).stem.lower().startswith("corepack"):
-            command.append("pnpm")
-
-    command.extend(
-        [
-            "run",
-            "replay-export",
-            "--",
-            str(replay_path),
-            "--replay-export-speed",
-            str(replay_export_speed),
-        ]
-    )
-    return command
-
-
-def export_replay_timeline(
-    replay_path: Path,
-    timeline_path: Path,
-    shieldbattery_dir: Path,
-    replay_export_speed: int,
-    timeline_format: str,
-) -> None:
-    env = os.environ.copy()
-    env["SB_UNIT_TIMELINE"] = "1"
-    env["SB_UNIT_TIMELINE_FORMAT"] = timeline_format
-    env["SB_UNIT_TIMELINE_OUT"] = str(timeline_path)
-    env["SB_UNIT_TIMELINE_TIME_UNIT"] = "frames"
-    env["SB_UNIT_TIMELINE_STRIDE"] = "1"
-
-    process = subprocess.Popen(
-        replay_export_command(replay_path, replay_export_speed),
-        cwd=os.environ.get("BW_FORGE_REPLAY_ENGINE_CWD", str(shieldbattery_dir)),
-        env=env,
-    )
-    start_time = time.perf_counter()
-    last_report = start_time
-    while True:
-        return_code = process.poll()
-        now = time.perf_counter()
-        if return_code is not None:
-            if return_code != 0:
-                raise subprocess.CalledProcessError(return_code, process.args)
-            break
-        if now - last_report >= 2.0:
-            print(f"[replay-export] running... elapsed {now - start_time:.1f}s", flush=True)
-            last_report = now
-        time.sleep(0.2)
-
-    if not timeline_path.is_file():
-        raise ValueError(f"replay export did not produce timeline output: {timeline_path}")
-
-
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("input", type=Path, help="ShieldBattery timeline/replay input, or embedded HTML report input in refresh mode")
+    parser.add_argument("input", type=Path, help="BW Forge telemetry input, or embedded HTML report input in refresh mode")
     parser.add_argument("output_dir", type=Path, nargs="?", help="Directory for per-owner zip bundles")
     parser.add_argument(
         "--refresh-embedded-html",
@@ -1878,24 +1762,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--include-initial", action="store_true", help="Emit units from the first snapshot")
     parser.add_argument("--include-tech", action="store_true", help="Include tech research events")
     parser.add_argument(
-        "--shieldbattery-dir",
-        type=Path,
-        default=DEFAULT_SHIELDBATTERY_DIR,
-        help="ShieldBattery repo directory used to run replay export",
-    )
-    parser.add_argument(
-        "--replay-export-speed",
-        type=int,
-        default=DEFAULT_REPLAY_EXPORT_SPEED,
-        help="Replay export speed multiplier when input is a .rep file",
-    )
-    parser.add_argument(
-        "--timeline-format",
-        choices=["msgpack", "jsonl"],
-        default=DEFAULT_TIMELINE_FORMAT,
-        help="Replay export timeline format when input is a .rep file",
-    )
-    parser.add_argument(
         "--build-order-template",
         type=Path,
         default=DEFAULT_BUILD_ORDER_TEMPLATE,
@@ -1909,16 +1775,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--embedded-replay-input",
         type=Path,
-        help="Optional replay file to embed in the standalone HTML; defaults to the input replay when input is a .rep file",
+        help="Optional replay file to embed in the standalone HTML",
     )
     parser.add_argument(
         "--page-title",
         help="Optional standalone HTML page title; defaults to the input filename stem",
-    )
-    parser.add_argument(
-        "--skip-existing",
-        action="store_true",
-        help="In replay-directory batch mode, skip replays whose computed output subdirectory already exists",
     )
     parser.add_argument(
         "--include-unit-appearances",
@@ -1944,64 +1805,44 @@ def process_input(
         include_unit_appearances=args.include_unit_appearances,
     )
     timeline_path = input_path
-    cleanup_timeline_dir: tempfile.TemporaryDirectory[str] | None = None
-    try:
-        if is_replay_path(input_path):
-            replay_export_start = time.perf_counter()
-            cleanup_timeline_dir = tempfile.TemporaryDirectory(prefix="replay-analysis-")
-            timeline_extension = ".sbtl" if args.timeline_format == "msgpack" else ".jsonl"
-            timeline_path = Path(cleanup_timeline_dir.name) / f"sb-unit-timeline{timeline_extension}"
-            export_replay_timeline(
-                input_path,
-                timeline_path,
-                args.shieldbattery_dir,
-                args.replay_export_speed,
-                args.timeline_format,
-            )
-            print(f"[replay-export] complete in {time.perf_counter() - replay_export_start:.1f}s", flush=True)
-            print("[pipeline] 50.0% replay export complete", flush=True)
-
-        analysis_progress = AnalysisProgressReporter(timeline_path.stat().st_size)
-        analysis_start = time.perf_counter()
-        analysis_progress.start()
-        analysis = analyze_timeline(timeline_path, analyzer, owners, progress=analysis_progress.update)
-        analysis_progress.finish()
-        if analysis.sampling.max_frame_delta > 1:
-            print(
-                f"warning: input timeline skips frames (max delta {analysis.sampling.max_frame_delta}); "
-                "build-order timestamps may be approximate unless ShieldBattery exports every frame",
-                file=sys.stderr,
-            )
-        write_player_bundles(
-            output_dir,
-            analysis.output_owners,
-            analysis.race_by_owner,
-            analysis.name_by_owner,
-            analysis.economy,
-            analysis.supply,
-            analysis.unit_counts,
-            analysis.deaths,
-            analysis.events,
+    analysis_progress = AnalysisProgressReporter(timeline_path.stat().st_size)
+    analysis_start = time.perf_counter()
+    analysis_progress.start()
+    analysis = analyze_timeline(timeline_path, analyzer, owners, progress=analysis_progress.update)
+    analysis_progress.finish()
+    if analysis.sampling.max_frame_delta > 1:
+        print(
+            f"warning: input timeline skips frames (max delta {analysis.sampling.max_frame_delta}); "
+            "build-order timestamps may be approximate unless the producer exports every frame",
+            file=sys.stderr,
         )
-        write_replay_manifest(output_dir, analysis, input_path, embedded_replay_input)
-        write_embedded_build_order_html(
-            embedded_html_output,
-            args.build_order_template,
-            analysis.output_owners,
-            analysis.race_by_owner,
-            analysis.name_by_owner,
-            analysis.economy,
-            analysis.supply,
-            analysis.unit_counts,
-            analysis.deaths,
-            analysis.events,
-            replay_path=embedded_replay_input,
-            page_title=page_title,
-        )
-        print(f"[analysis] complete in {time.perf_counter() - analysis_start:.1f}s", flush=True)
-    finally:
-        if cleanup_timeline_dir is not None:
-            cleanup_timeline_dir.cleanup()
+    write_player_bundles(
+        output_dir,
+        analysis.output_owners,
+        analysis.race_by_owner,
+        analysis.name_by_owner,
+        analysis.economy,
+        analysis.supply,
+        analysis.unit_counts,
+        analysis.deaths,
+        analysis.events,
+    )
+    write_replay_manifest(output_dir, analysis, input_path, embedded_replay_input)
+    write_embedded_build_order_html(
+        embedded_html_output,
+        args.build_order_template,
+        analysis.output_owners,
+        analysis.race_by_owner,
+        analysis.name_by_owner,
+        analysis.economy,
+        analysis.supply,
+        analysis.unit_counts,
+        analysis.deaths,
+        analysis.events,
+        replay_path=embedded_replay_input,
+        page_title=page_title,
+    )
+    print(f"[analysis] complete in {time.perf_counter() - analysis_start:.1f}s", flush=True)
 
 
 def validate_refresh_args(args: argparse.Namespace) -> str | None:
@@ -2017,12 +1858,6 @@ def validate_refresh_args(args: argparse.Namespace) -> str | None:
         return "--include-unit-appearances is not supported in refresh mode"
     if args.embedded_replay_input is not None:
         return "--embedded-replay-input is not supported in refresh mode"
-    if args.shieldbattery_dir != DEFAULT_SHIELDBATTERY_DIR:
-        return "--shieldbattery-dir is not supported in refresh mode"
-    if args.replay_export_speed != DEFAULT_REPLAY_EXPORT_SPEED:
-        return "--replay-export-speed is not supported in refresh mode"
-    if args.timeline_format != DEFAULT_TIMELINE_FORMAT:
-        return "--timeline-format is not supported in refresh mode"
     return None
 
 
@@ -2149,59 +1984,15 @@ def main(argv: list[str] | None = None) -> int:
         print("error: output_dir is required unless --refresh-embedded-html or --refresh-manifests is used", file=sys.stderr)
         return 1
 
-    if args.input.is_dir():
-        if args.embedded_html_output is not None:
-            print("error: --embedded-html-output is not supported when input is a replay directory", file=sys.stderr)
-            return 1
-        if args.embedded_replay_input is not None:
-            print("error: --embedded-replay-input is not supported when input is a replay directory", file=sys.stderr)
-            return 1
-
-        replay_paths = collect_replay_files(args.input)
-        if not replay_paths:
-            print(f"error: no replay files found under {args.input}", file=sys.stderr)
-            return 1
-
-        batch_start = time.perf_counter()
-        output_names = unique_batch_output_dirs(replay_paths)
-        failures: list[tuple[Path, str]] = []
-        skipped_count = 0
-        print(f"[batch] found {len(replay_paths)} replay(s)", flush=True)
-        for index, replay_path in enumerate(replay_paths, start=1):
-            relative_path = replay_path.relative_to(args.input)
-            replay_output_dir = args.output_dir / output_names[replay_path]
-            embedded_html_output = replay_output_dir / default_embedded_html_name(replay_path)
-            page_title = args.page_title or replay_path.stem
-            print(f"[batch] {index}/{len(replay_paths)} {relative_path}", flush=True)
-            if args.skip_existing and replay_output_dir.exists():
-                skipped_count += 1
-                print(f"[batch] skipped: {relative_path}: output dir already exists", flush=True)
-                continue
-            try:
-                process_input(
-                    args,
-                    replay_path,
-                    replay_output_dir,
-                    embedded_html_output,
-                    replay_path,
-                    page_title,
-                )
-            except (subprocess.CalledProcessError, OSError, ValueError) as e:
-                message = f"replay export failed with exit code {e.returncode}" if isinstance(e, subprocess.CalledProcessError) else str(e)
-                failures.append((replay_path, message))
-                print(f"[batch] failed: {relative_path}: {message}", file=sys.stderr, flush=True)
-
-        success_count = len(replay_paths) - len(failures) - skipped_count
+    if args.input.is_dir() or args.input.suffix.lower() == ".rep":
         print(
-            f"[batch] complete: {success_count} succeeded, {skipped_count} skipped, {len(failures)} failed in {time.perf_counter() - batch_start:.1f}s",
-            flush=True,
+            "error: replay_analysis.py accepts telemetry files only; run `bw-forge analyze` for .rep input",
+            file=sys.stderr,
         )
-        for replay_path, message in failures:
-            print(f"[batch] failure: {replay_path.relative_to(args.input)}: {message}", file=sys.stderr, flush=True)
-        return 1 if failures else 0
+        return 1
 
     embedded_html_output = args.embedded_html_output or (args.output_dir / default_embedded_html_name(args.input))
-    embedded_replay_input = args.embedded_replay_input or (args.input if is_replay_path(args.input) else None)
+    embedded_replay_input = args.embedded_replay_input
     page_title = args.page_title or args.input.stem
     try:
         process_input(
@@ -2212,9 +2003,6 @@ def main(argv: list[str] | None = None) -> int:
             embedded_replay_input,
             page_title,
         )
-    except subprocess.CalledProcessError as e:
-        print(f"error: replay export failed with exit code {e.returncode}", file=sys.stderr)
-        return 1
     except OSError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1

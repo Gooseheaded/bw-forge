@@ -17,14 +17,12 @@ afterEach(async () => {
 describe("runtime validation", () => {
   test("validates packaged runtime without developer tools", async () => {
     const runtimeRoot = await createPackagedRuntimeFixture();
-    const starcraftPath = await createStarcraftFixture();
     const settings = {
       ...await createDefaultSettings({
         documentsPath: "C:\\Users\\tester\\Documents",
         runtimeRoot
       }),
-      runtimeRoot,
-      starcraftPath
+      runtimeRoot
     };
 
     const validation = await validateRuntime(settings, async (probe: ExecutableProbe) => {
@@ -41,21 +39,22 @@ describe("runtime validation", () => {
     expect(validation.canIngest).toBe(true);
     expect(validation.checks.some((check) => check.id === "packaged-cli-self-check" && check.status === "pass")).toBe(true);
     expect(validation.checks.some((check) => check.id === "python" && check.status === "pass")).toBe(true);
-    expect(validation.checks.some((check) => check.id === "starcraft-install" && check.status === "pass")).toBe(true);
+    expect(validation.checks.some((check) => check.id === "bwsim-wasm" && check.status === "pass")).toBe(true);
+    expect(validation.checks.some((check) => check.id === "bwsim-assets" && check.status === "pass")).toBe(true);
     expect(validation.checks.some((check) => check.id === "bun")).toBe(false);
     expect(validation.checks.some((check) => check.id === "pnpm")).toBe(false);
     expect(validation.checks.some((check) => check.label === "Built-in app files")).toBe(true);
   });
 
-  test("blocks replay analysis when no StarCraft installation is configured", async () => {
+  test("blocks replay analysis when the bundled bwsim engine is missing", async () => {
     const runtimeRoot = await createPackagedRuntimeFixture();
+    await rm(join(runtimeRoot, "third_party", "bwsim", "bwsim_wasm.bwforge.wasm"));
     const settings = {
       ...await createDefaultSettings({
         documentsPath: "C:\\Users\\tester\\Documents",
         runtimeRoot
       }),
-      runtimeRoot,
-      starcraftPath: ""
+      runtimeRoot
     };
 
     const validation = await validateRuntime(settings, async (probe: ExecutableProbe) => {
@@ -70,7 +69,7 @@ describe("runtime validation", () => {
 
     expect(validation.canAnalyze).toBe(false);
     expect(validation.canIngest).toBe(true);
-    expect(validation.checks.find((check) => check.id === "starcraft-install")?.status).toBe("fail");
+    expect(validation.checks.find((check) => check.id === "bwsim-wasm")?.status).toBe("fail");
   });
 });
 
@@ -85,19 +84,9 @@ async function createPackagedRuntimeFixture(): Promise<string> {
   await writeRuntimeFile(root, "packages/legacy-replay-analysis/replay_analysis.py", "print('ok')\n");
   await writeRuntimeFile(root, "apps/sc-forge/dist/build-order.single-file.html", "<html></html>\n");
   await writeRuntimeFile(root, "python/cpython-3.14.6-embed-amd64/python.exe", "");
-  await writeRuntimeFile(
-    root,
-    "third_party/shieldbattery/dist/bw-forge-replay-engine/win-unpacked/BW Forge Replay Engine.exe",
-    ""
-  );
-  return root;
-}
-
-async function createStarcraftFixture(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), "bwf-starcraft-runtime-"));
-  tempRoots.push(root);
-  await writeRuntimeFile(root, "x86/StarCraft.exe", "");
-  await writeRuntimeFile(root, "x86/clientsdk.dll", "");
+  await writeRuntimeFile(root, "apps/cli/src/bwsim-exporter.js", "console.log('bwsim')\n");
+  await writeRuntimeFile(root, "third_party/bwsim/bwsim_wasm.bwforge.wasm", "wasm");
+  await writeRuntimeFile(root, "third_party/bwsim/sim.pack.gz", "assets");
   return root;
 }
 

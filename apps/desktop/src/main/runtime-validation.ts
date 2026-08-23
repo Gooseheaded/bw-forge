@@ -8,7 +8,6 @@ import type {
 } from "../shared/contracts";
 import { validateDatabasePath, validateOutputRoot } from "./path-policy";
 import { resolveRuntimeLayout } from "./runtime-layout";
-import { validateStarcraftInstall } from "./starcraft-install";
 
 export interface ExecutableProbe {
   executable: string;
@@ -36,7 +35,6 @@ export async function validateRuntime(
   );
 
   const runtimeRoot = resolve(settings.runtimeRoot);
-  checks.push(await checkStarcraftPath(settings.starcraftPath));
   checks.push(
     await checkPath(
       "runtime-root",
@@ -98,10 +96,26 @@ export async function validateRuntime(
     );
     checks.push(
       await checkPath(
-        "shieldbattery-engine",
-        "Replay playback engine",
-        layout.replayEngineExecutable,
-        "A required replay playback file is missing. Reinstall BW Forge."
+        "bwsim-wasm",
+        "Built-in replay engine",
+        join(layout.bwsimRuntimeDirectory, "bwsim_wasm.bwforge.wasm"),
+        "The built-in bwsim engine is missing. Reinstall BW Forge."
+      )
+    );
+    checks.push(
+      await checkPath(
+        "bwsim-assets",
+        "Built-in replay engine assets",
+        join(layout.bwsimRuntimeDirectory, "sim.pack.gz"),
+        "The built-in bwsim assets are missing. Reinstall BW Forge."
+      )
+    );
+    checks.push(
+      await checkPath(
+        "bwsim-exporter",
+        "Built-in replay exporter",
+        layout.bwsimExporter,
+        "The built-in bwsim exporter is missing. Reinstall BW Forge."
       )
     );
     checks.push(
@@ -119,9 +133,7 @@ export async function validateRuntime(
             ELECTRON_RUN_AS_NODE: "1",
             BW_FORGE_RUNTIME_KIND: "packaged",
             BW_FORGE_NODE: process.execPath,
-            BW_FORGE_PYTHON: layout.pythonExecutable,
-            BW_FORGE_REPLAY_ENGINE_EXE: layout.replayEngineExecutable,
-            BW_FORGE_REPLAY_ENGINE_CWD: layout.replayEngineWorkingDirectory
+            BW_FORGE_PYTHON: layout.pythonExecutable
           }
         ),
         "The built-in analysis tools could not start. Reinstall BW Forge."
@@ -147,18 +159,26 @@ export async function validateRuntime(
     );
     checks.push(
       await checkPath(
-        "shieldbattery",
-        "Replay playback engine",
-        join(runtimeRoot, "third_party", "shieldbattery", "package.json"),
-        "Set up the full bw-forge checkout, including third_party/shieldbattery."
+        "bwsim-wasm",
+        "Replay engine",
+        join(layout.bwsimRuntimeDirectory, "bwsim_wasm.bwforge.wasm"),
+        "Restore the vendored third_party/bwsim runtime."
       )
     );
     checks.push(
       await checkPath(
-        "shieldbattery-dependencies",
-        "Replay playback dependencies",
-        join(runtimeRoot, "third_party", "shieldbattery", "node_modules"),
-        "Run pnpm install in third_party/shieldbattery and its app workspace."
+        "bwsim-assets",
+        "Replay engine assets",
+        join(layout.bwsimRuntimeDirectory, "sim.pack.gz"),
+        "Restore the vendored third_party/bwsim runtime."
+      )
+    );
+    checks.push(
+      await checkPath(
+        "bwsim-exporter",
+        "Replay exporter",
+        layout.bwsimExporter,
+        "Restore apps/cli/src/bwsim-exporter.ts."
       )
     );
     checks.push(
@@ -186,19 +206,6 @@ export async function validateRuntime(
         { executable: settings.nodeExecutable, args: ["--version"], cwd: runtimeRoot },
         probeExecutable,
         "Install Node.js 24 or configure its executable in Settings."
-      )
-    );
-    checks.push(
-      await checkExecutable(
-        "pnpm",
-        "pnpm",
-        {
-          executable: settings.pnpmExecutable,
-          args: ["--version"],
-          cwd: join(runtimeRoot, "third_party", "shieldbattery")
-        },
-        probeExecutable,
-        "Install pnpm/Corepack or configure the pnpm executable in Settings."
       )
     );
     checks.push(await checkPython(settings, runtimeRoot, probeExecutable));
@@ -231,7 +238,6 @@ export async function validateRuntime(
 
   const requiredAnalyzeChecks = new Set([
     "platform",
-    "starcraft-install",
     "runtime-root",
     "cli-entrypoint",
     "corpus-runtime",
@@ -239,8 +245,8 @@ export async function validateRuntime(
     "output-path",
     "database-path",
     ...(layout.kind === "packaged"
-      ? ["runtime-manifest", "replay-reducer", "report-template", "shieldbattery-engine", "packaged-cli-self-check"]
-      : ["shieldbattery", "shieldbattery-dependencies", "bun", "node", "pnpm", "node"])
+      ? ["runtime-manifest", "replay-reducer", "report-template", "bwsim-wasm", "bwsim-assets", "bwsim-exporter", "packaged-cli-self-check"]
+      : ["bwsim-wasm", "bwsim-assets", "bwsim-exporter", "bun", "node"])
   ]);
   const requiredIngestChecks = new Set([
     "runtime-root",
@@ -344,30 +350,6 @@ async function checkDatabase(databasePath: string): Promise<RuntimeCheck> {
       "No replay database exists yet. Analyze replays first before starting MCP."
     );
   }
-}
-
-async function checkStarcraftPath(starcraftPath: string): Promise<RuntimeCheck> {
-  const trimmedPath = starcraftPath.trim();
-  if (!trimmedPath) {
-    return fail(
-      "starcraft-install",
-      "StarCraft installation",
-      "No StarCraft: Brood War installation directory is configured.",
-      "Choose your StarCraft folder in Settings."
-    );
-  }
-
-  const validation = await validateStarcraftInstall(trimmedPath);
-  if (validation.valid) {
-    return pass("starcraft-install", "StarCraft installation", resolve(trimmedPath));
-  }
-
-  return fail(
-    "starcraft-install",
-    "StarCraft installation",
-    `Missing required game files under ${resolve(trimmedPath)}: ${validation.missingFiles.join(", ")}`,
-    "Choose the folder that contains x86\\StarCraft.exe and x86\\clientsdk.dll."
-  );
 }
 
 function noFailures(checks: RuntimeCheck[], requiredIds: Set<string>): boolean {

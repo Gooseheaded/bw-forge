@@ -1,5 +1,0 @@
-[typescript.type_mappings]
-"SbMapId" = "TypeshareTypes.SbMapId"
-"SbUserId" = "TypeshareTypes.SbUserId"
-"DateTime" = "string"
-"Uuid" = "string"

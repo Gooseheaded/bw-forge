@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { copyFile, cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,7 +29,6 @@ async function main() {
   const embeddedPythonArchive = await ensureEmbeddedPythonArchive();
   await packageEmbeddedPython(embeddedPythonArchive);
   await packageScForgeTemplate();
-  await packageReplayEngineRuntime();
   await packageBwsimRuntime();
 
   await bundleEntrypoint(esbuildExecutable, {
@@ -254,12 +253,8 @@ async function packageBwsimRuntime() {
   const targetRoot = resolve(OUTPUT_ROOT, "third_party", "bwsim");
   await mkdir(targetRoot, { recursive: true });
   for (const filename of [
-    "bwsim_wasm.wasm",
     "bwsim_wasm.bwforge.wasm",
-    "sim.pack.gz",
-    "package.json",
-    "provenance.json",
-    "VENDORED.md"
+    "sim.pack.gz"
   ]) {
     await copyFile(resolve(sourceRoot, filename), resolve(targetRoot, filename));
   }
@@ -292,29 +287,6 @@ async function ensureScForgeTemplateBuilt() {
   }
 
   return builtTemplatePath;
-}
-
-async function packageReplayEngineRuntime() {
-  const sourceDir = resolve(
-    REPO_ROOT,
-    "third_party",
-    "shieldbattery",
-    "dist",
-    "bw-forge-replay-engine",
-    "win-unpacked"
-  );
-  const targetDir = resolve(
-    OUTPUT_ROOT,
-    "third_party",
-    "shieldbattery",
-    "dist",
-    "bw-forge-replay-engine",
-    "win-unpacked"
-  );
-  await stat(resolve(sourceDir, "BW Forge Replay Engine.exe"));
-  await rm(targetDir, { recursive: true, force: true });
-  await mkdir(dirname(targetDir), { recursive: true });
-  await cp(sourceDir, targetDir, { recursive: true });
 }
 
 async function stripShebang(pathValue) {

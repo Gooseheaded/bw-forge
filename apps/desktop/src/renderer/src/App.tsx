@@ -153,11 +153,6 @@ export function App(): React.JSX.Element {
   });
   const failedChecks = validation?.checks.filter((check) => check.status === "fail").length ?? 0;
   const warningChecks = validation?.checks.filter((check) => check.status === "warning").length ?? 0;
-  const failedCheckIds = new Set(
-    validation?.checks.filter((check) => check.status === "fail").map((check) => check.id) ?? []
-  );
-  const canPromptForStarcraft =
-    failedCheckIds.has("starcraft-install") && failedCheckIds.size === 1;
 
   useEffect(() => {
     const effects = getAnalysisCompletionEffects(previousAnalysisRef.current, analysis);
@@ -184,33 +179,6 @@ export function App(): React.JSX.Element {
 
     if (!settings) {
       return;
-    }
-
-    if (canPromptForStarcraft) {
-      setBusyAction("choose-starcraft");
-      try {
-        const chosenPath = await window.bwForge.chooseStarcraftDirectory();
-        if (!chosenPath) {
-          return;
-        }
-
-        const saveResult = await window.bwForge.saveSettings({
-          ...settings,
-          starcraftPath: chosenPath
-        });
-        setSettings(saveResult.settings);
-        setValidation(saveResult.validation);
-        void refreshLibrary();
-
-        if (!saveResult.validation.canAnalyze) {
-          return;
-        }
-      } catch (error) {
-        setActionError(formatError(error));
-        return;
-      } finally {
-        setBusyAction(null);
-      }
     }
 
     await runAction(
@@ -290,7 +258,6 @@ export function App(): React.JSX.Element {
               selectionWarnings={selectionWarnings}
               analysis={analysis}
               canAnalyze={validation.canAnalyze}
-              canPromptForStarcraft={canPromptForStarcraft}
               busyAction={busyAction}
               onSelectFiles={() => void runAction("select-files", () => window.bwForge.selectReplayFiles(), addSelection)}
               onSelectFolder={() => void runAction("select-folder", () => window.bwForge.selectReplayFolder(), addSelection)}
@@ -367,11 +334,6 @@ export function App(): React.JSX.Element {
                   if (path) setSettings((current) => current ? { ...current, runtimeRoot: path } : current);
                 })
               }
-              onChooseStarcraft={() =>
-                void runAction("choose-starcraft", () => window.bwForge.chooseStarcraftDirectory(), (path) => {
-                  if (path) setSettings((current) => current ? { ...current, starcraftPath: path } : current);
-                })
-              }
               onChooseOutput={() =>
                 void runAction("choose-output", () => window.bwForge.chooseOutputDirectory(), (path) => {
                   if (path) setSettings((current) => current ? { ...current, outputRoot: path } : current);
@@ -406,7 +368,6 @@ function AnalyzeView(props: {
   analysis: AnalysisRunState;
   workflowState: AnalyzeWorkflowState;
   canAnalyze: boolean;
-  canPromptForStarcraft: boolean;
   busyAction: string | null;
   onSelectFiles: () => void;
   onSelectFolder: () => void;
@@ -492,9 +453,7 @@ function AnalyzeView(props: {
       ) : null}
       {!props.canAnalyze && props.workflowState !== "running" ? (
         <Notice tone="warning">
-          {props.canPromptForStarcraft
-            ? <>Choose your StarCraft folder before starting analysis, or open Settings now. </>
-            : <>Setup isn’t complete yet. Open Settings before starting analysis. </>}
+          Setup isn’t complete yet. Open Settings before starting analysis.{" "}
           <button className="link-button" onClick={props.onOpenSettings}>Open Settings</button>
         </Notice>
       ) : null}
@@ -515,7 +474,6 @@ function AnalyzeView(props: {
         <AnalyzeQueueReview
           pendingReplays={props.pendingReplays}
           canAnalyze={props.canAnalyze}
-          canPromptForStarcraft={props.canPromptForStarcraft}
           busyAction={props.busyAction}
           onSelectFiles={props.onSelectFiles}
           onSelectFolder={props.onSelectFolder}
@@ -572,7 +530,6 @@ function AnalyzeEmptyState(props: {
 function AnalyzeQueueReview(props: {
   pendingReplays: string[];
   canAnalyze: boolean;
-  canPromptForStarcraft: boolean;
   busyAction: string | null;
   onSelectFiles: () => void;
   onSelectFolder: () => void;
@@ -600,17 +557,13 @@ function AnalyzeQueueReview(props: {
           onClick={props.onAnalyze}
           disabled={
             !props.pendingReplays.length ||
-            (!props.canAnalyze && !props.canPromptForStarcraft) ||
+            !props.canAnalyze ||
             props.busyAction === "analysis"
           }
         >
           {props.busyAction === "analysis"
             ? "Starting…"
-            : props.canAnalyze
-              ? `Analyze ${props.pendingReplays.length} replay${props.pendingReplays.length === 1 ? "" : "s"}`
-              : props.canPromptForStarcraft
-                ? "Choose StarCraft and start"
-                : "Analyze selected replays"}
+            : `Analyze ${props.pendingReplays.length} replay${props.pendingReplays.length === 1 ? "" : "s"}`}
         </button>
       </div>
     </section>
@@ -874,7 +827,6 @@ function SettingsView(props: {
   busyAction: string | null;
   onChange: (settings: AppSettings) => void;
   onChooseRuntime: () => void;
-  onChooseStarcraft: () => void;
   onChooseOutput: () => void;
   onChooseDatabase: () => void;
   onValidate: () => void;
@@ -903,18 +855,10 @@ function SettingsView(props: {
           ) : (
             <PathField label="Project folder" value={props.settings.runtimeRoot} onChange={(value) => update("runtimeRoot", value)} onBrowse={props.onChooseRuntime} />
           )}
-          <PathField
-            label="StarCraft installation"
-            value={props.settings.starcraftPath}
-            onChange={(value) => update("starcraftPath", value)}
-            onBrowse={props.onChooseStarcraft}
-          />
           <PathField label="Where analyzed replays are saved" value={props.settings.outputRoot} onChange={(value) => update("outputRoot", value)} onBrowse={props.onChooseOutput} />
           <PathField label="Replay database" value={props.settings.databasePath} onChange={(value) => update("databasePath", value)} onBrowse={props.onChooseDatabase} />
           {isPackagedRuntime ? (
-            <Notice tone="info">
-              BW Forge includes the files it needs to run. The only thing you need separately is an installed copy of StarCraft: Brood War.
-            </Notice>
+            <Notice tone="info">BW Forge includes its replay engine and analysis runtime.</Notice>
           ) : null}
         </section>
 
@@ -926,9 +870,6 @@ function SettingsView(props: {
             </div>
           </div>
           <div className="form-grid">
-            <Field label="Playback speed during analysis">
-              <input type="number" min={1} value={props.settings.replayExportSpeed} onChange={(event) => update("replayExportSpeed", Number(event.target.value))} />
-            </Field>
             <label className="toggle-field">
               <input type="checkbox" checked={props.settings.keepSnapshots} onChange={(event) => update("keepSnapshots", event.target.checked)} />
               <span><strong>Save extra troubleshooting files</strong><small>Keep extra files that can help troubleshoot analysis problems.</small></span>
@@ -940,7 +881,6 @@ function SettingsView(props: {
               <div className="form-grid top-gap">
                 <Field label="Bun executable"><input value={props.settings.bunExecutable} onChange={(event) => update("bunExecutable", event.target.value)} /></Field>
                 <Field label="Node executable"><input value={props.settings.nodeExecutable} onChange={(event) => update("nodeExecutable", event.target.value)} /></Field>
-                <Field label="pnpm executable"><input value={props.settings.pnpmExecutable} onChange={(event) => update("pnpmExecutable", event.target.value)} /></Field>
                 <Field label="Python executable (blank = auto)"><input value={props.settings.pythonExecutable} onChange={(event) => update("pythonExecutable", event.target.value)} /></Field>
               </div>
             </details>

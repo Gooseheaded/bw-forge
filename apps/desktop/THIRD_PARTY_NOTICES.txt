@@ -19,40 +19,26 @@ Bundled components
    - License file is bundled under:
      - resources\runtime\python\cpython-3.14.6-embed-amd64\LICENSE.txt
 
-3. ShieldBattery replay-export runtime
-   - Source package: shieldbattery
-   - Version: 10.4.2
-   - License: MIT
-   - This distribution embeds a BW Forge-specific replay-engine build derived
-     from the imported fork under third_party\shieldbattery in the source tree.
-
-4. headless-bwsim replay runtime
+3. headless-bwsim replay runtime
    - Source project: Gooseheaded/headless-bwsim
-   - Version: 0.1.1
+   - Version: 0.1.4
    - License declared upstream: MIT
-   - Provenance, commit, and artifact hashes are bundled under:
-     - resources\runtime\third_party\bwsim\VENDORED.md
+   - Provenance, commit, and artifact hashes are recorded in the source tree at:
+     - third_party\bwsim\VENDORED.md
 
-5. Corpus query runtime
+4. Corpus query runtime
    - Source package: bw-replay-corpus-query
    - Version: 0.2.0
    - License: MIT
 
-6. BW Forge desktop shell
+5. BW Forge desktop shell
    - Source package: @bw-forge/desktop
    - Version: 0.2.0
-
-Not bundled
------------
-
-StarCraft: Brood War / StarCraft: Remastered is NOT redistributed with BW Forge.
-Users must point BW Forge at an existing local installation of the game.
 
 Source-tree references
 ----------------------
 
 The corresponding source imports in this repository are located at:
-  - third_party\shieldbattery
   - third_party\bwsim
   - packages\corpus-query
   - apps\desktop

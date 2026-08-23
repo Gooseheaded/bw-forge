@@ -12,11 +12,9 @@ import type {
 } from "../shared/contracts";
 import {
   type AnalysisOutputProgressEvent,
-  estimateReplayExportPercent,
   finalizingReplayProgressPercent,
   parseAnalysisOutputProgress,
-  replayProgressFromAnalysisPercent,
-  replayProgressFromExactExportPercent
+  replayProgressFromAnalysisPercent
 } from "./analysis-progress";
 import { buildAnalyzeCommand, buildIngestCommand } from "./commands";
 import {
@@ -293,35 +291,12 @@ export class AnalysisManager {
     progressEvent: AnalysisOutputProgressEvent
   ): void {
     switch (progressEvent.kind) {
-      case "replay_export_exact":
-        this.setReplayProgress(
-          job,
-          "replay_export",
-          "Playing the replay",
-          progressEvent.detail,
-          replayProgressFromExactExportPercent(progressEvent.percent),
-          "exact"
-        );
-        break;
-      case "replay_export_heartbeat":
-        if (job.progress?.phase === "replay_export" && job.progress.mode === "exact") {
-          return;
-        }
-        this.setReplayProgress(
-          job,
-          "replay_export",
-          "Playing the replay",
-          `${progressEvent.detail} • Estimated`,
-          estimateReplayExportPercent(progressEvent.elapsedSeconds),
-          "estimated"
-        );
-        break;
       case "replay_export_stage_complete":
         this.setReplayProgress(
           job,
           "timeline_analysis",
           "Reading replay data",
-          "Replay playback finished",
+          "Replay simulation finished",
           50,
           "exact"
         );

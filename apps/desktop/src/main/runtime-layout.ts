@@ -12,8 +12,8 @@ export interface RuntimeLayout {
   pythonExecutable: string;
   replayReducerScript: string;
   reportTemplate: string;
-  replayEngineExecutable: string;
-  replayEngineWorkingDirectory: string;
+  bwsimRuntimeDirectory: string;
+  bwsimExporter: string;
   manifestPath: string;
 }
 
@@ -58,22 +58,13 @@ export function resolveRuntimeLayout(runtimeRoot: string): RuntimeLayout {
       "dist",
       "build-order.single-file.html"
     ),
-    replayEngineExecutable: join(
+    bwsimRuntimeDirectory: join(resolvedRoot, "third_party", "bwsim"),
+    bwsimExporter: join(
       resolvedRoot,
-      "third_party",
-      "shieldbattery",
-      "dist",
-      "bw-forge-replay-engine",
-      "win-unpacked",
-      "BW Forge Replay Engine.exe"
-    ),
-    replayEngineWorkingDirectory: join(
-      resolvedRoot,
-      "third_party",
-      "shieldbattery",
-      "dist",
-      "bw-forge-replay-engine",
-      "win-unpacked"
+      "apps",
+      "cli",
+      "src",
+      isPackaged ? "bwsim-exporter.js" : "bwsim-exporter.ts"
     ),
     manifestPath: packagedManifest
   };

@@ -5,7 +5,6 @@ import {
   SETTINGS_VERSION,
   type AppSettings
 } from "../shared/contracts";
-import { detectStarcraftInstallPath } from "./starcraft-install";
 import { resolveRuntimeLayout } from "./runtime-layout";
 
 export interface SettingsDefaultsInput {
@@ -22,18 +21,14 @@ export async function createDefaultSettings(input: SettingsDefaultsInput): Promi
   const managedRoot = join(input.documentsPath, "BW Forge");
   const outputRoot = join(managedRoot, "Analysis");
   const isPackagedRuntime = existsSync(join(resolve(input.runtimeRoot), "manifest.json"));
-  const starcraftPath = await detectStarcraftInstallPath();
   return {
     version: SETTINGS_VERSION,
     runtimeRoot: resolve(input.runtimeRoot),
-    starcraftPath,
     outputRoot,
     databasePath: join(managedRoot, "corpus.sqlite"),
     bunExecutable: isPackagedRuntime ? "" : resolveBunExecutable("bun"),
     nodeExecutable: isPackagedRuntime ? process.execPath : "node",
-    pnpmExecutable: isPackagedRuntime ? "" : process.platform === "win32" ? "pnpm.cmd" : "pnpm",
     pythonExecutable: "",
-    replayExportSpeed: 128,
     keepSnapshots: false,
     mcpHost: "127.0.0.1",
     mcpPort: 8089,
@@ -45,7 +40,6 @@ export function normalizeSettings(
   value: Partial<AppSettings> | null | undefined,
   defaults: AppSettings
 ): AppSettings {
-  const replayExportSpeed = Number(value?.replayExportSpeed);
   const mcpPort = Number(value?.mcpPort);
   const isPackagedRuntime = resolveRuntimeLayout(defaults.runtimeRoot).kind === "packaged";
   return {
@@ -53,10 +47,6 @@ export function normalizeSettings(
     runtimeRoot: isPackagedRuntime
       ? defaults.runtimeRoot
       : normalizeString(value?.runtimeRoot, defaults.runtimeRoot),
-    starcraftPath:
-      typeof value?.starcraftPath === "string"
-        ? value.starcraftPath.trim()
-        : defaults.starcraftPath,
     outputRoot: normalizeString(value?.outputRoot, defaults.outputRoot),
     databasePath: normalizeString(value?.databasePath, defaults.databasePath),
     bunExecutable: isPackagedRuntime
@@ -67,17 +57,10 @@ export function normalizeSettings(
     nodeExecutable: isPackagedRuntime
       ? process.execPath
       : normalizeString(value?.nodeExecutable, defaults.nodeExecutable),
-    pnpmExecutable: isPackagedRuntime
-      ? ""
-      : normalizeString(value?.pnpmExecutable, defaults.pnpmExecutable),
     pythonExecutable:
       typeof value?.pythonExecutable === "string"
         ? value.pythonExecutable.trim()
         : defaults.pythonExecutable,
-    replayExportSpeed:
-      Number.isInteger(replayExportSpeed) && replayExportSpeed > 0
-        ? replayExportSpeed
-        : defaults.replayExportSpeed,
     keepSnapshots:
       typeof value?.keepSnapshots === "boolean"
         ? value.keepSnapshots

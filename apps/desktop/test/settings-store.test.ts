@@ -26,8 +26,7 @@ describe("settings persistence", () => {
     const store = new SettingsStore(userData, defaults);
     const saved = await store.save({
       ...defaults,
-      mcpPath: "custom",
-      replayExportSpeed: 256
+      mcpPath: "custom"
     });
     const loaded = await store.load();
     expect(saved.mcpPath).toBe("/custom");

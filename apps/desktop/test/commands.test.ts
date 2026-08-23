@@ -19,12 +19,10 @@ async function createSettings() {
       documentsPath: "C:\\Users\\tester\\Documents",
       runtimeRoot: "C:\\runtime\\bw-forge"
     }),
-    starcraftPath: "C:\\Program Files (x86)\\StarCraft",
     outputRoot: "C:\\Users\\tester\\BW Forge\\Analysis",
     databasePath: "C:\\Users\\tester\\BW Forge\\corpus.sqlite",
     bunExecutable: "C:\\tools\\bun.exe",
     keepSnapshots: true,
-    replayExportSpeed: 64,
     mcpPort: 9090,
     mcpPath: "/replays"
   };
@@ -42,8 +40,6 @@ describe("desktop CLI command construction", () => {
       "C:\\Replays\\game one.rep",
       "--out",
       "C:\\Users\\tester\\BW Forge\\Analysis",
-      "--replay-export-speed",
-      "64",
       "--keep-snapshots"
     ]);
   });
@@ -85,7 +81,6 @@ describe("desktop CLI command construction", () => {
       ...settings,
       runtimeRoot,
       bunExecutable: "",
-      pnpmExecutable: "",
       nodeExecutable: "C:\\Program Files\\BW Forge\\BW Forge.exe"
     };
     const command = buildAnalyzeCommand(packagedSettings, "C:\\Replays\\game one.rep");
@@ -96,8 +91,6 @@ describe("desktop CLI command construction", () => {
       "C:\\Replays\\game one.rep",
       "--out",
       "C:\\Users\\tester\\BW Forge\\Analysis",
-      "--replay-export-speed",
-      "64",
       "--keep-snapshots"
     ]);
     expect(command.env.ELECTRON_RUN_AS_NODE).toBe("1");
@@ -105,10 +98,8 @@ describe("desktop CLI command construction", () => {
     expect(command.env.BW_FORGE_PYTHON).toContain(
       join("python", "cpython-3.14.6-embed-amd64", "python.exe")
     );
-    expect(command.env.BW_FORGE_STARCRAFT_PATH).toBe("C:\\Program Files (x86)\\StarCraft");
-    expect(command.env.BW_FORGE_REPLAY_ENGINE_EXE).toContain(
-      join("third_party", "shieldbattery", "dist", "bw-forge-replay-engine", "win-unpacked", "BW Forge Replay Engine.exe")
-    );
+    expect(command.env.BW_FORGE_STARCRAFT_PATH).toBeUndefined();
+    expect(command.env.BW_FORGE_REPLAY_ENGINE_EXE).toBeUndefined();
     expect(command.env.BW_FORGE_PNPM).toBeUndefined();
   });
 });

@@ -722,33 +722,7 @@ class ReplayAnalysisTest(unittest.TestCase):
             replay_analysis.DEFAULT_EMBEDDED_BUILD_ORDER_NAME,
         )
 
-    def test_collect_replay_files_recurses_and_ignores_non_replays(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            root = Path(temp_dir)
-            (root / "a.rep").write_text("", encoding="utf-8")
-            (root / "note.txt").write_text("", encoding="utf-8")
-            nested = root / "nested"
-            nested.mkdir()
-            (nested / "b.rep").write_text("", encoding="utf-8")
-
-            replay_paths = replay_analysis.collect_replay_files(root)
-
-        self.assertEqual([path.name for path in replay_paths], ["a.rep", "b.rep"])
-
-    def test_unique_batch_output_dirs_adds_numeric_suffixes(self):
-        replay_paths = [
-            Path(r"C:\replays\A B.rep"),
-            Path(r"C:\replays\A_B.rep"),
-            Path(r"C:\replays\A-B.rep"),
-        ]
-
-        output_names = replay_analysis.unique_batch_output_dirs(replay_paths)
-
-        self.assertEqual(output_names[replay_paths[0]], "A_B")
-        self.assertEqual(output_names[replay_paths[1]], "A_B_2")
-        self.assertEqual(output_names[replay_paths[2]], "A-B")
-
-    def test_frame_time_uses_shieldbattery_42ms_clock(self):
+    def test_frame_time_uses_legacy_42ms_clock(self):
         self.assertAlmostEqual(replay_analysis.frame_to_seconds(7047), 295.974)
         self.assertEqual(replay_analysis.format_timestamp(7047), "04:55")
         self.assertEqual(replay_analysis.format_timestamp(7048), "04:56")
@@ -1029,87 +1003,11 @@ class ReplayAnalysisTest(unittest.TestCase):
         self.assertEqual(result.sampling, expected_sampling)
         self.assertEqual(result.output_owners, {3})
 
-    def test_replay_export_command(self):
-        replay_path = Path(r"C:\replays\game.rep")
-        with (
-            mock.patch(
-                "replay_analysis.shutil.which",
-                side_effect=[
-                    r"C:\Program Files\nodejs\pnpm.cmd",
-                    r"C:\Program Files\nodejs\node.exe",
-                ],
-            ),
-            mock.patch("pathlib.Path.is_file", return_value=True),
-        ):
-            command = replay_analysis.replay_export_command(Path(r"C:\replays\game.rep"), 256)
+    def test_parse_args_supports_telemetry_input(self):
+        args = replay_analysis.parse_args([r"C:\telemetry\game.jsonl", "out"])
 
-        self.assertEqual(
-            command,
-            [
-                r"C:\Program Files\nodejs\node.exe",
-                r"C:\Program Files\nodejs\node_modules\corepack\dist\pnpm.js",
-                "run",
-                "replay-export",
-                "--",
-                str(replay_path.resolve()),
-                "--replay-export-speed",
-                "256",
-            ],
-        )
-
-    def test_export_replay_timeline_sets_expected_env(self):
-        replay_path = Path(r"C:\replays\game.rep")
-        shieldbattery_dir = Path(r"C:\ShieldBattery")
-        with tempfile.TemporaryDirectory() as temp_dir:
-            timeline_path = Path(temp_dir) / "timeline.jsonl"
-            expected_command = [
-                r"C:\Program Files\nodejs\node.exe",
-                r"C:\Program Files\nodejs\node_modules\corepack\dist\pnpm.js",
-                "run",
-                "replay-export",
-                "--",
-                str(replay_path.resolve()),
-                "--replay-export-speed",
-                "128",
-            ]
-
-            fake_process = mock.Mock()
-            fake_process.args = expected_command
-            fake_process.poll.side_effect = [None, 0]
-
-            def fake_popen(command, cwd, env):
-                self.assertEqual(command, expected_command)
-                self.assertEqual(cwd, shieldbattery_dir)
-                self.assertEqual(env["SB_UNIT_TIMELINE"], "1")
-                self.assertEqual(env["SB_UNIT_TIMELINE_FORMAT"], "jsonl")
-                self.assertEqual(env["SB_UNIT_TIMELINE_OUT"], str(timeline_path))
-                self.assertEqual(env["SB_UNIT_TIMELINE_TIME_UNIT"], "frames")
-                self.assertEqual(env["SB_UNIT_TIMELINE_STRIDE"], "1")
-                timeline_path.write_text('{"frame": 0, "owners": {}, "deaths": []}\n', encoding="utf-8")
-                return fake_process
-
-            with (
-                mock.patch(
-                    "replay_analysis.shutil.which",
-                    side_effect=[
-                        r"C:\Program Files\nodejs\pnpm.cmd",
-                        r"C:\Program Files\nodejs\node.exe",
-                    ],
-                ),
-                mock.patch("pathlib.Path.is_file", return_value=True),
-                mock.patch("replay_analysis.subprocess.Popen", side_effect=fake_popen),
-                mock.patch("replay_analysis.time.sleep"),
-            ):
-                replay_analysis.export_replay_timeline(replay_path, timeline_path, shieldbattery_dir, 128, "jsonl")
-
-    def test_parse_args_supports_replay_input(self):
-        args = replay_analysis.parse_args([r"C:\replays\game.rep", "out"])
-
-        self.assertEqual(args.input, Path(r"C:\replays\game.rep"))
+        self.assertEqual(args.input, Path(r"C:\telemetry\game.jsonl"))
         self.assertEqual(args.output_dir, Path("out"))
-        self.assertEqual(args.shieldbattery_dir, replay_analysis.DEFAULT_SHIELDBATTERY_DIR)
-        self.assertEqual(args.replay_export_speed, replay_analysis.DEFAULT_REPLAY_EXPORT_SPEED)
-        self.assertEqual(args.timeline_format, replay_analysis.DEFAULT_TIMELINE_FORMAT)
         self.assertEqual(args.build_order_template, replay_analysis.DEFAULT_BUILD_ORDER_TEMPLATE)
         self.assertIsNone(args.embedded_html_output)
         self.assertIsNone(args.embedded_replay_input)
@@ -1393,89 +1291,18 @@ dataset-payload
         self.assertEqual(result, 1)
         self.assertIn("output_dir is required", stderr.getvalue())
 
-    def test_main_rejects_embedded_html_output_in_batch_mode(self):
+    def test_main_rejects_direct_replay_input(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            input_dir = root / "replays"
+            replay_path = root / "game.rep"
             output_dir = root / "out"
-            input_dir.mkdir()
-            (input_dir / "game.rep").write_text("", encoding="utf-8")
+            replay_path.write_text("", encoding="utf-8")
 
             with mock.patch("sys.stderr", new_callable=io.StringIO) as stderr:
-                result = replay_analysis.main(
-                    [str(input_dir), str(output_dir), "--embedded-html-output", str(output_dir / "one.html")]
-                )
+                result = replay_analysis.main([str(replay_path), str(output_dir)])
 
         self.assertEqual(result, 1)
-        self.assertIn("--embedded-html-output is not supported", stderr.getvalue())
-
-    def test_main_batch_continues_after_failure(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            root = Path(temp_dir)
-            input_dir = root / "replays"
-            output_dir = root / "out"
-            input_dir.mkdir()
-            replay_a = input_dir / "good.rep"
-            replay_b = input_dir / "bad.rep"
-            replay_a.write_text("", encoding="utf-8")
-            replay_b.write_text("", encoding="utf-8")
-
-            calls = []
-
-            def fake_process_input(args, input_path, replay_output_dir, embedded_html_output, embedded_replay_input, page_title):
-                calls.append((input_path.name, replay_output_dir.name, embedded_html_output.name, embedded_replay_input.name, page_title))
-                if input_path.name == "bad.rep":
-                    raise ValueError("boom")
-
-            with (
-                mock.patch("replay_analysis.process_input", side_effect=fake_process_input),
-                mock.patch("sys.stdout", new_callable=io.StringIO),
-                mock.patch("sys.stderr", new_callable=io.StringIO) as stderr,
-            ):
-                result = replay_analysis.main([str(input_dir), str(output_dir)])
-
-        self.assertEqual(result, 1)
-        self.assertEqual(
-            calls,
-            [
-                ("bad.rep", "bad", "bad.html", "bad.rep", "bad"),
-                ("good.rep", "good", "good.html", "good.rep", "good"),
-            ],
-        )
-        self.assertIn("failed: bad.rep: boom", stderr.getvalue())
-
-    def test_main_batch_skip_existing_output_dirs(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            root = Path(temp_dir)
-            input_dir = root / "replays"
-            output_dir = root / "out"
-            input_dir.mkdir()
-            output_dir.mkdir()
-            replay_a = input_dir / "done.rep"
-            replay_b = input_dir / "todo.rep"
-            replay_a.write_text("", encoding="utf-8")
-            replay_b.write_text("", encoding="utf-8")
-            (output_dir / "done").mkdir()
-
-            calls = []
-
-            def fake_process_input(args, input_path, replay_output_dir, embedded_html_output, embedded_replay_input, page_title):
-                calls.append((input_path.name, replay_output_dir.name, embedded_html_output.name, embedded_replay_input.name, page_title))
-
-            with (
-                mock.patch("replay_analysis.process_input", side_effect=fake_process_input),
-                mock.patch("sys.stdout", new_callable=io.StringIO) as stdout,
-            ):
-                result = replay_analysis.main([str(input_dir), str(output_dir), "--skip-existing"])
-
-        self.assertEqual(result, 0)
-        self.assertEqual(
-            calls,
-            [
-                ("todo.rep", "todo", "todo.html", "todo.rep", "todo"),
-            ],
-        )
-        self.assertIn("skipped: done.rep: output dir already exists", stdout.getvalue())
+        self.assertIn("accepts telemetry files only", stderr.getvalue())
 
 
 if __name__ == "__main__":

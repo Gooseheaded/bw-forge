@@ -21,7 +21,6 @@ import { discoverReplayPaths } from "./replay-discovery";
 import { McpManager } from "./mcp-manager";
 import { ReplayLibraryService } from "./replay-library";
 import { SettingsStore } from "./settings-store";
-import { assertNoRunningStarcraftProcess } from "./starcraft-process";
 import { validateRuntime } from "./runtime-validation";
 import { resolveRuntimeLayout } from "./runtime-layout";
 
@@ -93,15 +92,6 @@ export function registerDesktopIpc(services: DesktopServices): void {
     return result.canceled ? null : (result.filePaths[0] ?? null);
   });
 
-  ipcMain.handle(IPC_CHANNELS.chooseStarcraftDirectory, async () => {
-    const result = await dialog.showOpenDialog({
-      title: "Choose your StarCraft folder",
-      defaultPath: services.getSettings().starcraftPath || undefined,
-      properties: ["openDirectory"]
-    });
-    return result.canceled ? null : (result.filePaths[0] ?? null);
-  });
-
   ipcMain.handle(IPC_CHANNELS.chooseOutputDirectory, async () => {
     const result = await dialog.showOpenDialog({
       title: "Choose where analyzed replays are saved",
@@ -155,7 +145,6 @@ export function registerDesktopIpc(services: DesktopServices): void {
       if (!validation.canAnalyze) {
         throw new Error(formatValidationFailures(validation.checks));
       }
-      await assertNoRunningStarcraftProcess();
       await mkdir(services.getSettings().outputRoot, { recursive: true });
       await mkdir(dirname(services.getSettings().databasePath), { recursive: true });
       return services.analysis.start({ replayPaths: selection.replayPaths });

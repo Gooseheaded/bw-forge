@@ -1,17 +1,14 @@
-export const SETTINGS_VERSION = 2 as const;
+export const SETTINGS_VERSION = 3 as const;
 export type RuntimeMode = "development" | "packaged";
 
 export interface AppSettings {
   version: typeof SETTINGS_VERSION;
   runtimeRoot: string;
-  starcraftPath: string;
   outputRoot: string;
   databasePath: string;
   bunExecutable: string;
   nodeExecutable: string;
-  pnpmExecutable: string;
   pythonExecutable: string;
-  replayExportSpeed: number;
   keepSnapshots: boolean;
   mcpHost: string;
   mcpPort: number;
@@ -190,7 +187,6 @@ export interface DesktopApi {
   discoverDroppedReplayPaths(paths: string[]): Promise<ReplaySelectionResult>;
   getPathForDroppedFile(file: File): string;
   chooseRuntimeDirectory(): Promise<string | null>;
-  chooseStarcraftDirectory(): Promise<string | null>;
   chooseOutputDirectory(): Promise<string | null>;
   chooseDatabasePath(): Promise<string | null>;
   saveSettings(settings: AppSettings): Promise<SettingsSaveResult>;
@@ -213,7 +209,6 @@ export const IPC_CHANNELS = {
   selectReplayFolder: "desktop:select-replay-folder",
   discoverDroppedReplayPaths: "desktop:discover-dropped-replay-paths",
   chooseRuntimeDirectory: "desktop:choose-runtime-directory",
-  chooseStarcraftDirectory: "desktop:choose-starcraft-directory",
   chooseOutputDirectory: "desktop:choose-output-directory",
   chooseDatabasePath: "desktop:choose-database-path",
   saveSettings: "desktop:save-settings",

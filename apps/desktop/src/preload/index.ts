@@ -14,7 +14,6 @@ const api: DesktopApi = {
   discoverDroppedReplayPaths: (paths) => ipcRenderer.invoke(IPC_CHANNELS.discoverDroppedReplayPaths, paths),
   getPathForDroppedFile: (file: File) => webUtils.getPathForFile(file),
   chooseRuntimeDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.chooseRuntimeDirectory),
-  chooseStarcraftDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.chooseStarcraftDirectory),
   chooseOutputDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.chooseOutputDirectory),
   chooseDatabasePath: () => ipcRenderer.invoke(IPC_CHANNELS.chooseDatabasePath),
   saveSettings: (settings: AppSettings) => ipcRenderer.invoke(IPC_CHANNELS.saveSettings, settings),

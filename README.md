@@ -14,11 +14,9 @@ read-only SQL work.
 ```text
 .rep replay
     |
-    +-- ShieldBattery replay exporter (default)
+    +-- bundled headless-bwsim replay engine
     |
-    +-- vendored headless-bwsim exporter (--backend bwsim)
-    |
-    | compatible per-frame timeline (.sbtl or .jsonl)
+    | per-frame JSONL telemetry
     v
 Python replay analyzer
     |
@@ -58,7 +56,7 @@ The design deliberately separates two responsibilities:
 - computes a SHA-256 replay ID and copies the original replay into canonical
   output;
 - builds the current `sc-forge` standalone report template when necessary;
-- invokes the selected ShieldBattery or headless-bwsim exporter and the same Python analyzer;
+- invokes the bundled headless-bwsim exporter and Python analyzer;
 - writes normalized replay and corpus manifests;
 - delegates ingestion and MCP serving to `packages/corpus-query`; and
 - refuses to place analysis output in protected repository/source paths.
@@ -77,53 +75,32 @@ The desktop renderer has no direct Node access. Filesystem operations and
 child processes stay in Electron's main process behind a typed preload API.
 The Windows installer now packages the desktop shell together with the runtime
 needed for analyze, ingest, report, library, and MCP workflows. The remaining
-external prerequisite is an existing StarCraft: Brood War installation chosen
-by the user; see `apps/desktop/README.md` for packaged-user and release
-verification details.
-
-### ShieldBattery replay execution and telemetry
-
-`third_party/shieldbattery` is an imported ShieldBattery fork. Most of it is
-upstream application code; the part central to `bw-forge` is the replay-export
-path.
-
-`pnpm run replay-export` launches Electron and StarCraft in fast replay-export
-mode. Custom Rust instrumentation in
-`third_party/shieldbattery/game/src/unit_timeline.rs` records per-frame:
-
-- player names and owner IDs;
-- minerals, gas, gathered resources, workers, and supply;
-- unit counts and detailed unit state;
-- production queues, morphs, upgrades, and tech in progress; and
-- unit deaths.
-
-The preferred timeline format is the compact `sb-unit-timeline-v2`
-MessagePack format (`.sbtl`). JSONL remains supported for debugging and
-compatibility.
+  replay engine and does not require a StarCraft installation; see
+  `apps/desktop/README.md` for packaged-user and release verification details.
 
 ### headless-bwsim replay execution
 
 `third_party/bwsim` is a pinned, offline runtime copy of upstream
-`Gooseheaded/headless-bwsim` v0.1.1. The upstream repository remains the source
+`Gooseheaded/headless-bwsim` v0.1.4. The upstream repository remains the source
 of truth; provenance and artifact hashes are recorded in
 `third_party/bwsim/VENDORED.md`.
 
-The migration backend is selected explicitly with `--backend bwsim`; the
-default remains `shieldbattery`. bwsim runs in a Node 24.5+ worker because its
-Wasm uses Memory64, emits `sb-unit-timeline-v2` JSONL, and then invokes the
-unchanged Python reducer. It does not require StarCraft, Electron, an injected
-DLL, or a separate headless-bwsim checkout. Cumulative gathered mineral/gas
-fields and Scanner Sweep are intentionally absent in this first milestone.
+bwsim is BW Forge's sole replay-simulation backend. It runs in a Node 24.5+
+worker because its Wasm uses Memory64, emits `sb-unit-timeline-v2` JSONL, and
+then invokes the Python reducer. It does not require StarCraft, a second
+Electron runtime, an injected DLL, or a separate headless-bwsim checkout.
+Cumulative gathered mineral/gas fields and Scanner Sweep are intentionally
+absent. Standard competitive Melee and Top-vs-Bottom replays are the supported
+baseline; Use Map Settings compatibility is not guaranteed.
 
 ### Python replay reduction
 
-`packages/legacy-replay-analysis/replay_analysis.py` consumes a replay or an
-exported timeline. For replay input it first runs the ShieldBattery exporter
-and deletes the temporary timeline after analysis.
+`packages/legacy-replay-analysis/replay_analysis.py` consumes exported telemetry.
+The root CLI owns replay simulation and deletes temporary JSONL after analysis.
 
 The analyzer detects building starts, morphs, production starts, upgrades,
 optional tech research, economy, supply, composition changes, and deaths. It
-uses ShieldBattery's 42 ms fastest-game replay clock and warns when timeline
+uses the legacy 42 ms fastest-game replay clock and warns when timeline
 sampling skips frames.
 
 For each player it writes a ZIP bundle containing:
@@ -252,7 +229,7 @@ packages/corpus-query            SQLite ingest, queries, analytics, and MCP
 packages/legacy-replay-analysis  Python timeline reducer and artifact writer
 packages/replay-analysis-summarizer
 packages/schemas                 Canonical wrapper manifest types
-third_party/shieldbattery        Imported replay runtime and telemetry exporter
+third_party/bwsim                Pinned headless replay-simulation runtime
 fixtures                         Golden replay and expected-output fixtures
 docs                             Artifact and migration documentation
 openspec                         Spec-driven change proposals and tasks
@@ -312,8 +289,7 @@ bun run desktop:pack:win
       raw/
         <original replay>.rep
       debug/
-        <replay-id>.sbtl       # ShieldBattery, only with --keep-snapshots
-        <replay-id>.jsonl      # bwsim, only with --keep-snapshots
+        <replay-id>.jsonl      # only with --keep-snapshots
       legacy/
         manifest.json
         player_<owner>.zip
@@ -324,28 +300,17 @@ By default the intermediate timeline is temporary.
 `--keep-snapshots` preserves it for debugging, and `--snapshot-dir` can
 override its location.
 
-Select the migration backend explicitly:
-
-```powershell
-bun run bw-forge -- analyze .\LastReplay.rep --out .\out --backend bwsim
-```
-
 ## Runtime Requirements and Boundaries
 
-- The default ShieldBattery replay backend is Windows-only and requires the
-  imported ShieldBattery/Electron/StarCraft replay exporter.
-- The bwsim backend is self-contained apart from Node 24.5+ and Python 3; its
+- The bundled bwsim backend is self-contained apart from Node 24.5+ and Python 3; its
   runtime is included in packaged/offline layouts.
 - The root package uses Bun 1.3.x.
 - The desktop shell uses Electron, React, TypeScript, Vite, and
-  electron-builder. Its Windows distributable now bundles the BW Forge runtime
-  and still requires an existing StarCraft installation.
+  electron-builder. Its Windows distributable bundles the complete BW Forge
+  runtime and does not require StarCraft to be installed.
 - `packages/corpus-query` uses pnpm and requires Node 24 or newer for
   `node:sqlite`.
 - Replay reduction requires Python 3 but uses only the standard library.
-- ShieldBattery also contains Rust game instrumentation and a much larger
-  upstream client/server codebase. Do not assume all of that code participates
-  in `bw-forge`.
 - The root Bun workspace intentionally lists only `apps/cli` and
   `packages/schemas`; imported components retain their own package managers and
   build/test commands.

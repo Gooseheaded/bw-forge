@@ -345,7 +345,7 @@ function toLegacyUnitRecord(
   }
   if (unit.totalBuildTime > 0 && unit.remainingBuildTime > 0) {
     // The HUD total is for the current unit type. During an explicit building
-    // morph (for example Hatchery -> Lair), ShieldBattery instead reports the
+    // morph (for example Hatchery -> Lair), legacy telemetry instead reports the
     // queued target's total. At stride 1 the positive queue transition is the
     // morph start, so its target total equals the initial remaining value.
     record.build_time = morphTarget === undefined ? unit.totalBuildTime : unit.remainingBuildTime;

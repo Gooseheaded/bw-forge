@@ -18,9 +18,7 @@ export function buildAnalyzeCommand(
     "analyze",
     resolve(replayPath),
     "--out",
-    resolve(settings.outputRoot),
-    "--replay-export-speed",
-    String(settings.replayExportSpeed)
+    resolve(settings.outputRoot)
   ];
   if (settings.keepSnapshots) {
     args.push("--keep-snapshots");
@@ -77,18 +75,11 @@ function baseCommand(settings: AppSettings, args: string[]): ChildCommand {
             ELECTRON_RUN_AS_NODE: "1",
             BW_FORGE_RUNTIME_KIND: "packaged",
             BW_FORGE_NODE: productionNodeCommand,
-            BW_FORGE_PYTHON: layout.pythonExecutable,
-            BW_FORGE_STARCRAFT_PATH: settings.starcraftPath,
-            BW_FORGE_REPLAY_ENGINE_EXE: layout.replayEngineExecutable,
-            BW_FORGE_REPLAY_ENGINE_CWD: layout.replayEngineWorkingDirectory
+            BW_FORGE_PYTHON: layout.pythonExecutable
           }
         : {
             BW_FORGE_RUNTIME_KIND: "development",
             BW_FORGE_NODE: settings.nodeExecutable,
-            BW_FORGE_PNPM: settings.pnpmExecutable,
-            ...(settings.starcraftPath
-              ? { BW_FORGE_STARCRAFT_PATH: settings.starcraftPath }
-              : {}),
             ...(settings.pythonExecutable
               ? { BW_FORGE_PYTHON: settings.pythonExecutable }
               : {})
