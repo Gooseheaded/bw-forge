@@ -250,6 +250,7 @@ export function captureBwsimSnapshot(
 
   const owners: Record<string, LegacyOwnerSnapshot> = {};
   const currentUnits = new Map<number, LegacyUnitRecord>();
+  const serializedLiveIds = new Map<number, number>();
   for (const [owner, units] of [...unitsByOwner].sort(([left], [right]) => left - right)) {
     if (units.some((unit) => unit.unit_type_id === VESPENE_GEYSER)) {
       continue;
@@ -268,7 +269,7 @@ export function captureBwsimSnapshot(
       currentUnits.set(unit.id, unit);
     }
     const serializedUnits = units
-      .map((unit) => serializeLegacyUnitRecord(simulation, unit, context))
+      .map((unit) => serializeLegacyUnitRecord(simulation, unit, context, serializedLiveIds))
       .sort((left, right) => left.id - right.id);
     owners[String(owner)] = {
       name: header.players[owner]?.name || `Player ${owner + 1}`,
@@ -282,9 +283,10 @@ export function captureBwsimSnapshot(
     };
   }
 
+  const serializedDeathIds = new Map<number, number>();
   const deaths = [...previousUnits]
     .filter(([id]) => !currentUnits.has(id))
-    .map(([, unit]) => serializeLegacyUnitRecord(simulation, unit, context))
+    .map(([, unit]) => serializeLegacyUnitRecord(simulation, unit, context, serializedDeathIds))
     .sort((left, right) => left.id - right.id);
   return { owners, deaths, currentUnits };
 }
@@ -303,17 +305,31 @@ export function normalizeLegacySupply(
 function serializeLegacyUnitRecord(
   simulation: Pick<Simulation, "replayUnitIdNamespace" | "toReplayUnitId">,
   unit: LegacyUnitRecord,
-  context: { replayPath: string; frame: number }
+  context: { replayPath: string; frame: number },
+  nativeIdBySerializedId: Map<number, number>
 ): LegacyUnitRecord {
-  const serializedId = simulation.toReplayUnitId(unit.id);
-  if (serializedId === null) {
-    const namespace = simulation.replayUnitIdNamespace() ?? "unavailable";
+  const namespace = simulation.replayUnitIdNamespace();
+  const convertedId = simulation.toReplayUnitId(unit.id);
+  if (convertedId === null && namespace !== "replay-local") {
     throw new Error(
       `bwsim could not serialize native UnitId ${unit.id} for ${unit.unit_type} ` +
         `(owner ${unit.owner}) at frame ${context.frame} in ${context.replayPath}; ` +
-        `replay UnitId namespace is ${namespace}`
+        `replay UnitId namespace is ${namespace ?? "unavailable"}`
     );
   }
+  // ShieldBattery serialized UnitArray::to_unique_id() directly. In affected
+  // SCR replays most action-addressable units require the replay-local inverse,
+  // while low legacy slots (notably neutral geysers that become gas buildings)
+  // remain native and are intentionally outside that inverse's domain.
+  const serializedId = convertedId ?? unit.id;
+  const previousNativeId = nativeIdBySerializedId.get(serializedId);
+  if (previousNativeId !== undefined && previousNativeId !== unit.id) {
+    throw new Error(
+      `legacy UnitId collision at frame ${context.frame} in ${context.replayPath}: ` +
+        `native UnitIds ${previousNativeId} and ${unit.id} both serialize to ${serializedId}`
+    );
+  }
+  nativeIdBySerializedId.set(serializedId, unit.id);
   return { ...unit, id: serializedId };
 }
 

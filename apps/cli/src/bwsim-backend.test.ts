@@ -270,20 +270,45 @@ describe("bwsim legacy timeline adapter", () => {
     expect(captured.currentUnits.has(nativeId)).toBe(true);
   });
 
-  test("fails loudly when upstream cannot serialize a required live unit ID", () => {
-    expect(() => captureBwsimSnapshot(
+  test("preserves nonrepresentable low-slot IDs in replay-local live and death output", () => {
+    const assimilator = unit({ index: 0, type: 157, owner: 1 });
+    const first = captureBwsimSnapshot(
       simulation(
-        [unit({ index: 5, type: 0, owner: 3 })],
-        new Map([[5, 0x26a3]]),
+        [assimilator],
+        new Map([[0, 0x2001]]),
         new Map(),
         { namespace: "replay-local", replayIds: new Map() }
       ),
-      header(3, "Terran Player", 1),
+      header(1, "Protoss Player", 2),
       new Map(),
-      { replayPath: "bad.rep", frame: 77 }
+      { replayPath: "gas.rep", frame: 6508 }
+    );
+    expect(first.owners["1"]!.units[0]!.id).toBe(0x2001);
+    expect(first.currentUnits.has(0x2001)).toBe(true);
+
+    const second = captureBwsimSnapshot(
+      simulation([], new Map(), new Map(), { namespace: "replay-local", replayIds: new Map() }),
+      header(1, "Protoss Player", 2),
+      first.currentUnits,
+      { replayPath: "gas.rep", frame: 6509 }
+    );
+    expect(second.deaths).toEqual([expect.objectContaining({ id: 0x2001 })]);
+  });
+
+  test("fails loudly when hybrid legacy serialization would collide", () => {
+    expect(() => captureBwsimSnapshot(
+      simulation(
+        [unit({ index: 0, type: 157, owner: 1 }), unit({ index: 5, type: 64, owner: 1 })],
+        new Map([[0, 0x2001], [5, 0x2cc6]]),
+        new Map(),
+        { namespace: "replay-local", replayIds: new Map([[0x2cc6, 0x2001]]) }
+      ),
+      header(1, "Protoss Player", 2),
+      new Map(),
+      { replayPath: "collision.rep", frame: 77 }
     )).toThrow(
-      "bwsim could not serialize native UnitId 9891 for marine (owner 3) at frame 77 in bad.rep; " +
-        "replay UnitId namespace is replay-local"
+      "legacy UnitId collision at frame 77 in collision.rep: " +
+        "native UnitIds 8193 and 11462 both serialize to 8193"
     );
   });
 

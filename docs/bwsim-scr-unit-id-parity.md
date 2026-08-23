@@ -78,10 +78,9 @@ native-namespace replay can contain IDs in the same numeric range. Applying the
 inverse based on ID shape would double-convert valid native IDs.
 
 No fixture in the replay-local `pvt_mid` trace produced an analysis-relevant
-native ID outside the representable range. If one does occur, BW Forge cannot
-infer what ShieldBattery's active `UnitArray` would have emitted from the
-native number alone. The compatibility layer must fail explicitly or use an
-upstream-owned conversion result; it must not guess or mix namespaces.
+native ID outside the representable range. A later competitive fixture proved
+that such IDs do occur for low legacy unit slots and that the legacy telemetry
+namespace is intentionally hybrid; see "Low-slot legacy IDs" below.
 
 ## Golden validation
 
@@ -160,10 +159,29 @@ The adapter now:
 2. serialize every live `LegacyUnitRecord.id` through `toReplayUnitId()`;
 3. serialize disappeared previous records through the same function for death
    output without changing their native internal keys;
-4. fail loudly if the public API returns null;
-5. leave native replay output byte-for-byte unchanged.
+4. preserve the native ID when the public API returns null for a loaded
+   replay-local replay;
+5. fail loudly if two distinct native live IDs would serialize to the same
+   legacy ID;
+6. leave native replay output byte-for-byte unchanged.
 
-The focused adapter suite passes 11/11 tests, including native internal keys,
-replay-local live/death serialization, native identity, null failure, and
-generation-bearing slot reuse. SCR live/death UnitId namespace parity is closed
-in production BW Forge under `bwf-8uu`.
+## Low-slot legacy IDs
+
+Fixture `bo99-primal-g1.rep`, SHA-256
+`d254009025035b03e704d36647b718268e7876411d7b83559b07a47cd628448b`,
+is a BW 1.21+ Melee ZvP on Polypoid 1.75. Native ID `0x2001` is a neutral
+Vespene Geyser through frame 6,507 and morphs in place into owner 1's
+Assimilator at frame 6,508. It remains live through terminal frame 13,027.
+
+The low slot component `1` is outside the checked replay-local inverse domain,
+so `toReplayUnitId(0x2001)` correctly returns null. Historical ShieldBattery
+source establishes the required output semantics: the timeline exporter used
+`UnitArray::to_unique_id()` directly. Low legacy slots therefore retain their
+native generation-safe ID, while representable SCR action-addressable IDs use
+the upstream inverse. A complete scan found no other nonrepresentable lifetime
+in this replay, and `0x2001` did not collide with any converted live ID.
+
+BW Forge applies this hybrid policy only at serialization. Current/previous
+unit maps, disappearance detection, morph correlation, and slot-reuse safety
+continue to use native bwsim IDs. A collision guard prevents two distinct
+native live units from being exposed under one legacy ID.
