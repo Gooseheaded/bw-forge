@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { parseAssetPack } from "./asset-pack.js";
-import { normalizeScrReplayUnitIds } from "./replay-unit-id.js";
+import { normalizeScrReplayUnitIds, toScrReplayLocalUnitId, } from "./replay-unit-id.js";
 const MiB = 1024 * 1024;
 const INITIAL_DRPL_CAPACITY = 8 * MiB;
 const MAX_DRPL_CAPACITY = 64 * MiB;
@@ -57,6 +57,7 @@ export class Bwsim {
     #wasm;
     #rawReplay;
     #drplReplay;
+    #replayUnitIdNamespace;
     constructor(wasm, assetCount) {
         this.#wasm = wasm;
         this.assetCount = assetCount;
@@ -85,6 +86,7 @@ export class Bwsim {
         await this.loadReplayBytes(await readFile(path));
     }
     async loadReplayBytes(bytes) {
+        this.#replayUnitIdNamespace = undefined;
         const raw = Uint8Array.from(bytes);
         const convertedDrpl = this.#convertReplay(raw);
         this.#loadDrpl(convertedDrpl);
@@ -103,6 +105,7 @@ export class Bwsim {
             this.#loadDrpl(drpl);
         this.#rawReplay = raw;
         this.#drplReplay = drpl;
+        this.#replayUnitIdNamespace = normalized.mode === "translated" ? "replay-local" : "native";
     }
     replayData() {
         if (this.#rawReplay === undefined || this.#drplReplay === undefined)
@@ -111,6 +114,21 @@ export class Bwsim {
             raw: this.#rawReplay.slice(),
             drpl: this.#drplReplay.slice(),
         };
+    }
+    /** Return the UnitId namespace used by the loaded source replay. */
+    replayUnitIdNamespace() {
+        return this.#replayUnitIdNamespace;
+    }
+    /** Map a native generation-safe bwsim UnitId into the loaded replay's namespace. */
+    toReplayUnitId(nativeId) {
+        if (!Number.isInteger(nativeId) || nativeId < 0 || nativeId > 0xffff_ffff) {
+            throw new RangeError("native UnitId must be an unsigned 32-bit integer");
+        }
+        if (this.#replayUnitIdNamespace === undefined)
+            return null;
+        if (this.#replayUnitIdNamespace === "native")
+            return nativeId;
+        return toScrReplayLocalUnitId(nativeId);
     }
     currentFrame() {
         return this.#wasm.bw_current_frame();

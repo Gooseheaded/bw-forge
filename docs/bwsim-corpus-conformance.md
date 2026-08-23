@@ -77,11 +77,11 @@ by the corpus comparator.
 
 The focused trace and inverse proof are documented in
 [`bwsim-scr-unit-id-parity.md`](bwsim-scr-unit-id-parity.md). The inverse is
-exact for all 36 deaths and all 598,022 common live records, but no adapter
-normalization was added: v0.1.3 computes and then discards the replay namespace
-mode, and its public API cannot safely tell BW Forge whether conversion would
-be required or would double-convert a native replay. `bwf-8uu` remains open on
-that upstream API requirement.
+exact for all 36 deaths and all 598,022 common live records. headless-bwsim
+v0.1.4 now exposes the retained namespace and checked output conversion; BW
+Forge applies it only at legacy serialization while internal maps remain
+native. Fresh `pvt_mid` output matches all live/death IDs directly, and native
+`tvp_mid`/LastReplay JSONL remains byte-identical. `bwf-8uu` is closed.
 
 ### Competitive per-replay results
 

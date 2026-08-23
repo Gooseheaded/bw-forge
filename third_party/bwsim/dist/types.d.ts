@@ -2,6 +2,8 @@ export interface BwsimOptions {
     readonly wasmPath: string | URL;
     readonly assetPackPath: string | URL;
 }
+/** UnitId namespace used by the source replay. */
+export type ReplayUnitIdNamespace = "native" | "replay-local";
 /** Static player-slot metadata decoded from bw_replay_header. */
 export interface BwsimReplayPlayer {
     readonly slot: number;

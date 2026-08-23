@@ -4,6 +4,8 @@ const SCR_REPLAY_GENERATION_BITS = 11;
 const BWSIM_GENERATION_BITS = 13;
 const SCR_REPLAY_COMPONENT_MASK = 0x07ff;
 const BWSIM_COMPONENT_OFFSET = 0x06a4;
+const BWSIM_COMPONENT_MASK = 0x1fff;
+const BWSIM_COMPONENT_MAX = BWSIM_COMPONENT_OFFSET + SCR_REPLAY_COMPONENT_MASK;
 /** Translate one non-native SCR replay UnitId into bwsim's UnitId namespace. */
 export function translateScrReplayUnitId(id) {
     const unsignedId = id >>> 0;
@@ -13,6 +15,18 @@ export function translateScrReplayUnitId(id) {
     const component = unsignedId & SCR_REPLAY_COMPONENT_MASK;
     return ((generation << BWSIM_GENERATION_BITS) |
         (component + BWSIM_COMPONENT_OFFSET)) >>> 0;
+}
+/** Translate a bwsim UnitId back into the representable SCR replay-local namespace. */
+export function toScrReplayLocalUnitId(id) {
+    const unsignedId = id >>> 0;
+    if (unsignedId === 0)
+        return 0;
+    const slotPart = unsignedId & BWSIM_COMPONENT_MASK;
+    if (slotPart < BWSIM_COMPONENT_OFFSET || slotPart > BWSIM_COMPONENT_MAX)
+        return null;
+    const generation = unsignedId >>> BWSIM_GENERATION_BITS;
+    const component = slotPart - BWSIM_COMPONENT_OFFSET;
+    return ((generation << SCR_REPLAY_GENERATION_BITS) | component) >>> 0;
 }
 /** Enumerate normalized UnitId fields without exposing the parser as public package API. */
 export function scrUnitIdReferences(drpl) {

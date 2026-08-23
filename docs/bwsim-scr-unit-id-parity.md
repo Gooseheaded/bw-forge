@@ -3,17 +3,17 @@
 ## Scope and conclusion
 
 This report covers only `bwf-8uu`: the stable-unit-ID namespace difference in
-SCR replay telemetry. The simulation and disappearance logic are already
-correct. No adapter change was made because headless-bwsim v0.1.3 does not
-expose the replay namespace decision needed to select the inverse transform
-safely.
+SCR replay telemetry. The simulation and disappearance logic were already
+correct. headless-bwsim v0.1.4 now exposes its retained namespace decision and
+checked output conversion, allowing BW Forge to close the legacy output gap
+without reproducing any replay-format logic.
 
-The eventual compatibility fix is small: retain native bwsim UnitIds for all
-internal tracking, and convert IDs only while serializing legacy telemetry when
-upstream reports that the loaded replay used the `translated` replay-local SCR
-namespace. The conversion must apply to every emitted live-unit `id`; deaths
-then receive the same converted ID because they serialize the previous live
-record. Converting deaths alone would leave raw timeline parity incomplete.
+The compatibility fix retains native bwsim UnitIds for all internal tracking
+and calls upstream `toReplayUnitId()` only while serializing legacy telemetry.
+It applies to every emitted live-unit `id`; deaths receive the same conversion
+when the previous native live record is serialized. Conversion failure is a
+hard error containing replay, frame, native ID, owner, unit type, and namespace
+context.
 
 ## Current ID flow
 
@@ -112,6 +112,20 @@ Example deaths include `3600 -> 11444 -> 3600`,
 `7684 -> 27816 -> 7684`, where the arrows are forward then inverse namespace
 conversion.
 
+After integrating v0.1.4, the fresh production bwsim JSONL matches the retained
+ShieldBattery trace directly—no comparator normalization is applied:
+
+- live records: 598,022/598,022 exact on owner, ID, type, and position;
+- deaths: 36/36 IDs exact, split 11 for owner 0 and 25 for owner 1;
+- build order: 103/103 exact (67 owner 0, 36 owner 1);
+- supply: exact for both owners;
+- minerals, gas, and workers: exact through common frame 11,819;
+- unit counts: exact after the accepted Scanner Sweep removal;
+- player metadata: exact;
+- manifest: exact except the separately tracked duration/final-frame issue.
+
+The ShieldBattery-only frame 11,820 remains explicitly outside this issue.
+
 ## Native-namespace controls
 
 No conversion may be applied to native replays:
@@ -122,37 +136,34 @@ No conversion may be applied to native replays:
   equality (426/426, no mismatches). The 17 Shield-only records are the already
   accepted Scanner Sweep omission and are outside this issue.
 
-Upstream v0.1.3 also established that the converted DRPL remains byte-identical
-for native `tvp_mid` and LastReplay. These controls demonstrate why a numeric
-range heuristic in BW Forge would be unsafe.
+Fresh v0.1.4 production JSONL for both controls is byte-identical to the retained
+v0.1.3 native output. Their player artifacts and legacy manifests are also
+unchanged: `tvp_mid` retains all 28 direct death IDs and LastReplay retains all
+426 relevant direct death IDs. This confirms there is no double conversion and
+that disappearance correlation remains deterministic.
 
-## Upstream API requirement
+## Upstream API resolution
 
-headless-bwsim already calculates the correct three-state decision during
-`loadReplayBytes`: `not-applicable`, `native`, or `translated`. It then stores
-the normalized DRPL but discards the decision. `ScrUnitIdMode` and the
-normalization helper exist in `dist/replay-unit-id`, but the package root does
-not export them and `Bwsim`/`LoadedReplayData` has no namespace accessor.
+headless-bwsim v0.1.4 retains the replay-conversion classification and exposes
+it as `replayUnitIdNamespace(): "native" | "replay-local" | undefined`. It
+also exposes `toReplayUnitId(nativeId)`, which returns identity for native
+replays, performs the checked inverse for replay-local replays, maps zero to
+zero, and returns null before load or for a nonrepresentable ID.
 
-Reclassifying `replayData().drpl` after load is not valid: a translated replay's
-stored DRPL has already been rewritten and would now look native. Deep-importing
-the helper or independently reconverting and classifying the REP in BW Forge
-would duplicate a fragile upstream replay-format decision, contrary to the
-vendor policy.
+BW Forge uses only that public conversion API. It neither reclassifies the
+already-normalized DRPL nor duplicates the inverse formula or namespace
+heuristic.
 
-The smallest required upstream capability is to retain and expose the original
-load decision, for example as a read-only `replayUnitIdMode()` value or a field
-on loaded replay metadata. Preferably upstream should also own a checked native
-to replay-local serialization helper. After an upstream release/vendor refresh,
-BW Forge can:
+The adapter now:
 
 1. keep native IDs in current/previous maps and all morph/disappearance logic;
-2. serialize every live `LegacyUnitRecord.id` through the checked inverse only
-   when the exposed mode is `translated`;
-3. derive death output from that compatibility serialization without changing
-   its native internal key;
-4. leave `native` and `not-applicable` replays byte-for-byte unchanged.
+2. serialize every live `LegacyUnitRecord.id` through `toReplayUnitId()`;
+3. serialize disappeared previous records through the same function for death
+   output without changing their native internal keys;
+4. fail loudly if the public API returns null;
+5. leave native replay output byte-for-byte unchanged.
 
-`bwf-8uu` therefore remains open pending an upstream API release. SCR death-ID
-namespace parity is proven and bounded, but not yet closed in production BW
-Forge.
+The focused adapter suite passes 11/11 tests, including native internal keys,
+replay-local live/death serialization, native identity, null failure, and
+generation-bearing slot reuse. SCR live/death UnitId namespace parity is closed
+in production BW Forge under `bwf-8uu`.

@@ -40,7 +40,7 @@ describe("vendored headless-bwsim", () => {
       "32f8cc3561e11d2756a579dc54675e0758e94c15b9f767a66a1ba533a9856a44"
     );
     const provenance = JSON.parse(await readFile(resolve(runtimeRoot, "provenance.json"), "utf8"));
-    expect(provenance.package.version).toBe("0.1.3");
+    expect(provenance.package.version).toBe("0.1.4");
   });
 
   test("loads the tracked golden replay with the patched runtime", async () => {
@@ -52,6 +52,7 @@ describe("vendored headless-bwsim", () => {
       });
       await simulation.loadReplay(${JSON.stringify(replayPath)});
       if (simulation.currentFrame() !== 0 || simulation.replayHeader()?.frameCount !== 32937) process.exit(2);
+      if (simulation.replayUnitIdNamespace() !== "native") process.exit(4);
       if (simulation.step(1) !== 1 || simulation.units().length === 0) process.exit(3);
     `;
     await execFilePromise("node", ["--input-type=module", "--eval", script]);
@@ -96,7 +97,8 @@ describe("bwsim legacy timeline adapter", () => {
     const first = captureBwsimSnapshot(
       simulation([marine, scannerSweep], new Map([[5, 0x1234_0005], [9, 0x7777_0009]])),
       header(3, "Terran Player", 1),
-      new Map()
+      new Map(),
+      captureContext(1)
     );
     expect(first.owners["3"]).toMatchObject({
       name: "Terran Player",
@@ -115,7 +117,8 @@ describe("bwsim legacy timeline adapter", () => {
     const second = captureBwsimSnapshot(
       simulation([], new Map()),
       header(3, "Terran Player", 1),
-      first.currentUnits
+      first.currentUnits,
+      captureContext(2)
     );
     expect(second.deaths).toHaveLength(1);
     expect(second.deaths[0]).toMatchObject({ id: 0x1234_0005, owner: 3, unit_type: "marine" });
@@ -135,7 +138,8 @@ describe("bwsim legacy timeline adapter", () => {
     const captured = captureBwsimSnapshot(
       simulation([hatchery], new Map([[11, 0xabcd_000b]]), new Map([[11, [132, 41, 41, 42, 45]]])),
       header(0, "Zerg Player", 0),
-      new Map()
+      new Map(),
+      captureContext(1)
     );
     expect(captured.owners["0"]!.units[0]).toMatchObject({
       build_queue_unit_ids: [132, 41, 41, 42, 45],
@@ -158,6 +162,93 @@ describe("bwsim legacy timeline adapter", () => {
     expect(resolveBwsimTermination(66, drpl)).toEqual({ frame: 6, reason: "player-leave" });
     expect(resolveBwsimTermination(32_937)).toEqual({ frame: 32_937, reason: "header" });
     expect(resolveBwsimTermination(50_000)).toEqual({ frame: 43_200, reason: "safety-cap" });
+  });
+
+  test("serializes replay-local live and death IDs while retaining native internal keys", () => {
+    const marine = unit({ index: 5, type: 0, owner: 3 });
+    const first = captureBwsimSnapshot(
+      simulation(
+        [marine],
+        new Map([[5, 0x2cc6]]),
+        new Map(),
+        { namespace: "replay-local", replayIds: new Map([[0x2cc6, 0x0e22]]) }
+      ),
+      header(3, "Terran Player", 1),
+      new Map(),
+      captureContext(10)
+    );
+
+    expect(first.owners["3"]!.units[0]!.id).toBe(0x0e22);
+    expect(first.currentUnits.has(0x2cc6)).toBe(true);
+    expect(first.currentUnits.get(0x2cc6)!.id).toBe(0x2cc6);
+
+    const second = captureBwsimSnapshot(
+      simulation(
+        [],
+        new Map(),
+        new Map(),
+        { namespace: "replay-local", replayIds: new Map([[0x2cc6, 0x0e22]]) }
+      ),
+      header(3, "Terran Player", 1),
+      first.currentUnits,
+      captureContext(11)
+    );
+    expect(second.deaths).toEqual([expect.objectContaining({ id: 0x0e22 })]);
+  });
+
+  test("keeps generation-safe slot reuse tracking native across serialization", () => {
+    const firstNativeId = 0x2cc6;
+    const secondNativeId = 0x4cc6;
+    const transform = {
+      namespace: "replay-local" as const,
+      replayIds: new Map([[firstNativeId, 0x0e22], [secondNativeId, 0x1622]])
+    };
+    const first = captureBwsimSnapshot(
+      simulation([unit({ index: 5, type: 0, owner: 3 })], new Map([[5, firstNativeId]]), new Map(), transform),
+      header(3, "Terran Player", 1),
+      new Map(),
+      captureContext(20)
+    );
+    const reused = captureBwsimSnapshot(
+      simulation([unit({ index: 5, type: 0, owner: 3 })], new Map([[5, secondNativeId]]), new Map(), transform),
+      header(3, "Terran Player", 1),
+      first.currentUnits,
+      captureContext(21)
+    );
+
+    expect(reused.currentUnits.has(secondNativeId)).toBe(true);
+    expect(reused.currentUnits.has(firstNativeId)).toBe(false);
+    expect(reused.owners["3"]!.units[0]!.id).toBe(0x1622);
+    expect(reused.deaths).toEqual([expect.objectContaining({ id: 0x0e22 })]);
+  });
+
+  test("leaves native namespace IDs unchanged", () => {
+    const nativeId = 0x4cc1;
+    const captured = captureBwsimSnapshot(
+      simulation([unit({ index: 5, type: 0, owner: 3 })], new Map([[5, nativeId]])),
+      header(3, "Terran Player", 1),
+      new Map(),
+      captureContext(1)
+    );
+    expect(captured.owners["3"]!.units[0]!.id).toBe(nativeId);
+    expect(captured.currentUnits.has(nativeId)).toBe(true);
+  });
+
+  test("fails loudly when upstream cannot serialize a required live unit ID", () => {
+    expect(() => captureBwsimSnapshot(
+      simulation(
+        [unit({ index: 5, type: 0, owner: 3 })],
+        new Map([[5, 0x26a3]]),
+        new Map(),
+        { namespace: "replay-local", replayIds: new Map() }
+      ),
+      header(3, "Terran Player", 1),
+      new Map(),
+      { replayPath: "bad.rep", frame: 77 }
+    )).toThrow(
+      "bwsim could not serialize native UnitId 9891 for marine (owner 3) at frame 77 in bad.rep; " +
+        "replay UnitId namespace is replay-local"
+    );
   });
 
   test("keeps the reducer's complete DAT name table", () => {
@@ -196,7 +287,11 @@ function header(owner: number, name: string, race: number): BwsimReplayHeader {
 function simulation(
   units: readonly BwsimUnit[],
   ids: ReadonlyMap<number, number>,
-  queues: ReadonlyMap<number, readonly number[]> = new Map()
+  queues: ReadonlyMap<number, readonly number[]> = new Map(),
+  serialization: {
+    namespace: "native" | "replay-local";
+    replayIds?: ReadonlyMap<number, number>;
+  } = { namespace: "native" }
 ) {
   const players: BwsimPlayer[] = Array.from({ length: 12 }, (_, owner) => ({
     owner,
@@ -211,8 +306,15 @@ function simulation(
     players: () => players,
     units: () => units,
     unitInstanceId: (index: number) => ids.get(index) ?? null,
-    unitBuildQueue: (index: number) => queues.get(index) ?? []
+    unitBuildQueue: (index: number) => queues.get(index) ?? [],
+    replayUnitIdNamespace: () => serialization.namespace,
+    toReplayUnitId: (nativeId: number) =>
+      serialization.namespace === "native" ? nativeId : serialization.replayIds?.get(nativeId) ?? null
   };
+}
+
+function captureContext(frame: number) {
+  return { replayPath: "fixture.rep", frame };
 }
 
 function unit(overrides: Partial<BwsimUnit> & Pick<BwsimUnit, "index" | "type" | "owner">): BwsimUnit {

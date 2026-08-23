@@ -41,6 +41,8 @@ interface Simulation {
   units(): readonly BwsimUnit[];
   unitInstanceId(index: number): number | null;
   unitBuildQueue(index: number): readonly number[];
+  replayUnitIdNamespace(): "native" | "replay-local" | undefined;
+  toReplayUnitId(nativeId: number): number | null;
 }
 
 export interface LegacyUnitRecord {
@@ -113,7 +115,10 @@ export async function exportBwsimTimeline(params: {
       if (currentFrame !== frame) {
         throw new Error(`bwsim frame sequence diverged: expected ${frame}, got ${currentFrame}`);
       }
-      const captured = captureBwsimSnapshot(simulation, header, previousUnits);
+      const captured = captureBwsimSnapshot(simulation, header, previousUnits, {
+        replayPath: params.replayPath,
+        frame
+      });
       previousUnits = captured.currentUnits;
       const snapshot: LegacyTimelineSnapshot = {
         schema_version: BWSIM_TIMELINE_SCHEMA,
@@ -208,9 +213,18 @@ function everyCommandIsPlayerLeave(commands: Uint8Array): boolean {
 }
 
 export function captureBwsimSnapshot(
-  simulation: Pick<Simulation, "players" | "units" | "unitInstanceId" | "unitBuildQueue">,
+  simulation: Pick<
+    Simulation,
+    | "players"
+    | "units"
+    | "unitInstanceId"
+    | "unitBuildQueue"
+    | "replayUnitIdNamespace"
+    | "toReplayUnitId"
+  >,
   header: BwsimReplayHeader,
-  previousUnits: ReadonlyMap<number, LegacyUnitRecord>
+  previousUnits: ReadonlyMap<number, LegacyUnitRecord>,
+  context: { replayPath: string; frame: number }
 ): {
   owners: Record<string, LegacyOwnerSnapshot>;
   deaths: LegacyUnitRecord[];
@@ -251,6 +265,9 @@ export function captureBwsimSnapshot(
       unitCounts[unit.unit_type] = (unitCounts[unit.unit_type] ?? 0) + 1;
       currentUnits.set(unit.id, unit);
     }
+    const serializedUnits = units
+      .map((unit) => serializeLegacyUnitRecord(simulation, unit, context))
+      .sort((left, right) => left.id - right.id);
     owners[String(owner)] = {
       name: header.players[owner]?.name || `Player ${owner + 1}`,
       minerals: state.minerals,
@@ -259,15 +276,32 @@ export function captureBwsimSnapshot(
       supply_max: Math.floor(state.maxSupplyRaw[raceIndex] / 2),
       workers_alive: state.completedWorkers,
       unit_counts: unitCounts,
-      units
+      units: serializedUnits
     };
   }
 
   const deaths = [...previousUnits]
     .filter(([id]) => !currentUnits.has(id))
-    .map(([, unit]) => unit)
+    .map(([, unit]) => serializeLegacyUnitRecord(simulation, unit, context))
     .sort((left, right) => left.id - right.id);
   return { owners, deaths, currentUnits };
+}
+
+function serializeLegacyUnitRecord(
+  simulation: Pick<Simulation, "replayUnitIdNamespace" | "toReplayUnitId">,
+  unit: LegacyUnitRecord,
+  context: { replayPath: string; frame: number }
+): LegacyUnitRecord {
+  const serializedId = simulation.toReplayUnitId(unit.id);
+  if (serializedId === null) {
+    const namespace = simulation.replayUnitIdNamespace() ?? "unavailable";
+    throw new Error(
+      `bwsim could not serialize native UnitId ${unit.id} for ${unit.unit_type} ` +
+        `(owner ${unit.owner}) at frame ${context.frame} in ${context.replayPath}; ` +
+        `replay UnitId namespace is ${namespace}`
+    );
+  }
+  return { ...unit, id: serializedId };
 }
 
 function toLegacyUnitRecord(

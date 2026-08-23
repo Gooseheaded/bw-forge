@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "package": {
     "name": "bwsim-wasm-node",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "minimumNodeVersion": "24.5.0"
   },
   "artifacts": {

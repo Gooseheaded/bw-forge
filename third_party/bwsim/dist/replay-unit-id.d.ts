@@ -12,6 +12,8 @@ export interface ScrUnitIdReference {
 }
 /** Translate one non-native SCR replay UnitId into bwsim's UnitId namespace. */
 export declare function translateScrReplayUnitId(id: number): number;
+/** Translate a bwsim UnitId back into the representable SCR replay-local namespace. */
+export declare function toScrReplayLocalUnitId(id: number): number | null;
 /** Enumerate normalized UnitId fields without exposing the parser as public package API. */
 export declare function scrUnitIdReferences(drpl: Uint8Array): readonly ScrUnitIdReference[];
 /**
