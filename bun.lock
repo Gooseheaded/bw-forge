@@ -12,11 +12,11 @@
     },
     "apps/cli": {
       "name": "@bw-forge/cli",
-      "version": "0.2.0",
+      "version": "0.3.0",
     },
     "apps/desktop": {
       "name": "@bw-forge/desktop",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
@@ -36,8 +36,11 @@
     },
     "packages/schemas": {
       "name": "@bw-forge/schemas",
-      "version": "0.2.0",
+      "version": "0.3.0",
     },
+  },
+  "patchedDependencies": {
+    "app-builder-lib@26.15.3": "patches/app-builder-lib@26.15.3.patch",
   },
   "packages": {
     "@babel/code-frame": ["@babel/code-frame@7.29.7", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.29.7", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw=="],

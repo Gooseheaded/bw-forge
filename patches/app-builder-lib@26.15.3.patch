@@ -1,0 +1,101 @@
+diff --git a/out/electron/electronWin.js b/out/electron/electronWin.js
+index 8af583d32f8143bb2b873e27a7fd56224427ba5b..510fa79aaa3d0d0347d80f6c55aa4b91511a1065 100644
+--- a/out/electron/electronWin.js
++++ b/out/electron/electronWin.js
+@@ -5,6 +5,7 @@ const builder_util_1 = require("builder-util");
+ const promises_1 = require("fs/promises");
+ const path = require("path");
+ const resedit_1 = require("resedit");
++const writeFileWithRetry_1 = require("../util/writeFileWithRetry");
+ /** @internal */
+ async function addWinAsarIntegrity(executablePath, asarIntegrity) {
+     const buffer = await (0, promises_1.readFile)(executablePath);
+@@ -32,7 +33,7 @@ async function addWinAsarIntegrity(executablePath, asarIntegrity) {
+         codepage: languages[0].codepage,
+     });
+     resource.outputResource(executable);
+-    await (0, promises_1.writeFile)(executablePath, Buffer.from(executable.generate()));
++    await (0, writeFileWithRetry_1.writeFileWithRetry)(executablePath, Buffer.from(executable.generate()));
+     builder_util_1.log.info({ executablePath: builder_util_1.log.filePath(executablePath) }, "updating asar integrity executable resource");
+ }
+ //# sourceMappingURL=electronWin.js.map
+diff --git a/out/util/resEdit.js b/out/util/resEdit.js
+index 7a5cbc14a9044363d360e44e1dcc5746e52064ac..d0c2c58b69a23b358921b6ebf1122c31d1073c6f 100644
+--- a/out/util/resEdit.js
++++ b/out/util/resEdit.js
+@@ -4,6 +4,7 @@ exports.editWindowsResources = editWindowsResources;
+ const builder_util_1 = require("builder-util");
+ const promises_1 = require("fs/promises");
+ const resedit_1 = require("resedit");
++const writeFileWithRetry_1 = require("./writeFileWithRetry");
+ async function editWindowsResources(opts) {
+     const buffer = await (0, promises_1.readFile)(opts.file);
+     const executable = resedit_1.NtExecutable.from(buffer);
+@@ -29,7 +30,7 @@ async function editWindowsResources(opts) {
+         patchManifestExecutionLevel(res, opts.requestedExecutionLevel, opts.file);
+     }
+     res.outputResource(executable);
+-    await (0, promises_1.writeFile)(opts.file, Buffer.from(executable.generate()));
++    await (0, writeFileWithRetry_1.writeFileWithRetry)(opts.file, Buffer.from(executable.generate()));
+ }
+ function patchManifestExecutionLevel(res, level, file) {
+     const manifestEntry = res.entries.find(e => e.type === 24 && e.id === 1);
+diff --git a/node_modules/app-builder-lib/out/util/writeFileWithRetry.d.ts b/out/util/writeFileWithRetry.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..5f0b56838388f041bbe65b0b67493be02c115342
+--- /dev/null
++++ b/out/util/writeFileWithRetry.d.ts
+@@ -0,0 +1,8 @@
++export type WriteFileWithRetryOptions = {
++    writeFile?: (file: string, data: Uint8Array) => Promise<void>;
++    maxRetries?: number;
++    minDelayMs?: number;
++    maxDelayMs?: number;
++};
++export declare function isTransientFileLockError(error: unknown): boolean;
++export declare function writeFileWithRetry(file: string, data: Uint8Array, options?: WriteFileWithRetryOptions): Promise<void>;
+diff --git a/node_modules/app-builder-lib/out/util/writeFileWithRetry.js b/out/util/writeFileWithRetry.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..e11a45767eca08b3133dfef2090c74878940bee9
+--- /dev/null
++++ b/out/util/writeFileWithRetry.js
+@@ -0,0 +1,39 @@
++"use strict";
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.isTransientFileLockError = isTransientFileLockError;
++exports.writeFileWithRetry = writeFileWithRetry;
++const promises_1 = require("fs/promises");
++
++const TRANSIENT_FILE_LOCK_CODES = new Set(["EBUSY", "EACCES", "EPERM"]);
++
++function isTransientFileLockError(error) {
++    const code = error?.code;
++    if (TRANSIENT_FILE_LOCK_CODES.has(code)) {
++        return true;
++    }
++    const message = error instanceof Error ? error.message : String(error);
++    return /\b(?:EBUSY|EACCES|EPERM)\b/.test(message);
++}
++
++async function writeFileWithRetry(file, data, options = {}) {
++    const write = options.writeFile ?? promises_1.writeFile;
++    const maxRetries = options.maxRetries ?? 15;
++    const minDelayMs = options.minDelayMs ?? 250;
++    const maxDelayMs = options.maxDelayMs ?? 2000;
++
++    for (let attempt = 0; ; attempt += 1) {
++        try {
++            await write(file, data);
++            return;
++        }
++        catch (error) {
++            if (!isTransientFileLockError(error) || attempt >= maxRetries) {
++                throw error;
++            }
++            const delayMs = Math.min(minDelayMs * 2 ** attempt, maxDelayMs);
++            console.warn(`Executable is temporarily locked (${error?.code ?? "unknown"}); retrying ${file} in ${delayMs} ms (attempt ${attempt + 1}/${maxRetries})`);
++            await new Promise(resolve => setTimeout(resolve, delayMs));
++        }
++    }
++}
++//# sourceMappingURL=writeFileWithRetry.js.map
