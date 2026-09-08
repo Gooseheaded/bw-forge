@@ -18,21 +18,36 @@ export interface IngestReplayAnalysisResult {
   foreignKeyViolations?: number;
 }
 
+export interface PreparedReplayAnalysis {
+  replaySha256: string;
+  analysisKey: string;
+  specificationFingerprint: string;
+  artifacts: Array<[string, string, number]>;
+}
+
+/** Validate source artifacts and obtain the exact ingest identity without opening a database. */
+export async function prepareReplayAnalysis(replayManifestPath: string): Promise<PreparedReplayAnalysis> {
+  return runStore([resolve(replayManifestPath), "--prepare"]);
+}
+
 /** Ingest exactly one existing replay manifest; never discover or migrate a v1 corpus.
  * Requires Python >=3.11 with SQLite >=3.37. BW_FORGE_PYTHON selects the runtime.
  */
 export async function ingestReplayAnalysis(options: IngestReplayAnalysisOptions): Promise<IngestReplayAnalysisResult> {
+  return runStore([resolve(options.replayManifestPath), "--db", resolve(options.dbPath)]);
+}
+
+async function runStore<T>(args: string[]): Promise<T> {
   const script = fileURLToPath(new URL("../python/store.py", import.meta.url));
   const configured = process.env.BW_FORGE_PYTHON;
   const candidates = configured ? [[configured]] : process.platform === "win32"
     ? [["py", "-3"], ["python"], ["python3"]] : [["python3"], ["python"]];
   for (const [index, candidate] of candidates.entries()) {
     try {
-      return await new Promise<IngestReplayAnalysisResult>((resolvePromise, reject) => {
+      return await new Promise<T>((resolvePromise, reject) => {
         const env = { ...process.env };
         delete env.ELECTRON_RUN_AS_NODE;
-        const child = spawn(candidate[0], [...candidate.slice(1), script,
-          resolve(options.replayManifestPath), "--db", resolve(options.dbPath)], {
+        const child = spawn(candidate[0], [...candidate.slice(1), script, ...args], {
           windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env
         });
         let stdout = "";
@@ -45,7 +60,7 @@ export async function ingestReplayAnalysis(options: IngestReplayAnalysisOptions)
             reject(new Error(`Corpus v2 ingestion failed (${code}): ${stderr.trim()}`));
             return;
           }
-          try { resolvePromise(JSON.parse(stdout) as IngestReplayAnalysisResult); }
+          try { resolvePromise(JSON.parse(stdout) as T); }
           catch { reject(new Error(`Invalid corpus-store response: ${stdout.slice(0, 500)}`)); }
         });
       });

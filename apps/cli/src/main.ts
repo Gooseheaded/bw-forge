@@ -7,6 +7,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { homedir, tmpdir } from "node:os";
 import { ingestReplayAnalysis } from "../../../packages/corpus-store/src/index.js";
+import { analyzeAndPublishReplay } from "../../../packages/corpus-store/src/publication.js";
 import { assertSafeAnalyzeOutputRoot } from "./analyze-output-path.js";
 import { buildCommandSpawnOptions } from "./child-process.js";
 import type {
@@ -44,6 +45,14 @@ async function main(): Promise<void> {
     case "analyze":
       await analyzeCommand(args);
       return;
+    case "analyze-v2": {
+      if (!args[0] || args[0].startsWith("--")) throw new Error("Missing replay path.");
+      console.log(JSON.stringify(await analyzeAndPublishReplay({
+        replayPath: args[0], corpusRoot: requireOption(args.slice(1), "--corpus-root"),
+        dbPath: optionalOption(args.slice(1), "--db"), keepFailedWork: hasFlag(args.slice(1), "--keep-failed-work")
+      }), null, 2));
+      return;
+    }
     case "ingest":
       await ingestCommand(args);
       return;
@@ -647,6 +656,7 @@ Commands:
   bw-forge analyze <replay-or-dir> --out <dir> [--keep-snapshots] [--snapshot-dir <path>] [--bwsim-dir <path>]
   bw-forge ingest <analysis-dir> --db <path>
   bw-forge ingest-v2 <replay-manifest.json> --db <path>
+  bw-forge analyze-v2 <replay.rep> --corpus-root <dir> [--db <path>] [--keep-failed-work]
   bw-forge mcp --db <path> [--transport stdio|http] [--host <host>] [--port <port>] [--path <path>]
 
 Environment overrides:

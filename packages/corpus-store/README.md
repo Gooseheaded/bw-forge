@@ -1,4 +1,4 @@
-# Corpus store (Milestone 2A)
+# Corpus store (Milestones 2A–2B)
 
 ```ts
 import { ingestReplayAnalysis } from "@bw-forge/corpus-store";
@@ -14,8 +14,8 @@ JSON result. Python callers can use `ingest_replay_analysis(db_path, manifest_pa
 
 The SQLite schema is `python/schema.sql` plus `python/events.sql`. Existing v1,
 prototype, or unrelated databases are rejected. This is an opt-in store; neither
-the v1 ingest command nor analyzer output paths change. No artifact publication,
-daemon, watcher, MCP, alias resolution, or production cutover is included.
+the v1 ingest command nor analyzer output paths change. No daemon, watcher, MCP,
+alias resolution, or production cutover is included.
 
 `python/sparse.py` promotes Milestone 1's verified economy/composition ingestion
 and reconstruction unchanged. Economy stores full tuple changes, resetting at
@@ -50,8 +50,8 @@ artifact/checksum inventory: raw replay bytes, semantic manifest metadata, and
 every uncompressed ZIP member keyed by owner/name. ZIP compression/timestamps,
 manifest formatting, and filesystem location do not affect identity. Stored
 artifact hashes describe these exact logical bytes, not ZIP container bytes.
-HTML/debug files are not analytical inputs and are not inventoried. This is
-registration only, not publication or file copying.
+HTML/debug files are not analytical inputs and are excluded from the analysis
+key. Publication separately checks all published file bytes, including HTML.
 
 Parsing, ownership checks, source clocks, counts and checksums happen before the
 database write transaction. `BEGIN IMMEDIATE` serializes writers; replay and
@@ -65,3 +65,77 @@ analysis is current. Historic runs and participation IDs are retained.
 
 Run tests with `bun test packages/corpus-store/src` or
 `$BW_FORGE_PYTHON -m unittest discover -s packages/corpus-store/tests -v`.
+
+## Immutable publication
+
+```ts
+import { analyzeAndPublishReplay } from "@bw-forge/corpus-store/publication";
+const result = await analyzeAndPublishReplay({ replayPath, corpusRoot, dbPath });
+```
+
+```text
+bw-forge analyze-v2 replay.rep --corpus-root corpus [--db corpus/db/corpus.sqlite]
+
+corpus/
+  replays/<first-two-sha-characters>/<replay-sha>.rep
+  analyses/<replay-sha>/<analysis-key>/
+    replay-manifest.json
+    publication.json
+    legacy/manifest.json
+    legacy/player_*.zip
+    legacy/*.html
+  work/analysis-<unique-id>/             # disposable; empty after success
+  db/corpus.sqlite
+```
+
+The default adapter invokes the existing `analyze` CLI under Bun. Node callers
+also need Bun on PATH. The bwsim/reducer pipeline and old commands are unchanged.
+Snapshots and the old analyzer output tree remain inside each unique work
+directory. After validation, only that replay's artifact directory is published.
+The transient raw copy is removed and the published manifest points to the
+canonical raw replay. The importer accepts this external raw reference only for
+the exact managed `analyses/<sha>/<key>` and `replays/<prefix>/<sha>.rep` layout;
+ordinary legacy manifests retain their original path confinement rules.
+
+The adapter records the actual producer files, WASM and asset checksums, bwsim
+provenance version, reducer identity, and settings in `analysis_spec`, checking
+they did not change during analysis. `prepareReplayAnalysis(manifestPath)` calls
+the same Python preparation code as ingestion and never opens SQLite.
+
+Canonical replay creation uses an exclusive same-filesystem hard link from a
+verified temporary copy, then removes that temporary link. An existing replay
+must have matching bytes. Analysis publication uses a same-filesystem directory
+rename after validation, with an explicit refusal to replace existing directories
+(including empty directories or symlinks). Keep `work`, `replays`, and `analyses`
+on one filesystem; there is no non-atomic cross-device copy fallback.
+
+`publication.json` records the byte sizes and SHA-256 checksums of every published
+file except itself. Reuse verifies this entire inventory and recomputes the same
+corpus-store analysis key. ZIP container timestamps/compression can differ on a
+rerun while the logical analysis is identical; existing verified container and
+report bytes are retained. No published file is rewritten or repaired in place.
+Immutability is enforced by this API, not by filesystem ACLs.
+
+Only after publication and verification does ingestion begin. The additive
+`python/publication.sql` tables store final manifest/raw paths and physical
+artifact paths with ZIP-member names. They are created inside the v2 ingestion
+transaction, with foreign keys to existing analysis/artifact IDs. Existing
+unpublished analyses can acquire publication locations without changing their
+current pointers. Ordinary `ingest-v2` imports remain unchanged; v1 is never
+migrated. Locations are absolute paths and relocating a corpus is outside this
+milestone.
+
+An analyzer or validation failure leaves the database untouched. If publication
+succeeds and ingestion fails, artifacts remain immutable and available. Rerun
+the same command: it analyzes in new staging, verifies/reuses the existing
+analysis directory, and retries ingestion. An already indexed analysis remains
+a no-op under the existing current-analysis rules. Successful staging is always
+removed; failed staging is removed unless `keepFailedWork: true` or CLI
+`--keep-failed-work` is set. Cleanup is confined to this invocation's resolved
+work directory. Canonical raw replays may remain after failure for reuse.
+
+This is a local, single-process publication API. Callers must serialize calls for
+a corpus root; concurrent publication, crash-durable fsync, queues, leases and
+background services are outside this milestone. Tests use `createReplayPublisher`
+to inject an analyzer or failure while exercising real filesystem publication
+and the real v2 importer.

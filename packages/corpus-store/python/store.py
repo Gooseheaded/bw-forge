@@ -60,7 +60,17 @@ def prepare(manifest_path):
     root = Path(manifest_path).resolve().parent
     manifest = json.loads(Path(manifest_path).read_bytes())
     require(manifest['schema_version'] == 'bw-forge-replay-manifest-v1', 'Unsupported replay manifest')
-    raw = local_path(root, manifest['source']['copied_path'])
+    if manifest.get('publication', {}).get('format') == 'bw-forge-publication-v1':
+        replay_sha = manifest['replay_id']
+        require(re.fullmatch('[0-9a-f]{64}', replay_sha) is not None, 'Invalid replay SHA')
+        require(root.parent.name == replay_sha and root.parent.parent.name == 'analyses' and
+                re.fullmatch('[0-9a-f]{64}', root.name), 'Invalid published analysis location')
+        corpus = root.parent.parent.parent
+        raw = (corpus / 'replays' / replay_sha[:2] / (replay_sha + '.rep')).resolve()
+        require(raw.is_relative_to(corpus) and
+                (root / manifest['source']['copied_path']).resolve() == raw, 'Invalid canonical replay path')
+    else:
+        raw = local_path(root, manifest['source']['copied_path'])
     raw_bytes = raw.read_bytes()
     replay_sha = sha(raw_bytes)
     require(replay_sha == manifest['replay_id'], 'Replay SHA mismatch')
@@ -160,7 +170,34 @@ def prepare(manifest_path):
     fingerprint = sha(canonical(spec).encode())
     inventory.sort()
     key = sha(canonical([replay_sha, fingerprint, inventory]).encode())
+    if manifest.get('publication', {}).get('format') == 'bw-forge-publication-v1':
+        require(root.name == key, 'Published analysis key mismatch')
     return manifest, raw, len(raw_bytes), bundles, spec, fingerprint, inventory, key
+
+
+def register_publication(db, aid, manifest_path, manifest, raw, inventory):
+    """Locations are additive metadata, never part of logical analysis identity."""
+    if manifest.get('publication', {}).get('format') != 'bw-forge-publication-v1':
+        return
+    # execute individual DDL statements: executescript would commit the active transaction.
+    for statement in Path(__file__).with_name('publication.sql').read_text().split(';'):
+        if statement.strip():
+            db.execute(statement)
+    root = Path(manifest_path).resolve().parent
+    db.execute('INSERT INTO analysis_publications VALUES (?,?,?) ON CONFLICT DO NOTHING',
+               (aid,str(Path(manifest_path).resolve()),str(raw)))
+    players = {str(p['owner']): p for p in manifest['players']}
+    for key, _, _ in inventory:
+        member = None
+        if key == 'replay':
+            path = raw
+        elif key == 'manifest/analysis':
+            path = Path(manifest_path).resolve()
+        else:
+            _, owner, member = key.split('/', 2)
+            path = local_path(root, players[owner]['legacy_zip_path'])
+        db.execute('INSERT INTO analysis_artifact_locations VALUES (?,?,?,?) ON CONFLICT DO NOTHING',
+                   (aid,key,str(path),member))
 
 
 def initialize(db):
@@ -194,7 +231,11 @@ def ingest_replay_analysis(db_path, replay_manifest_path):
         existing = db.execute('SELECT analysis_id,status FROM analysis_runs WHERE analysis_key=?', (key,)).fetchone()
         if existing:
             require(existing['status'] == 'indexed', 'Existing analysis is not indexed')
-            db.rollback()
+            if manifest.get('publication', {}).get('format') == 'bw-forge-publication-v1':
+                register_publication(db,existing['analysis_id'],replay_manifest_path,manifest,raw,inventory)
+                db.commit()
+            else:
+                db.rollback()
             return {'status': 'no-op', 'analysisId': existing['analysis_id'], 'analysisKey': key,
                     'replaySha256': manifest['replay_id']}
         now = int(time.time()*1000)
@@ -267,6 +308,7 @@ def ingest_replay_analysis(db_path, replay_manifest_path):
             totals['supply_changes'] += len(expected_supply)
             totals['deaths'] += len(b['deaths'])
         db.executemany('INSERT INTO analysis_artifacts VALUES (?,?,?,?)', [(aid,*entry) for entry in inventory])
+        register_publication(db,aid,replay_manifest_path,manifest,raw,inventory)
         require(not db.execute('PRAGMA foreign_key_check').fetchall(), 'Foreign key check failed')
         require(db.execute('PRAGMA integrity_check').fetchone()[0] == 'ok', 'Integrity check failed')
         observed_end = max((s['frame'] for b in bundles for stream in ('economy', 'unit_counts', 'supply', 'deaths')
@@ -287,6 +329,14 @@ def ingest_replay_analysis(db_path, replay_manifest_path):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('replay_manifest_path')
-    parser.add_argument('--db', required=True)
+    parser.add_argument('--db')
+    parser.add_argument('--prepare', action='store_true')
     args = parser.parse_args()
-    print(canonical(ingest_replay_analysis(args.db, args.replay_manifest_path)))
+    if args.prepare:
+        manifest, _, _, _, _, fingerprint, inventory, key = prepare(args.replay_manifest_path)
+        print(canonical({'replaySha256': manifest['replay_id'], 'analysisKey': key,
+                         'specificationFingerprint': fingerprint, 'artifacts': inventory}))
+    else:
+        if not args.db:
+            parser.error('--db is required for ingestion')
+        print(canonical(ingest_replay_analysis(args.db, args.replay_manifest_path)))
