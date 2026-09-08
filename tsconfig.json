@@ -18,6 +18,7 @@
   "include": [
     "apps/cli/src/**/*.ts",
     "third_party/bwsim/dist/**/*.d.ts",
-    "packages/schemas/src/**/*.ts"
+    "packages/schemas/src/**/*.ts",
+    "packages/corpus-store/src/**/*.ts"
   ]
 }

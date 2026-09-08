@@ -6,6 +6,7 @@ import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { homedir, tmpdir } from "node:os";
+import { ingestReplayAnalysis } from "../../../packages/corpus-store/src/index.js";
 import { assertSafeAnalyzeOutputRoot } from "./analyze-output-path.js";
 import { buildCommandSpawnOptions } from "./child-process.js";
 import type {
@@ -46,6 +47,13 @@ async function main(): Promise<void> {
     case "ingest":
       await ingestCommand(args);
       return;
+    case "ingest-v2": {
+      if (!args[0] || args[0].startsWith("--")) throw new Error("Missing replay manifest path.");
+      console.log(JSON.stringify(await ingestReplayAnalysis({
+        replayManifestPath: args[0], dbPath: requireOption(args.slice(1), "--db")
+      }), null, 2));
+      return;
+    }
     case "mcp":
       await mcpCommand(args);
       return;
@@ -638,6 +646,7 @@ function printHelp(): void {
 Commands:
   bw-forge analyze <replay-or-dir> --out <dir> [--keep-snapshots] [--snapshot-dir <path>] [--bwsim-dir <path>]
   bw-forge ingest <analysis-dir> --db <path>
+  bw-forge ingest-v2 <replay-manifest.json> --db <path>
   bw-forge mcp --db <path> [--transport stdio|http] [--host <host>] [--port <port>] [--path <path>]
 
 Environment overrides:

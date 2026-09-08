@@ -1,0 +1,58 @@
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+
+export interface IngestReplayAnalysisOptions {
+  dbPath: string;
+  replayManifestPath: string;
+}
+
+export interface IngestReplayAnalysisResult {
+  status: "indexed" | "no-op";
+  analysisId: number;
+  analysisKey: string;
+  replaySha256: string;
+  participations?: number;
+  validation?: Record<string, number>;
+  integrity?: "ok";
+  foreignKeyViolations?: number;
+}
+
+/** Ingest exactly one existing replay manifest; never discover or migrate a v1 corpus.
+ * Requires Python >=3.11 with SQLite >=3.37. BW_FORGE_PYTHON selects the runtime.
+ */
+export async function ingestReplayAnalysis(options: IngestReplayAnalysisOptions): Promise<IngestReplayAnalysisResult> {
+  const script = fileURLToPath(new URL("../python/store.py", import.meta.url));
+  const configured = process.env.BW_FORGE_PYTHON;
+  const candidates = configured ? [[configured]] : process.platform === "win32"
+    ? [["py", "-3"], ["python"], ["python3"]] : [["python3"], ["python"]];
+  for (const [index, candidate] of candidates.entries()) {
+    try {
+      return await new Promise<IngestReplayAnalysisResult>((resolvePromise, reject) => {
+        const env = { ...process.env };
+        delete env.ELECTRON_RUN_AS_NODE;
+        const child = spawn(candidate[0], [...candidate.slice(1), script,
+          resolve(options.replayManifestPath), "--db", resolve(options.dbPath)], {
+          windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env
+        });
+        let stdout = "";
+        let stderr = "";
+        child.stdout.setEncoding("utf8").on("data", chunk => { stdout += chunk; });
+        child.stderr.setEncoding("utf8").on("data", chunk => { stderr = (stderr + chunk).slice(-16384); });
+        child.on("error", reject);
+        child.on("close", code => {
+          if (code !== 0) {
+            reject(new Error(`Corpus v2 ingestion failed (${code}): ${stderr.trim()}`));
+            return;
+          }
+          try { resolvePromise(JSON.parse(stdout) as IngestReplayAnalysisResult); }
+          catch { reject(new Error(`Invalid corpus-store response: ${stdout.slice(0, 500)}`)); }
+        });
+      });
+    } catch (error) {
+      // Retry only a missing executable; never rerun an importer that actually failed.
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT" || index === candidates.length - 1) throw error;
+    }
+  }
+  throw new Error("No Python runtime available; set BW_FORGE_PYTHON.");
+}

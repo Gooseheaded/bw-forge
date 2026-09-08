@@ -10,7 +10,8 @@
   "workspaces": [
     "apps/cli",
     "apps/desktop",
-    "packages/schemas"
+    "packages/schemas",
+    "packages/corpus-store"
   ],
   "scripts": {
     "bw-forge": "bun ./apps/cli/src/main.ts",
@@ -22,7 +23,7 @@
     "desktop:typecheck": "bun run --cwd apps/desktop typecheck",
     "desktop:build": "bun run --cwd apps/desktop build",
     "desktop:pack:win": "bun run --cwd apps/desktop pack:win",
-    "test": "bun test apps/cli/src && bun run desktop:test && npm --prefix packages/corpus-query test",
+    "test": "bun test apps/cli/src packages/corpus-store/src && bun run desktop:test && npm --prefix packages/corpus-query test",
     "typecheck": "bunx tsc -p tsconfig.json --noEmit && bun run desktop:typecheck && npm --prefix packages/corpus-query run check"
   },
   "devDependencies": {
