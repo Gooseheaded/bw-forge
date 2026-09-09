@@ -10,6 +10,7 @@ import { ingestReplayAnalysis } from "../../../packages/corpus-store/src/index.j
 import { analyzeAndPublishReplay } from "../../../packages/corpus-store/src/publication.js";
 import { assertSafeAnalyzeOutputRoot } from "./analyze-output-path.js";
 import { buildCommandSpawnOptions } from "./child-process.js";
+import { corpusQueryRuntimeArgs } from "./corpus-query-runtime.js";
 import type {
   BwForgeCorpusManifest,
   BwForgeReplayManifest,
@@ -31,12 +32,7 @@ const PATHS = {
   bwsimDir: resolve(REPO_ROOT, "third_party", "bwsim"),
   bwsimExporterSource: resolve(REPO_ROOT, "apps", "cli", "src", "bwsim-exporter.ts"),
   bwsimExporterBuilt: resolve(REPO_ROOT, "apps", "cli", "src", "bwsim-exporter.js"),
-  corpusQueryDir: resolve(REPO_ROOT, "packages", "corpus-query"),
-  corpusQueryCliDist: resolve(REPO_ROOT, "packages", "corpus-query", "dist", "cli.cjs"),
-  corpusQueryMcpDist: resolve(REPO_ROOT, "packages", "corpus-query", "dist", "mcp", "server.cjs"),
-  corpusQueryCli: resolve(REPO_ROOT, "packages", "corpus-query", "src", "cli.ts"),
-  corpusQueryMcp: resolve(REPO_ROOT, "packages", "corpus-query", "src", "mcp", "server.ts"),
-  corpusQueryTsx: resolve(REPO_ROOT, "packages", "corpus-query", "node_modules", "tsx", "dist", "cli.mjs")
+  corpusQueryDir: resolve(REPO_ROOT, "packages", "corpus-query")
 } as const;
 
 async function main(): Promise<void> {
@@ -105,10 +101,8 @@ async function ingestCommand(argv: string[]): Promise<void> {
   await mkdir(dirname(resolveOptionPath(options.db)), { recursive: true });
   await runCorpusQuerySubcommand({
     entrypointName: "CLI",
-    distEntrypoint: PATHS.corpusQueryCliDist,
-    sourceEntrypoint: PATHS.corpusQueryCli,
-    args: ["ingest", resolveOptionPath(options.analysisDir), "--db", resolveOptionPath(options.db)],
-    preferSource: shouldPreferSourceRuntime()
+    entrypoint: "cli",
+    args: ["ingest", resolveOptionPath(options.analysisDir), "--db", resolveOptionPath(options.db)]
   });
 }
 
@@ -120,8 +114,7 @@ async function mcpCommand(argv: string[]): Promise<void> {
   };
   await runCorpusQuerySubcommand({
     entrypointName: "MCP server",
-    distEntrypoint: PATHS.corpusQueryMcpDist,
-    sourceEntrypoint: PATHS.corpusQueryMcp,
+    entrypoint: "mcp/server",
     args: [
       "--db",
       resolveOptionPath(options.db),
@@ -131,7 +124,6 @@ async function mcpCommand(argv: string[]): Promise<void> {
         ? ["--host", options.host, "--port", String(options.port), "--path", options.path]
         : [])
     ],
-    preferSource: shouldPreferSourceRuntime(),
     env
   });
 }
@@ -552,10 +544,8 @@ async function runCommandWithFallbacks(commands: Array<{
 
 async function runCorpusQuerySubcommand(params: {
   entrypointName: string;
-  distEntrypoint: string;
-  sourceEntrypoint: string;
+  entrypoint: "cli" | "mcp/server";
   args: string[];
-  preferSource?: boolean;
   env?: NodeJS.ProcessEnv;
 }): Promise<void> {
   const env = {
@@ -563,30 +553,12 @@ async function runCorpusQuerySubcommand(params: {
     ...(params.env ?? {}),
     NODE_NO_WARNINGS: (params.env ?? process.env).NODE_NO_WARNINGS ?? "1"
   };
-  if (!params.preferSource && (await fileExists(params.distEntrypoint))) {
-    await runCommand({
-      command: resolveNodeCommand(),
-      args: [params.distEntrypoint, ...params.args],
-      cwd: PATHS.corpusQueryDir,
-      env
-    });
-    return;
-  }
-
-  await assertFileExists(
-    PATHS.corpusQueryTsx,
-    `Missing imported corpus-query ${params.entrypointName} runtime. Expected either dist output or tsx under packages/corpus-query/node_modules.`
-  );
   await runCommand({
     command: resolveNodeCommand(),
-    args: [PATHS.corpusQueryTsx, params.sourceEntrypoint, ...params.args],
+    args: [...await corpusQueryRuntimeArgs(PATHS.corpusQueryDir, params.entrypoint, params.entrypointName), ...params.args],
     cwd: PATHS.corpusQueryDir,
     env
   });
-}
-
-function shouldPreferSourceRuntime(): boolean {
-  return process.env.BW_FORGE_RUNTIME_KIND !== "packaged";
 }
 
 function withoutElectronRunAsNode(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
