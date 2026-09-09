@@ -2,7 +2,10 @@ import type { QueryExample } from "./queryExamples.js";
 import type { SchemaJoinHint, SchemaNotesResult } from "./schemaDescription.js";
 
 export const V2_PURPOSES:Record<string,string>={
-  corpus_migrations:"Additive v2 revisions; major markers stay 2. Revision 1 adds the user-curated identity overlay.",
+  corpus_migrations:"Additive v2 revisions; major markers stay 2. Revision 1 adds identities and revision 2 adds analysis jobs.",
+  replay_sources:"Operational provenance for canonically registered replay bytes; multiple source references may identify one replay.",
+  analysis_jobs:"Persistent queued/running/succeeded/failed analysis work with priority, leases, attempts and optional indexed result. It is not the current-analysis pointer.",
+  analysis_job_attempts:"Compact claim history, including failed work and workers abandoned through lease expiry.",
   canonical_players:"User-curated canonical identities. player_key is durable; display_name can change.",
   player_aliases:"Exact (name_namespace, observed_name_key) mapping to player_id, normalized with corpus_metadata.name_normalizer. Never infer aliases.",
   participation_identity_overrides:"Explicit identity override for a participation; takes precedence over aliases. Configure by replay SHA256 + owner.",

@@ -134,18 +134,18 @@ removed; failed staging is removed unless `keepFailedWork: true` or CLI
 `--keep-failed-work` is set. Cleanup is confined to this invocation's resolved
 work directory. Canonical raw replays may remain after failure for reuse.
 
-This is a local, single-process publication API. Callers must serialize calls for
-a corpus root; concurrent publication, crash-durable fsync, queues, leases and
-background services are outside this milestone. Tests use `createReplayPublisher`
-to inject an analyzer or failure while exercising real filesystem publication
-and the real v2 importer.
+Publication remains local to one host. The analysis-job queue below prevents two
+active jobs for one replay, while independent replay jobs may run in separate
+worker processes. Tests use `createReplayPublisher` to inject an analyzer or
+failure while exercising real filesystem publication and the real v2 importer.
 
 ## Identity catalog administration
 
 The additive identity schema is managed by `python/migrations.py` and
 `python/identities.sql`, with transactional revisions in `corpus_migrations`.
 Both Corpus major-version markers remain 2; v1 is never migrated. Fresh databases
-receive revision 1. Existing v2 databases migrate on `identities apply` or ingest.
+receive all current revisions. Existing v2 databases migrate on an administrative
+write such as `identities apply`, queue use, or ingest.
 
 `applyIdentities(dbPath, configPath)` and `exportIdentities(dbPath)` expose the
 same administration API as `bw-forge identities apply <config.json> --db <path>`
@@ -153,3 +153,94 @@ and `bw-forge identities export --db <path>`. The versioned JSON catalog is
 validated in full and replaced atomically; raw evidence and telemetry are untouched.
 See [the query identity documentation](../corpus-query/README.md#curated-corpus-v2-identities-and-scopes)
 for the full format, precedence, namespace normalization and appliance examples.
+
+## Persistent analysis jobs
+
+Additive migration revision 2 adds `replay_sources`, `analysis_jobs`, and
+`analysis_job_attempts`. The major markers remain `PRAGMA user_version=2` and
+`corpus_metadata.schema_version=2`. Migration is transactional and idempotent;
+ordinary read-only Corpus v2 queries do not run it. A pre-revision-2 database
+therefore remains queryable until a job command or another Corpus write installs
+the queue tables.
+
+Enqueue first hashes the source replay, copies it to a verified temporary file
+beside its canonical destination, and atomically links that file into
+`replays/<sha-prefix>/<sha>.rep` with no replacement. This is the portable
+same-filesystem no-replace operation used instead of `rename`, which may overwrite
+an existing destination. Existing managed bytes are hashed and reused; different
+content is never overwritten. Only after registration does a short SQLite
+transaction record the replay, its `manual` source reference, and queued work.
+The source filename never controls a managed path, and the original source may be
+deleted as soon as enqueue returns.
+
+```sh
+bw-forge jobs enqueue game.rep \
+  --corpus-root /srv/bw-forge/corpus \
+  --db /srv/bw-forge/corpus/db/corpus.sqlite
+
+bw-forge worker run \
+  --corpus-root /srv/bw-forge/corpus \
+  --db /srv/bw-forge/corpus/db/corpus.sqlite
+
+bw-forge jobs list \
+  --db /srv/bw-forge/corpus/db/corpus.sqlite \
+  --status failed
+```
+
+`jobs enqueue` returns the existing queued/running job for duplicate active work.
+An already indexed replay returns `already-indexed`; `--force` creates later
+re-analysis work while the partial unique index still permits only one active job
+per replay. Different source paths for identical bytes add provenance rows without
+another replay or managed copy. `--priority` is an integer; higher values claim
+first, followed by the oldest available job.
+
+`worker once` claims at most one job and exits successfully with `idle`,
+`succeeded`, or `failed`. `worker run` polls about once per second. It creates one
+process-lifetime worker ID (`hostname:pid:random`) unless `--worker-id` is supplied.
+SIGINT/SIGTERM stops future claims and polling; an active analysis is allowed to
+finish with heartbeats continuing, then the process exits. Default concurrency is
+one execution slot per process; run independent processes for more slots.
+
+Claims use a short `BEGIN IMMEDIATE` transaction, increment the attempt count,
+assign the worker, and commit a lease before analysis starts. Heartbeats renew the
+lease in separate short transactions. Heavy bwsim/reducer work never holds a queue
+transaction. A current lease cannot be stolen. An expired lease is reclaimable
+until the finite attempt limit; exhausted jobs become `failed`. Each claim is kept
+in `analysis_job_attempts`, including abandoned expired leases and structured
+errors. Explicit analyzer failures fail immediately rather than spinning.
+
+The worker calls `analyzeAndPublishReplay()` directly against the canonical replay.
+It never shells out to `analyze-v2` or implements another artifact path. Execution
+is at least once: if publication commits and the worker disappears before success
+bookkeeping, the lease expires, another worker reruns, immutable publication is
+verified/reused, and the same job is marked succeeded. A heartbeat/bookkeeping
+loss deliberately leaves the job running for this recovery path.
+
+```sh
+bw-forge jobs show <job-key> --db /srv/bw-forge/corpus/db/corpus.sqlite
+bw-forge jobs retry <job-key> --db /srv/bw-forge/corpus/db/corpus.sqlite
+bw-forge worker once --corpus-root /srv/bw-forge/corpus \
+  --db /srv/bw-forge/corpus/db/corpus.sqlite
+```
+
+Retry moves an explicit failed job back to queued while preserving attempts and
+extending its attempt allowance when needed. Succeeded and failed jobs remain for
+inspection. `result_analysis_id` links success to the indexed analysis, but
+`current_analyses` remains the sole accepted-analysis pointer; queue status is only
+operational history.
+
+The database may be outside the corpus root, matching existing publication API
+behavior, but it cannot overlap `replays`, `analyses`, or `work`. At execution the
+worker requires the SHA-derived canonical replay path under the supplied root;
+this is the reliable root/DB consistency check available today. There is no remote
+submission, cancellation, watcher, downloader, scheduler, systemd unit, or web UI.
+
+Future input integrations must use the same boundary:
+
+```text
+watcher / downloader
+        -> canonical replay registration + jobs enqueue
+        -> persistent analysis_jobs
+        -> leased worker
+        -> analyzeAndPublishReplay
+```

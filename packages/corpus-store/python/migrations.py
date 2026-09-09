@@ -5,7 +5,7 @@ import time
 
 def require_v2(db):
     if db.execute('PRAGMA user_version').fetchone()[0] != 2:
-        raise ValueError('Identity administration requires Corpus v2; v1 is never migrated')
+        raise ValueError('Additive Corpus administration requires Corpus v2; v1 is never migrated')
     row = db.execute('SELECT schema_version,purpose,name_normalizer FROM corpus_metadata WHERE singleton=1').fetchone()
     if not row or tuple(row[:2]) != (2, 'corpus-store'):
         raise ValueError('Invalid Corpus v2 metadata')
@@ -25,6 +25,11 @@ def migrate_in_transaction(db):
             if statement.strip():
                 db.execute(statement)
         db.execute('INSERT INTO corpus_migrations VALUES (1,?,?)', ('player-identities-v1', int(time.time()*1000)))
+    if not db.execute('SELECT 1 FROM corpus_migrations WHERE revision=2').fetchone():
+        for statement in Path(__file__).with_name('jobs.sql').read_text().split(';'):
+            if statement.strip():
+                db.execute(statement)
+        db.execute('INSERT INTO corpus_migrations VALUES (2,?,?)', ('analysis-jobs-v1', int(time.time()*1000)))
 
 
 def migrate(db):

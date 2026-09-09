@@ -157,7 +157,7 @@ test("unresolved identical spellings in separate namespaces remain distinct and 
 test("pre-identity v2 remains readable and exposes an empty catalog without migration",async()=>{
   await using f=await fixture();
   const {db}=await openDatabase(f.dbPath);
-  for(const table of ["scope_players","scope_groups","scope_replays","player_group_members","participation_identity_overrides","player_aliases","query_scopes","player_groups","canonical_players","corpus_migrations"])db.run(`DROP TABLE ${table}`);
+  for(const table of ["analysis_job_attempts","analysis_jobs","replay_sources","scope_players","scope_groups","scope_replays","player_group_members","participation_identity_overrides","player_aliases","query_scopes","player_groups","canonical_players","corpus_migrations"])db.run(`DROP TABLE ${table}`);
   db.close();
   const bytes=await readFile(f.dbPath);
   assert.equal(query.getEconomyAtOrBefore(f.db,{player:"G00se",at:.042}).length,1);

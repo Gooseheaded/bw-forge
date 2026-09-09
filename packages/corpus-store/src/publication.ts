@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createReadStream, constants } from "node:fs";
 import { copyFile, link, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, rmdir, unlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -74,6 +74,52 @@ async function checksum(path: string): Promise<{ sha256: string; byteSize: numbe
   let byteSize = 0;
   for await (const chunk of createReadStream(path)) { digest.update(chunk); byteSize += chunk.length; }
   return { sha256: digest.digest("hex"), byteSize };
+}
+
+export interface RegisteredCanonicalReplay {
+  replaySha256: string;
+  byteSize: number;
+  canonicalReplayPath: string;
+  canonicalRelativePath: string;
+  reused: boolean;
+}
+
+/** Register raw bytes without trusting the source filename. A verified temp file
+ * is atomically linked into place, providing stronger no-replace behavior than
+ * rename on platforms where rename replaces an existing destination.
+ */
+export async function registerCanonicalReplay(options: {
+  replayPath: string; corpusRoot: string; dbPath?: string;
+}): Promise<RegisteredCanonicalReplay> {
+  const requestedRoot=resolve(options.corpusRoot);
+  await mkdir(requestedRoot,{recursive:true});
+  const root=await realpath(requestedRoot);
+  await directory(root,"work");await directory(root,"analyses");await directory(root,"replays");await directory(root,"db");
+  const dbPath=resolve(options.dbPath??join(root,"db","corpus.sqlite"));
+  for(const name of ["analyses","replays","work"]){const reserved=join(root,name);
+    if(dbPath===reserved||contained(reserved,dbPath))throw new Error("Database path overlaps managed artifacts/work");}
+  const input=resolve(options.replayPath), inputHash=await checksum(input);
+  const rawDir=await directory(root,`replays/${inputHash.sha256.slice(0,2)}`);
+  const target=join(rawDir,`${inputHash.sha256}.rep`);
+  if(await info(target)){
+    if(JSON.stringify(await checksum(target))!==JSON.stringify(inputHash))throw new Error("Canonical replay content mismatch");
+    return {replaySha256:inputHash.sha256,byteSize:inputHash.byteSize,canonicalReplayPath:target,
+      canonicalRelativePath:relative(root,target).split(sep).join("/"),reused:true};
+  }
+  const temporary=join(rawDir,`.${inputHash.sha256}.${randomUUID()}.tmp`);
+  let reused=false;
+  try {
+    await copyFile(input,temporary,constants.COPYFILE_EXCL);
+    if(JSON.stringify(await checksum(temporary))!==JSON.stringify(inputHash))throw new Error("Replay changed while copying");
+    try{await link(temporary,target);}catch(error){
+      if((error as NodeJS.ErrnoException).code!=="EEXIST")throw error;reused=true;
+    }
+    if(JSON.stringify(await checksum(target))!==JSON.stringify(inputHash))throw new Error("Canonical replay content mismatch");
+  } finally {
+    try{await unlink(temporary);}catch(error){if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;}
+  }
+  return {replaySha256:inputHash.sha256,byteSize:inputHash.byteSize,canonicalReplayPath:target,
+    canonicalRelativePath:relative(root,target).split(sep).join("/"),reused};
 }
 
 async function fileInventory(root: string): Promise<FileChecksum[]> {

@@ -37,7 +37,7 @@ export async function ingestReplayAnalysis(options: IngestReplayAnalysisOptions)
   return runStore([resolve(options.replayManifestPath), "--db", resolve(options.dbPath)]);
 }
 
-async function runStore<T>(args: string[]): Promise<T> {
+export async function runStore<T>(args: string[]): Promise<T> {
   const script = fileURLToPath(new URL("../python/store.py", import.meta.url));
   const configured = process.env.BW_FORGE_PYTHON;
   const candidates = configured ? [[configured]] : process.platform === "win32"

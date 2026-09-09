@@ -644,9 +644,12 @@ Read-only catalog tools are `list_canonical_players`, `get_player_identity`,
 `list_player_groups`, and `list_scopes`. They reject v1 with structured
 `NOT_SUPPORTED_FOR_CORPUS_V1` errors. Existing v1 query behavior is unchanged.
 MCP provides no catalog writes. Read-only SQL retains all existing safety limits.
-Compatibility resources also accept identity/group/scope selectors.
+Compatibility resources also accept identity/group/scope selectors. Queue tables
+are operational metadata; `current_analyses` remains the accepted-analysis pointer,
+and MCP startup never installs a missing queue revision.
 
-`corpus_migrations` records additive revision 1. Major markers remain
+`corpus_migrations` records additive revisions (identity revision 1 and analysis-job
+revision 2). Major markers remain
 `PRAGMA user_version=2` and `corpus_metadata.schema_version=2`. Fresh v2 stores get
 the current revision. Existing v2 stores migrate transactionally on identity apply
 (or ingestion), without rebuilding. Before migration they still support raw-name

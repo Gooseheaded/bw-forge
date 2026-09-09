@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 import { homedir, tmpdir } from "node:os";
 import { ingestReplayAnalysis, applyIdentities, exportIdentities } from "../../../packages/corpus-store/src/index.js";
 import { analyzeAndPublishReplay } from "../../../packages/corpus-store/src/publication.js";
+import { createAnalysisWorker, createWorkerId, enqueueReplay, listAnalysisJobs, retryAnalysisJob,
+  showAnalysisJob, type JobStatus } from "../../../packages/corpus-store/src/jobs.js";
 import { assertSafeAnalyzeOutputRoot } from "./analyze-output-path.js";
 import { buildCommandSpawnOptions } from "./child-process.js";
 import { corpusQueryRuntimeArgs } from "./corpus-query-runtime.js";
@@ -38,6 +40,37 @@ const PATHS = {
 async function main(): Promise<void> {
   const [, , command, ...args] = process.argv;
   switch (command) {
+    case "jobs": {
+      const operation=args[0], rest=args.slice(1), db=resolveOptionPath(requireOption(rest,"--db"));
+      if(operation==="enqueue"){
+        if(!rest[0]||rest[0].startsWith("--"))throw new Error("Missing replay path.");
+        console.log(JSON.stringify(await enqueueReplay({replayPath:resolveOptionPath(rest[0]),
+          corpusRoot:resolveOptionPath(requireOption(rest,"--corpus-root")),dbPath:db,
+          priority:integerOption(rest,"--priority",0),force:hasFlag(rest,"--force")}),null,2));
+      }else if(operation==="list"){
+        const status=optionalOption(rest,"--status");
+        if(status&&!(["queued","running","succeeded","failed"] as string[]).includes(status))throw new Error(`Invalid --status: ${status}`);
+        console.log(JSON.stringify(await listAnalysisJobs(db,{...(status?{status:status as JobStatus}:{}),limit:integerOption(rest,"--limit",100)}),null,2));
+      }else if(operation==="show"&&rest[0]&&!rest[0].startsWith("--"))console.log(JSON.stringify(await showAnalysisJob(db,rest[0]),null,2));
+      else if(operation==="retry"&&rest[0]&&!rest[0].startsWith("--"))console.log(JSON.stringify(await retryAnalysisJob(db,rest[0]),null,2));
+      else throw new Error("Usage: bw-forge jobs enqueue|list|show|retry ...");
+      return;
+    }
+    case "worker": {
+      const operation=args[0],rest=args.slice(1);
+      if(operation!=="once"&&operation!=="run")throw new Error("Usage: bw-forge worker once|run --corpus-root <root> --db <path>");
+      const options={corpusRoot:resolveOptionPath(requireOption(rest,"--corpus-root")),dbPath:resolveOptionPath(requireOption(rest,"--db")),
+        workerId:optionalOption(rest,"--worker-id")??createWorkerId()};
+      const worker=createAnalysisWorker();
+      if(operation==="once")console.log(JSON.stringify(await worker.once(options),null,2));
+      else{
+        const controller=new AbortController();
+        const stop=()=>controller.abort();process.once("SIGINT",stop);process.once("SIGTERM",stop);
+        try{console.log(JSON.stringify(await worker.run({...options,pollMs:integerOption(rest,"--poll-ms",1000),signal:controller.signal}),null,2));}
+        finally{process.removeListener("SIGINT",stop);process.removeListener("SIGTERM",stop);}
+      }
+      return;
+    }
     case "identities": {
       const db = requireOption(args, "--db");
       if (args[0] === "apply" && args[1] && !args[1].startsWith("--")) {
@@ -496,6 +529,11 @@ function hasFlag(argv: string[], name: string): boolean {
   return argv.includes(name);
 }
 
+function integerOption(argv:string[],name:string,fallback:number):number{
+  const value=Number(optionalOption(argv,name)??fallback);
+  if(!Number.isSafeInteger(value))throw new Error(`${name} must be an integer`);return value;
+}
+
 function resolveOptionPath(pathValue: string): string {
   return isAbsolute(pathValue) ? pathValue : resolve(process.cwd(), pathValue);
 }
@@ -640,6 +678,12 @@ Commands:
   bw-forge analyze-v2 <replay.rep> --corpus-root <dir> [--db <path>] [--keep-failed-work]
   bw-forge identities apply <config.json> --db <path>
   bw-forge identities export --db <path>
+  bw-forge jobs enqueue <replay.rep> --corpus-root <root> --db <path> [--priority <n>] [--force]
+  bw-forge jobs list --db <path> [--status queued|running|succeeded|failed] [--limit <n>]
+  bw-forge jobs show <job-key> --db <path>
+  bw-forge jobs retry <job-key> --db <path>
+  bw-forge worker once --corpus-root <root> --db <path> [--worker-id <id>]
+  bw-forge worker run --corpus-root <root> --db <path> [--worker-id <id>] [--poll-ms <ms>]
   bw-forge mcp --db <path> [--transport stdio|http] [--host <host>] [--port <port>] [--path <path>]
 
 Environment overrides:

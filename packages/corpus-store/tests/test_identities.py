@@ -7,7 +7,8 @@ from identities import apply_catalog, export_catalog
 from migrations import migrate
 
 IDENTITY_TABLES = ('scope_players','scope_groups','scope_replays','player_group_members',
-                   'participation_identity_overrides','player_aliases','query_scopes','player_groups','canonical_players','corpus_migrations')
+                   'participation_identity_overrides','player_aliases','query_scopes','player_groups','canonical_players',
+                   'analysis_job_attempts','analysis_jobs','replay_sources','corpus_migrations')
 
 
 class IdentityTests(unittest.TestCase):

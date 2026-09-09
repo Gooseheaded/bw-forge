@@ -332,7 +332,6 @@ def ingest_replay_analysis(db_path, replay_manifest_path):
 
 
 if __name__ == '__main__':
-    import sys
     if len(sys.argv) > 1 and sys.argv[1] == 'identities':
         from identities import administer
         parser = argparse.ArgumentParser(description='Corpus v2 identity catalog')
@@ -340,6 +339,15 @@ if __name__ == '__main__':
         parser.add_argument('--config')
         args = parser.parse_args(sys.argv[2:])
         print(canonical(administer(args.db, args.config)))
+        sys.exit(0)
+    if len(sys.argv) > 1 and sys.argv[1] == 'jobs':
+        from jobs import administer
+        parser = argparse.ArgumentParser(description='Corpus v2 analysis jobs')
+        parser.add_argument('operation')
+        parser.add_argument('--db', required=True)
+        parser.add_argument('--payload', default='{}')
+        args = parser.parse_args(sys.argv[2:])
+        print(canonical(administer(args.db,args.operation,json.loads(args.payload),initialize)))
         sys.exit(0)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('replay_manifest_path')

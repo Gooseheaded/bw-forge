@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./publication": "./src/publication.ts"
+    "./publication": "./src/publication.ts",
+    "./jobs": "./src/jobs.ts"
   }
 }
