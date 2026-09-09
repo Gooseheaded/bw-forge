@@ -1,4 +1,5 @@
 import type { Database } from "./sqlite.js";
+import { detectCorpusBackend, sqlRows, requireV1 } from "./backend.js";
 
 export const SCHEMA_VERSION = 1;
 
@@ -14,6 +15,8 @@ const REQUIRED_TABLES = [
 ] as const;
 
 export function ensureSchema(db: Database): void {
+  if (Number(sqlRows(db,"PRAGMA user_version")[0]?.user_version) === 2 ||
+      sqlRows(db,"SELECT 1 FROM sqlite_schema WHERE name='corpus_metadata'").length) requireV1(db,"ingest_corpus");
   db.run(`
     CREATE TABLE IF NOT EXISTS schema_metadata (
       key TEXT PRIMARY KEY,
@@ -114,6 +117,7 @@ export function ensureSchema(db: Database): void {
 }
 
 export function assertCorpusSchema(db: Database): void {
+  if (detectCorpusBackend(db) === "v2") return;
   const statement = db.prepare(
     `SELECT name
      FROM sqlite_master

@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ErrorCode, McpError, ReadResourceRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { Database } from "../db/sqlite.js";
+import { detectCorpusBackend, requireV1Database, type CorpusBackend } from "../db/backend.js";
 import {
   countReplaysWithEventBeforeEvent,
   getEventTimingDistribution
@@ -386,18 +387,21 @@ export function createReplayCorpusMcpServer(): McpServer {
     "server_info",
     {
       description: "Return package/build metadata and the supported MCP tool surface for this server.",
-      inputSchema: {}
+      inputSchema: {db_path:optionalNonEmptyString}
     },
-    async () =>
-      runStructuredTool(async () => ({
-        content: [
-          {
-            type: "text" as const,
-            text: formatServerInfoText(serverInfo)
-          }
-        ],
-        structuredContent: serverInfo as unknown as StructuredContentRecord
-      }))
+    async (args) =>
+      runStructuredTool(async () => {
+        const info = await selectedServerInfo(serverInfo,args.db_path);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: formatServerInfoText(info) + `\nCorpus backend: ${info.corpus_backend ?? "no database selected"}. Supported backends: v1, v2.`
+            }
+          ],
+          structuredContent: info as unknown as StructuredContentRecord
+        };
+      })
   );
 
   server.registerTool(
@@ -435,7 +439,7 @@ export function createReplayCorpusMcpServer(): McpServer {
     },
     async (args) =>
       runStructuredTool(async () => {
-        const result = getSchemaNotes((args.topic ?? "all") as SchemaNotesTopic);
+        const result = getSchemaNotes((args.topic ?? "all") as SchemaNotesTopic, await selectedBackend(args));
         return {
           content: [
             {
@@ -456,7 +460,7 @@ export function createReplayCorpusMcpServer(): McpServer {
     },
     async (args) =>
       runStructuredTool(async () => {
-        const result = listQueryExamples((args.topic ?? "all") as QueryExampleTopic, args.limit ?? 10);
+        const result = listQueryExamples((args.topic ?? "all") as QueryExampleTopic, args.limit ?? 10, await selectedBackend(args));
         return {
           content: [
             {
@@ -986,6 +990,7 @@ export function createReplayCorpusMcpServer(): McpServer {
     },
     async (args) =>
       runStructuredTool(async () => {
+        await requireV1Database(resolveDbPathForAnalytics(args),"execute_query_plan");
         const result = await executeQueryPlan({
           dbPath: resolveDbPathForAnalytics(args),
           plan: coercePlanArgument(args.plan),
@@ -1017,6 +1022,7 @@ export function createReplayCorpusMcpServer(): McpServer {
     },
     async (args) =>
       runStructuredTool(async () => {
+        await requireV1Database(resolveDbPathForAnalytics(args),"export_query_plan_zip");
         const result = await exportQueryPlanZip({
           dbPath: resolveDbPathForAnalytics(args),
           plan: coercePlanArgument(args.plan) as QueryPlanV1,
@@ -1305,7 +1311,7 @@ async function readCompatibilityResource(
 
   switch (uri.kind) {
     case "server_info":
-      return await runResourceQuery(uri, async () => serverInfo as unknown as ResourcePayload);
+      return await runResourceQuery(uri, async () => await selectedServerInfo(serverInfo, getOptionalStringQueryParam(uri,"db_path")) as unknown as ResourcePayload);
     case "find_replays":
       return await runResourceQuery(uri, async () => {
         const dbPath = resolveResourceDbPath(uri);
@@ -1526,6 +1532,7 @@ async function runToolQuery(
 
     const { db } = await openDatabase(resolvedPath, { readOnly: true, timeoutMs: 3000 });
     try {
+      db.run("BEGIN");
       assertCorpusSchema(db);
       const results = query(db);
       return {
@@ -1560,6 +1567,7 @@ async function withReadOnlyDb<T>(dbPath: string, query: (db: Database) => T | Pr
 
   const { db } = await openDatabase(resolvedPath, { readOnly: true, timeoutMs: 3000 });
   try {
+    db.run("BEGIN");
     assertCorpusSchema(db);
     return await query(db);
   } finally {
@@ -1680,6 +1688,7 @@ async function executeReadOnlyQuery(
 
   const { db } = await openDatabase(resolvedPath, { readOnly: true, timeoutMs: 3000 });
   try {
+    db.run("BEGIN");
     assertCorpusSchema(db);
     const results = query(db);
     return {
@@ -1840,7 +1849,10 @@ async function runStructuredTool<T extends ToolPayload | IngestCorpusPayload | E
       ],
       structuredContent: {
         error: {
-          message
+          message,
+          ...((error as {code?:unknown})?.code === "NOT_SUPPORTED_FOR_CORPUS_V2" ? {
+            code:"NOT_SUPPORTED_FOR_CORPUS_V2",backend:"v2"
+          } : {})
         }
       } as StructuredContentRecord,
       isError: true
@@ -1857,6 +1869,22 @@ function coercePlanArgument(plan: unknown): unknown {
     return JSON.parse(plan);
   } catch (error) {
     throw new Error(`Invalid plan JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+async function selectedBackend(args: {db_path?: string | undefined}): Promise<CorpusBackend> {
+  const path=args.db_path??process.env.BW_REPLAY_DB_PATH??(existsSync(DEFAULT_RESOURCE_DB_FILENAME)?DEFAULT_RESOURCE_DB_FILENAME:undefined);
+  return path ? withReadOnlyDb(path,detectCorpusBackend) : "v1";
+}
+
+async function selectedServerInfo(base:ReturnType<typeof loadServerInfo>, explicitPath?:string) {
+  const path=explicitPath??process.env.BW_REPLAY_DB_PATH??(existsSync(DEFAULT_RESOURCE_DB_FILENAME)?DEFAULT_RESOURCE_DB_FILENAME:undefined);
+  try {
+    const backend=path ? await selectedBackend({db_path:path}) : null;
+    return {...base,corpus_backend:backend,supported_backends:["v1","v2"],
+      v1_only_tools:["ingest_corpus","execute_query_plan","export_query_plan_zip"]};
+  } catch(error) {
+    return {...base,corpus_backend:null,supported_backends:["v1","v2"],database_error:error instanceof Error?error.message:String(error)};
   }
 }
 

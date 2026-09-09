@@ -1,3 +1,5 @@
+import type { CorpusBackend } from "../db/backend.js";
+import { V2_EXAMPLES } from "./v2Guidance.js";
 export type QueryExampleTopic =
   | "all"
   | "players"
@@ -290,7 +292,8 @@ LIMIT 20`,
   }
 ];
 
-export function listQueryExamples(topic: QueryExampleTopic = "all", limit = 10): { topic: QueryExampleTopic; examples: QueryExample[] } {
+export function listQueryExamples(topic: QueryExampleTopic = "all", limit = 10, backend: CorpusBackend = "v1"): { topic: QueryExampleTopic; examples: QueryExample[] } {
+  if(backend==="v2")return {topic,examples:(topic==="all"?V2_EXAMPLES:V2_EXAMPLES.filter(e=>e.topic===topic)).slice(0,Math.max(1,Math.min(limit,50)))};
   const examples =
     topic === "all"
       ? ALL_EXAMPLES

@@ -1,4 +1,6 @@
 import type { Database } from "../db/sqlite.js";
+import { detectCorpusBackend, type CorpusBackend } from "../db/backend.js";
+import { V2_PURPOSES, V2_JOINS, V2_NOTES } from "./v2Guidance.js";
 
 export type SchemaColumnDescription = {
   name: string;
@@ -164,7 +166,7 @@ export function describeSchema(
     const table: SchemaTableDescription = {
       name: tableName,
       type: String(tableRow.type),
-      purpose: TABLE_PURPOSES[tableName] ?? null,
+      purpose: (detectCorpusBackend(db)==="v2" ? V2_PURPOSES : TABLE_PURPOSES)[tableName] ?? null,
       columns
     };
 
@@ -190,11 +192,12 @@ export function describeSchema(
 
   return {
     tables,
-    joinHints: options.includeJoinHints === false ? [] : JOIN_HINTS
+    joinHints: options.includeJoinHints === false ? [] : detectCorpusBackend(db)==="v2" ? V2_JOINS : JOIN_HINTS
   };
 }
 
-export function getSchemaNotes(topic: SchemaNotesTopic = "all"): SchemaNotesResult {
+export function getSchemaNotes(topic: SchemaNotesTopic = "all", backend: CorpusBackend = "v1"): SchemaNotesResult {
+  if(backend==="v2")return {topic,notes:topic==="all"?V2_NOTES:V2_NOTES.filter(n=>n.topic===topic)};
   return {
     topic,
     notes:

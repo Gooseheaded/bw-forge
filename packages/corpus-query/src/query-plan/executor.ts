@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { openDatabase } from "../db/sqlite.js";
 import { assertCorpusSchema } from "../db/schema.js";
+import { requireV1 } from "../db/backend.js";
 import {
   findFirstEvent,
   findNthEvent,
@@ -322,6 +323,7 @@ export async function executeQueryPlan(input: {
   const { db } = await openDatabase(input.dbPath, { readOnly: true, timeoutMs: 3000 });
   try {
     assertCorpusSchema(db);
+    requireV1(db,"execute_query_plan");
     const coarseReplays = findReplays(db, toReplayFilters(plan.replay_set));
     const coarseReplayIds = coarseReplays.map((replay) => replay.replay_id);
     const coarseReplayIdSet = new Set(coarseReplayIds);

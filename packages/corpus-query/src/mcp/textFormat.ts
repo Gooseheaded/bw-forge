@@ -621,6 +621,17 @@ export function formatExecuteReadonlySqlText(result: ExecuteReadonlySqlResult): 
 }
 
 export function formatPrimitiveToolText(toolName: string, payload: PrimitiveToolResult): string {
+  const formatted = formatPrimitiveToolBody(toolName,payload);
+  const rows = payload.results as Array<{availability?:string;coverage_basis?:string;event?:{timing_basis?:string;frame_min?:number;frame_max?:number}|null}>;
+  const notes:string[]=[];
+  const unknown=[...new Set(rows.filter(r=>r.availability && r.availability!=="known").map(r=>r.availability))];
+  if(unknown.length)notes.push(`UNKNOWN availability: ${unknown.join(", ")}. Missing coverage or an out-of-domain unit must not be treated as zero.`);
+  if(rows.some(r=>r.event?.timing_basis))notes.push("Build times are recorded coarse timestamps, not exact frames. See each event's timing_basis and frame_min/frame_max uncertainty bounds.");
+  if(rows.some(r=>r.coverage_basis))notes.push("Deaths are recorded individual events; missing events do not prove complete interval coverage.");
+  return [formatted,...notes].join("\n\n");
+}
+
+function formatPrimitiveToolBody(toolName: string, payload: PrimitiveToolResult): string {
   switch (toolName) {
     case "find_replays":
       return formatPrimitiveReplayList(payload);

@@ -2,6 +2,107 @@
 
 Deterministic Brood War replay-corpus ingest, query, query-plan execution, and MCP serving over `replay-analysis` output.
 
+## Corpus v1 and v2 backends
+
+The same query API, MCP server, tool names, resource templates and stdio/HTTP
+transports support both backends. `db/backend.ts` detects Corpus v2 using
+`PRAGMA user_version=2` **and** the `corpus_metadata` marker
+(`schema_version=2`, `purpose=corpus-store`), then checks its required tables.
+Prototype or malformed v2 databases are rejected rather than guessed to be v1.
+V1 implementations remain in `query/legacyQuery.ts` and `analytics/legacy_*`;
+the public query/analytics modules dispatch beneath the existing MCP handlers.
+There is no migration or production cutover.
+
+```sh
+bw-forge mcp --db /srv/bw-forge/corpus/db/corpus.sqlite
+```
+
+`server_info` reports the selected `corpus_backend`, supported backends and
+v1-only tools. It also accepts an optional `db_path`. With no selected database
+it reports backend capabilities; an unavailable/invalid database is reported
+in `database_error`. Query and resource operations open read-only connections;
+each MCP query holds a read transaction so its multiple lookups share one
+accepted-analysis snapshot. Read-only SQL restrictions and row limits remain
+unchanged.
+
+The following tools support v2:
+
+- Discovery: `get_corpus_summary`, `list_players`, `list_matchups`,
+  `list_build_items`, `search_build_items`, `list_unit_types`, `find_replays`.
+- Primitives: `find_first_event`, `list_build_events`, `find_nth_event`,
+  `get_unit_count`, `get_economy`, `get_deaths`.
+- Analytics: `get_event_timing_distribution`,
+  `count_replays_with_event_before_event`, `get_composition_snapshot`,
+  `get_economy_distribution`, `get_death_summary`, `get_player_replay_card`.
+- Assistance: `describe_schema`, `get_schema_notes`, `list_query_examples`,
+  `validate_readonly_sql`, `execute_readonly_sql`, `server_info`.
+
+`ingest_corpus`, `execute_query_plan` and `export_query_plan_zip` retain v1
+behavior. Against v2 they return an MCP error with
+`error.code=NOT_SUPPORTED_FOR_CORPUS_V2` and `error.backend=v2`. Use `analyze-v2`
+and `ingest-v2` for v2 ingestion. No alias, canonical-player, group/scope, queue,
+watcher, downloader or historical-analysis API is introduced.
+
+### V2 interpretation and compatible result extensions
+
+All normal queries join `replays -> current_analyses -> indexed analysis_runs ->
+analysis_participations`. External replay IDs are SHA-256 strings; integer
+replay, participation and observation IDs stay internal. Player matching uses
+raw `participations.observed_name` with the existing case-insensitive matching
+convention, never aliases. Matchups are derived from the races of current
+participating slots in owner order; maps come from observed replay metadata.
+
+Seconds APIs use each current analysis specification's rational frame clock.
+Economy and supply read the latest full tuple **inside** the covering segment.
+Composition reads the latest per-unit change inside its segment, honoring the
+spec's `analysis_unit_domain`. Explicit positive-to-zero transitions remain zero.
+An in-domain unit absent from a complete baseline is known zero; an out-of-domain
+unit is UNKNOWN. Nothing carries across a coverage gap or beyond an endpoint.
+All these queries operate on sparse indexed tables; no dense compatibility
+tables or telemetry expansion are created.
+
+Existing primitive `sample` shapes are preserved. V2 adds `availability`:
+`known`, `before_coverage`, `after_coverage`, `gap`, or `unobserved`. UNKNOWN has
+`sample:null`, not count zero. Known samples include their source/baseline frame;
+unit samples add `basis` (`explicit_change` or `complete_baseline_absence`).
+Composition aggregates expose per-unit `unknownCounts`, `unitSampleSizes`, and
+example `availability`; numeric summaries exclude unknown values. Economy
+aggregates add `unknownCount`. `sampleSize` remains the number of participating
+perspectives with usable samples, rather than the number of raw sparse rows.
+
+Build events retain every occurrence and coarse `time_seconds`. Additional
+`frame`, `frame_min`, `frame_max`, `timing_basis`, and seconds bounds preserve
+legacy timestamp uncertainty. Time filters/statistics use recorded coarse
+timestamps; they do not claim exact frame precision. Event-before-event
+comparisons require non-overlapping bounds for a definite ordering; overlapping
+cases are returned in `uncertainCount`/`uncertainExamples` and excluded from the
+definite-match percentage denominator. The same occurrence is never before itself.
+
+Deaths remain individual observed events in inclusive frame/time intervals,
+including simultaneous deaths. Death results and summaries disclose
+`coverage_basis=observations_only`: no events is not proof of complete coverage.
+The compatibility field `killed` means opponent losses, not killer attribution.
+
+Published v2 databases use `analysis_publications` and
+`analysis_artifact_locations` for current immutable paths and ZIP members.
+Unpublished 2A databases can lack these optional tables, so filenames/source
+paths are null and legacy non-null manifest/ZIP path fields are empty strings.
+No source artifacts are read during queries. Duration is the current
+`processed_end_frame` converted with its clock, an observed endpoint rather than
+a guarantee of full replay duration; replay cards expose `duration_basis`.
+V2 discovery's legacy `unitCountSampleCount` counts sparse change rows.
+
+Schema notes and runnable SQL examples teach these v2 joins, clocks, coverage,
+domain/zero semantics and immutable artifact metadata. They select their backend
+from `db_path` or the configured database; without a database they retain v1
+guidance. Raw read-only SQL can deliberately inspect history, but callers must
+join through `current_analyses` for the normal current-only interpretation.
+
+V2 tests construct real artifact bundles and run the shared corpus-store importer,
+including historical/current runs. Set `BW_FORGE_PYTHON` to Python 3.11+ (or the
+embedded Windows runtime) when running repository tests. The stdio smoke test
+launches the actual `bw-forge mcp --db <v2>` CLI; `BW_FORGE_BUN` can select Bun.
+
 The preferred packaged commands are:
 
 - `bw-replay-corpus` for the local CLI
