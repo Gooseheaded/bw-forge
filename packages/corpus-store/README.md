@@ -1,4 +1,4 @@
-# Corpus store (Milestones 2A–2B)
+# Corpus store (Milestones 2A–6)
 
 ```ts
 import { ingestReplayAnalysis } from "@bw-forge/corpus-store";
@@ -14,8 +14,8 @@ JSON result. Python callers can use `ingest_replay_analysis(db_path, manifest_pa
 
 The SQLite schema is `python/schema.sql` plus `python/events.sql`. Existing v1,
 prototype, or unrelated databases are rejected. This is an opt-in store; neither
-the v1 ingest command nor analyzer output paths change. No daemon, watcher, MCP,
-alias resolution, or production cutover is included.
+the v1 ingest command nor analyzer output paths change. There is no production
+cutover.
 
 `python/sparse.py` promotes Milestone 1's verified economy/composition ingestion
 and reconstruction unchanged. Economy stores full tuple changes, resetting at
@@ -233,7 +233,83 @@ The database may be outside the corpus root, matching existing publication API
 behavior, but it cannot overlap `replays`, `analyses`, or `work`. At execution the
 worker requires the SHA-derived canonical replay path under the supplied root;
 this is the reliable root/DB consistency check available today. There is no remote
-submission, cancellation, watcher, downloader, scheduler, systemd unit, or web UI.
+submission, cancellation, downloader, scheduler, systemd unit, or web UI.
+
+## Filesystem replay watcher
+
+`watcher.ts` is the first source adapter over the existing registration boundary.
+It never analyzes a replay or owns a queue. `watch once` validates and scans all
+configured roots, waits for candidates to become stable, then calls the same
+`enqueueReplay()` service as `jobs enqueue` with `source_kind=filesystem` and the
+normalized absolute source path. Existing SHA-based canonical storage, provenance,
+active-job deduplication, and already-indexed behavior therefore apply unchanged.
+Library callers use `watchReplayFilesOnce(options)`, `watchReplayFiles(options)`,
+or `createReplayWatcher(dependencies)` from `@bw-forge/corpus-store/watcher`.
+
+Only immediate regular files ending in `.rep`, case-insensitively, are considered
+by default. Symlinks, directories, partial filenames, and unrelated files are
+ignored. `--recursive` explicitly includes nested directories. Watched roots are
+resolved and must already exist; the corpus root and paths overlapping its managed
+`replays`, `analyses`, `work`, or `db` directories are rejected to prevent feedback
+loops. Source files are never moved, renamed, or deleted.
+
+Readiness uses two `lstat` observations separated by 1.5 seconds by default. Size,
+mtime, ctime, device, inode, and regular-file status must remain unchanged. A
+changing file is deferred by `watch once`; `watch run` repeats readiness checks
+until the file settles. `--stability-ms` exists for producer tuning and tests.
+Registration performs its own verified copy, so the source may be removed after a
+successful enqueue without affecting the worker.
+
+`watch run` installs Node/Bun filesystem notifications before its mandatory startup
+scan. Create/change events are coalesced in memory, and rename events also trigger
+directory reconciliation so `.partial` to `.rep` publication is prompt on backends
+that report only the old name. A low-frequency full reconciliation scan (60 seconds
+by default, configurable with `--reconcile-seconds`) recovers missed events and new
+recursive directories. A stat signature cache avoids repeatedly hashing unchanged
+files during one process lifetime; restart recovery always rescans and durable SHA
+registration remains the source of truth.
+
+One failed or disappearing candidate does not stop `watch run`. Errors are logged
+with their source path, while analyzer failures remain worker-owned job failures.
+SIGINT/SIGTERM stops notifications and new readiness work, lets any registration
+already inside `enqueueReplay()` finish, closes watchers, and exits. Multiple
+watchers may overlap safely because canonical publication and the SQLite active-job
+constraint remain atomic.
+
+The recommended appliance input is outside managed corpus storage:
+
+```text
+/srv/bw-forge/
+  inbox/
+  corpus/
+    replays/
+    analyses/
+    work/
+    db/corpus.sqlite
+```
+
+Run discovery and analysis as separate processes:
+
+```sh
+# Terminal/service A
+bw-forge watch run \
+  --path /srv/bw-forge/inbox \
+  --corpus-root /srv/bw-forge/corpus \
+  --db /srv/bw-forge/corpus/db/corpus.sqlite
+
+# Terminal/service B
+bw-forge worker run \
+  --corpus-root /srv/bw-forge/corpus \
+  --db /srv/bw-forge/corpus/db/corpus.sqlite
+
+cp game.rep /srv/bw-forge/inbox/
+```
+
+For startup/cron reconciliation, use `bw-forge watch once` with the same arguments.
+`--path` is repeatable. A successful flow is discovery → canonical registration →
+the persistent Milestone-5 queue → a separate worker → immutable analysis and
+Corpus v2. No Corpus schema revision is needed because `replay_sources` already
+accepts the `filesystem` source kind.
 
 Future input integrations must use the same boundary:
 

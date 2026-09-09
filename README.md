@@ -14,6 +14,8 @@ read-only SQL work.
 ```text
 .rep replay
     |
+    +-- optional filesystem watcher -> persistent analysis queue
+    |
     +-- bundled headless-bwsim replay engine
     |
     | per-frame JSONL telemetry
@@ -52,6 +54,7 @@ The design deliberately separates two responsibilities:
 
 `apps/cli` contains the Bun/TypeScript `bw-forge` command. It:
 
+- reconciles one or more replay inboxes into the persistent Corpus v2 queue;
 - accepts a replay file or recursively discovers replay files in a directory;
 - computes a SHA-256 replay ID and copies the original replay into canonical
   output;

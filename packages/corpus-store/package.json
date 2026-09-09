@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./publication": "./src/publication.ts",
-    "./jobs": "./src/jobs.ts"
+    "./jobs": "./src/jobs.ts",
+    "./watcher": "./src/watcher.ts"
   }
 }

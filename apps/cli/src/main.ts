@@ -10,6 +10,7 @@ import { ingestReplayAnalysis, applyIdentities, exportIdentities } from "../../.
 import { analyzeAndPublishReplay } from "../../../packages/corpus-store/src/publication.js";
 import { createAnalysisWorker, createWorkerId, enqueueReplay, listAnalysisJobs, retryAnalysisJob,
   showAnalysisJob, type JobStatus } from "../../../packages/corpus-store/src/jobs.js";
+import { createReplayWatcher } from "../../../packages/corpus-store/src/watcher.js";
 import { assertSafeAnalyzeOutputRoot } from "./analyze-output-path.js";
 import { buildCommandSpawnOptions } from "./child-process.js";
 import { corpusQueryRuntimeArgs } from "./corpus-query-runtime.js";
@@ -40,6 +41,25 @@ const PATHS = {
 async function main(): Promise<void> {
   const [, , command, ...args] = process.argv;
   switch (command) {
+    case "watch": {
+      const operation=args[0],rest=args.slice(1);
+      if(operation!=="once"&&operation!=="run")throw new Error("Usage: bw-forge watch once|run --path <dir> [--path <dir> ...] --corpus-root <root> --db <path>");
+      const paths=optionValues(rest,"--path").map(resolveOptionPath);
+      if(!paths.length)throw new Error("At least one --path is required");
+      const stabilityMs=integerOption(rest,"--stability-ms",1500);
+      const reconcileSeconds=integerOption(rest,"--reconcile-seconds",60);
+      const options={paths,corpusRoot:resolveOptionPath(requireOption(rest,"--corpus-root")),dbPath:resolveOptionPath(requireOption(rest,"--db")),
+        recursive:hasFlag(rest,"--recursive"),stabilityMs,reconcileMs:reconcileSeconds*1000};
+      const watcher=createReplayWatcher();
+      if(operation==="once")console.log(JSON.stringify(await watcher.once(options),null,2));
+      else{
+        const controller=new AbortController();
+        const stop=()=>controller.abort();process.once("SIGINT",stop);process.once("SIGTERM",stop);
+        try{console.log(JSON.stringify(await watcher.run({...options,signal:controller.signal}),null,2));}
+        finally{process.removeListener("SIGINT",stop);process.removeListener("SIGTERM",stop);}
+      }
+      return;
+    }
     case "jobs": {
       const operation=args[0], rest=args.slice(1), db=resolveOptionPath(requireOption(rest,"--db"));
       if(operation==="enqueue"){
@@ -525,6 +545,15 @@ function optionalOption(argv: string[], name: string): string | undefined {
   return undefined;
 }
 
+function optionValues(argv:string[],name:string):string[]{
+  const values:string[]=[];
+  for(let index=0;index<argv.length;index++){
+    if(argv[index]===name&&argv[index+1]&&!argv[index+1]!.startsWith("--"))values.push(argv[++index]!);
+    else if(argv[index]?.startsWith(`${name}=`))values.push(argv[index]!.slice(name.length+1));
+  }
+  return values;
+}
+
 function hasFlag(argv: string[], name: string): boolean {
   return argv.includes(name);
 }
@@ -684,6 +713,8 @@ Commands:
   bw-forge jobs retry <job-key> --db <path>
   bw-forge worker once --corpus-root <root> --db <path> [--worker-id <id>]
   bw-forge worker run --corpus-root <root> --db <path> [--worker-id <id>] [--poll-ms <ms>]
+  bw-forge watch once --path <dir> [--path <dir> ...] --corpus-root <root> --db <path> [--recursive] [--stability-ms <n>]
+  bw-forge watch run --path <dir> [--path <dir> ...] --corpus-root <root> --db <path> [--recursive] [--stability-ms <n>] [--reconcile-seconds <n>]
   bw-forge mcp --db <path> [--transport stdio|http] [--host <host>] [--port <port>] [--path <path>]
 
 Environment overrides:
