@@ -1,4 +1,5 @@
 import type { Database } from "../db/sqlite.js";
+import type { CorpusFilterInput } from "./filters.js";
 import { buildReplayScope, firstRow, normalizeCorpusFilters } from "./filters.js";
 import { formatSecondsClock } from "./time.js";
 
@@ -8,7 +9,7 @@ const DEFAULT_BUILD_ANCHORS: Record<string, string[]> = {
   protoss: ["Pylon", "Gateway", "Forge", "Assimilator", "Cybernetics Core", "Citadel of Adun", "Stargate", "Robotics Facility"]
 };
 
-interface ReplayCardInput {
+interface ReplayCardInput extends CorpusFilterInput {
   replayId?: string;
   filenameContains?: string;
   player: string;

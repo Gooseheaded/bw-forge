@@ -139,3 +139,17 @@ a corpus root; concurrent publication, crash-durable fsync, queues, leases and
 background services are outside this milestone. Tests use `createReplayPublisher`
 to inject an analyzer or failure while exercising real filesystem publication
 and the real v2 importer.
+
+## Identity catalog administration
+
+The additive identity schema is managed by `python/migrations.py` and
+`python/identities.sql`, with transactional revisions in `corpus_migrations`.
+Both Corpus major-version markers remain 2; v1 is never migrated. Fresh databases
+receive revision 1. Existing v2 databases migrate on `identities apply` or ingest.
+
+`applyIdentities(dbPath, configPath)` and `exportIdentities(dbPath)` expose the
+same administration API as `bw-forge identities apply <config.json> --db <path>`
+and `bw-forge identities export --db <path>`. The versioned JSON catalog is
+validated in full and replaced atomically; raw evidence and telemetry are untouched.
+See [the query identity documentation](../corpus-query/README.md#curated-corpus-v2-identities-and-scopes)
+for the full format, precedence, namespace normalization and appliance examples.

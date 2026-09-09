@@ -192,7 +192,8 @@ export function describeSchema(
 
   return {
     tables,
-    joinHints: options.includeJoinHints === false ? [] : detectCorpusBackend(db)==="v2" ? V2_JOINS : JOIN_HINTS
+    joinHints: options.includeJoinHints === false ? [] : detectCorpusBackend(db)==="v2"
+      ? V2_JOINS.filter(join=>tables.some(t=>t.name===join.left)&&tables.some(t=>t.name===join.right)) : JOIN_HINTS
   };
 }
 

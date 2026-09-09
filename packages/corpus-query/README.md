@@ -11,7 +11,7 @@ transports support both backends. `db/backend.ts` detects Corpus v2 using
 Prototype or malformed v2 databases are rejected rather than guessed to be v1.
 V1 implementations remain in `query/legacyQuery.ts` and `analytics/legacy_*`;
 the public query/analytics modules dispatch beneath the existing MCP handlers.
-There is no migration or production cutover.
+There is no v1-to-v2 migration or production cutover. V2 has transactional additive revisions.
 
 ```sh
 bw-forge mcp --db /srv/bw-forge/corpus/db/corpus.sqlite
@@ -40,16 +40,15 @@ The following tools support v2:
 `ingest_corpus`, `execute_query_plan` and `export_query_plan_zip` retain v1
 behavior. Against v2 they return an MCP error with
 `error.code=NOT_SUPPORTED_FOR_CORPUS_V2` and `error.backend=v2`. Use `analyze-v2`
-and `ingest-v2` for v2 ingestion. No alias, canonical-player, group/scope, queue,
-watcher, downloader or historical-analysis API is introduced.
+and `ingest-v2` for v2 ingestion. Queue, watcher, downloader and historical-analysis APIs remain out of scope.
 
 ### V2 interpretation and compatible result extensions
 
 All normal queries join `replays -> current_analyses -> indexed analysis_runs ->
 analysis_participations`. External replay IDs are SHA-256 strings; integer
 replay, participation and observation IDs stay internal. Player matching uses
-raw `participations.observed_name` with the existing case-insensitive matching
-convention, never aliases. Matchups are derived from the races of current
+the optional curated identity overlay described below, retaining raw names.
+Matchups are derived from the races of current
 participating slots in owner order; maps come from observed replay metadata.
 
 Seconds APIs use each current analysis specification's rational frame clock.
@@ -554,3 +553,102 @@ pnpm verify:packaged .\bw-replay-corpus-query-0.2.0.tgz
 It installs the tarball into a clean temp directory, launches the packaged `bw-replays-mcp` binary over stdio, calls `server_info`, and prints the observed package/build metadata and tool surface.
 
 The verifier tries `npm install` first. If that stalls or cannot reach the registry in a locked-down environment, it falls back to `pnpm add --offline` so local packaging smoke tests do not hang indefinitely.
+
+## Curated Corpus v2 identities and scopes
+
+Identity is an overlay over immutable replay evidence. `participations` retains
+`observed_name`, `observed_name_key`, and `name_namespace`; no catalog operation
+rewrites participation, telemetry, publication, analysis, or current-analysis rows.
+`identity/catalog.ts` constructs the identity predicates centrally, and
+`query/v2.ts` joins them to current observations. Economy, build, composition,
+death, discovery, replay-card and primitive queries all use this boundary.
+
+Resolution is **participation override > namespace + normalized alias > unresolved
+raw identity**. Overrides are configured by replay SHA256 and owner. Canonical
+`player_key` is durable; changing a display name does not change the key or ID.
+Aliases use `corpus_metadata.name_normalizer` (`python-casefold-v1`: Python Unicode
+casefold, without trimming or compatibility normalization). The query implementation
+ships the generated casefold mapping; it does not substitute locale lowercasing.
+Different namespaces are distinct. No fuzzy matching or identity inference occurs.
+
+`player` and `opponent` accept canonical keys or display names, selecting all
+resolved aliases; raw alias spellings remain usable as raw-name filters. Ambiguous
+text is rejected instead of guessed. `list_players` collapses resolved aliases,
+counts each replay once per identity, and keeps unresolved namespace/name identities
+separate. Results retain raw names and add `observedName`, `nameNamespace`,
+`canonicalPlayerKey`, `canonicalPlayerName`, and `identityResolution` where useful.
+No internal identity IDs are needed by clients.
+
+The CLI owns all writes:
+
+```sh
+bw-forge identities apply identities.json --db /srv/bw-forge/corpus/db/corpus.sqlite
+bw-forge identities export --db /srv/bw-forge/corpus/db/corpus.sqlite > identities.json
+```
+
+The configuration is the **entire authoritative catalog**, not a patch: omitted
+players, aliases, overrides, memberships, and scopes are removed. Export before
+editing an existing catalog. Apply validates every reference and alias conflict
+before mutation, then applies atomically; repeating the same catalog is a no-op.
+Exports are deterministic and suitable for round trips. Stable keys use lowercase
+ASCII letters, digits, `_`, and `-`. Alias spelling and display names remain Unicode.
+
+```json
+{
+  "schema_version": "bw-forge-identities-v1",
+  "players": [
+    {"key":"gooseheaded","display_name":"Gooseheaded","aliases":[
+      {"namespace":"legacy-unknown","name":"Gooseheaded"},
+      {"namespace":"legacy-unknown","name":"G00se"}
+    ]},
+    {"key":"firstlaw","display_name":"FirstLaw","aliases":[
+      {"namespace":"legacy-unknown","name":"FirstLaw"}
+    ]}
+  ],
+  "overrides": [],
+  "groups": [{"key":"friends","display_name":"Friends","players":["firstlaw"]}],
+  "scopes": [{
+    "key":"my-zvt","display_name":"My ZvT vs Friends",
+    "self":{"players":["gooseheaded"],"groups":[]},
+    "opponent":{"players":[],"groups":["friends"]},
+    "filters":{"race":"zerg","opponent_race":"terran","matchup":"ZvT"},
+    "replay_sha256":[]
+  }]
+}
+```
+
+An override entry has `replay_sha256`, nonnegative integer `owner`, and `player`
+(the canonical key). The replay and owner must already exist. Scope SHA restrictions
+may refer to future replays. New ingested replays resolve existing aliases immediately,
+without reapplying the catalog. Alias edits change query interpretation immediately;
+they never require re-ingestion.
+
+Groups are sets of canonical players. Shared filters add `player_group`,
+`opponent_group`, and `scope`. Within each scope role, selected players and group
+members are OR; self versus opponent, race, opponent race, matchup, map, replay
+restriction, and explicit query filters are AND. Empty selector dimensions are
+unconstrained, but selecting an existing empty group matches nobody. Scopes contain
+only these typed dimensions, never arbitrary SQL. Primitive tools retain their
+existing required `player` input; adding a scope further narrows that perspective.
+
+Representative MCP calls:
+
+```text
+get_economy_distribution(player="Gooseheaded", timeSeconds=300)
+get_composition_snapshot(player_group="friends", timeSeconds=420)
+get_death_summary(scope="my-zvt", startSeconds=300, endSeconds=480)
+get_economy(player="gooseheaded", scope="my-zvt", at_seconds=300)
+```
+
+Read-only catalog tools are `list_canonical_players`, `get_player_identity`,
+`list_player_groups`, and `list_scopes`. They reject v1 with structured
+`NOT_SUPPORTED_FOR_CORPUS_V1` errors. Existing v1 query behavior is unchanged.
+MCP provides no catalog writes. Read-only SQL retains all existing safety limits.
+Compatibility resources also accept identity/group/scope selectors.
+
+`corpus_migrations` records additive revision 1. Major markers remain
+`PRAGMA user_version=2` and `corpus_metadata.schema_version=2`. Fresh v2 stores get
+the current revision. Existing v2 stores migrate transactionally on identity apply
+(or ingestion), without rebuilding. Before migration they still support raw-name
+queries and return an empty identity catalog. Identity SQL examples explicitly
+require revision 1; inspect `describe_schema` before using them on an older store.

@@ -1,6 +1,7 @@
 import type { Database, Statement } from "../db/sqlite.js";
+import type { IdentityFilters } from "../identity/catalog.js";
 
-export interface CorpusFilterInput {
+export interface CorpusFilterInput extends IdentityFilters {
   player?: string;
   opponent?: string;
   race?: string;
@@ -10,7 +11,7 @@ export interface CorpusFilterInput {
   replayIds?: string[];
 }
 
-export interface NormalizedCorpusFilters {
+export interface NormalizedCorpusFilters extends IdentityFilters {
   player?: string;
   opponent?: string;
   race?: string;
@@ -42,6 +43,10 @@ const MAX_EXAMPLE_LIMIT = 25;
 
 export function normalizeCorpusFilters(input: CorpusFilterInput): NormalizedCorpusFilters {
   const normalized: NormalizedCorpusFilters = {};
+  for (const field of ["player_group", "opponent_group", "scope"] as const) {
+    const value = normalizeOptional(input[field]);
+    if (value) normalized[field] = value;
+  }
   const player = normalizeOptional(input.player);
   const opponent = normalizeOptional(input.opponent);
   const race = normalizeOptional(input.race);
@@ -83,6 +88,9 @@ export function clampExampleLimit(value: number | undefined): number {
 
 export function replayScopeFiltersPayload(filters: NormalizedCorpusFilters): Record<string, string | string[] | null> {
   return {
+    ...(filters.player_group ? { player_group: filters.player_group } : {}),
+    ...(filters.opponent_group ? { opponent_group: filters.opponent_group } : {}),
+    ...(filters.scope ? { scope: filters.scope } : {}),
     player: filters.player ?? null,
     opponent: filters.opponent ?? null,
     race: filters.race ?? null,

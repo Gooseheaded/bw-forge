@@ -3,6 +3,7 @@ import type { Database } from "../db/sqlite.js";
 import { sqlRows } from "../db/backend.js";
 import type { CorpusFilterInput, ReplayScopeRow } from "../analytics/filters.js";
 import type { PerspectiveFilters, ReplayFilters, BuildEventFilters } from "./query.js";
+import { hasIdentities, identityJoins, identitySelect, identityConditions } from "../identity/catalog.js";
 
 export interface Scope extends ReplayScopeRow {
   observation_id: number;
@@ -11,15 +12,27 @@ export interface Scope extends ReplayScopeRow {
   clock_num: number;
   clock_den: number;
   manifest_path: string;
+  observedName: string;
+  observedNameKey: string;
+  nameNamespace: string;
+  canonicalPlayerKey: string | null;
+  canonicalPlayerName: string | null;
+  identityResolution: string;
+  opponentCanonicalPlayerKey: string | null;
+  opponentCanonicalPlayerName: string | null;
+  opponentIdentityResolution: string;
 }
 const nullable = (value: unknown): string | null => value == null ? null : String(value);
 
 export function scope(db: Database, filters: { [K in keyof CorpusFilterInput]?: CorpusFilterInput[K] | undefined }): Scope[] {
   const published = sqlRows(db, "SELECT 1 FROM sqlite_schema WHERE name='analysis_publications'").length > 0;
+  const identities = hasIdentities(db);
   const conditions: string[] = [];
   const args: unknown[] = [];
-  for (const [value, column] of [[filters.player,"p.observed_name"], [filters.race,"p.race"],
-    [filters.opponent,"enemy.observed_name"], [filters.opponentRace,"enemy.race"], [filters.matchup,"matchup"]]) {
+  if (identities) identityConditions(db,filters,conditions,args);
+  else if(filters.scope || filters.player_group || filters.opponent_group) throw new Error("Identity catalog is not installed; use identities apply first");
+  for (const [value, column] of [[identities ? undefined : filters.player,"p.observed_name"], [filters.race,"p.race"],
+    [identities ? undefined : filters.opponent,"enemy.observed_name"], [filters.opponentRace,"enemy.race"], [filters.matchup,"matchup"]]) {
     if (value) { conditions.push(`${column} = ? COLLATE NOCASE`); args.push(value); }
   }
   if (filters.map) {
@@ -37,6 +50,8 @@ export function scope(db: Database, filters: { [K in keyof CorpusFilterInput]?: 
     ${published ? "pub.replay_manifest_path" : "NULL"} AS manifest_path,
     a.processed_end_frame*s.frame_duration_num_ms/(1000.0*s.frame_duration_den) AS duration_seconds,
     p.owner AS self_owner,p.observed_name AS player_name,p.race AS player_race,
+    p.observed_name_key,p.name_namespace,
+    ${identities ? identitySelect("p","self_")+","+identitySelect("enemy","enemy_") : "NULL AS self_key,NULL AS self_display,'unresolved' AS self_resolution,NULL AS enemy_key,NULL AS enemy_display,'unresolved' AS enemy_resolution"},
     enemy.owner AS opponent_owner,enemy.observed_name AS opponent_name,enemy.race AS opponent_race,
     ap.observation_id,ep.observation_id AS opponent_observation_id,s.spec_id,
     s.frame_duration_num_ms AS clock_num,s.frame_duration_den AS clock_den
@@ -47,6 +62,7 @@ export function scope(db: Database, filters: { [K in keyof CorpusFilterInput]?: 
     JOIN participations p ON p.participation_id=ap.participation_id
     LEFT JOIN analysis_participations ep ON ep.analysis_id=a.analysis_id AND ep.participation_id<>p.participation_id
     LEFT JOIN participations enemy ON enemy.participation_id=ep.participation_id
+    ${identities ? identityJoins("p","self_")+identityJoins("enemy","enemy_") : ""}
     ${published ? "LEFT JOIN analysis_publications pub ON pub.analysis_id=a.analysis_id" : ""}
     ${conditions.length ? "WHERE " + conditions.join(" AND ") : ""}
     ORDER BY r.sha256,p.owner,enemy.owner`, args).map(r => ({
@@ -54,6 +70,9 @@ export function scope(db: Database, filters: { [K in keyof CorpusFilterInput]?: 
       source_replay_path: nullable(r.source_replay_path), source_replay_filename: r.source_replay_path ? basename(String(r.source_replay_path)) : null,
       duration_seconds: r.duration_seconds == null ? null : Number(r.duration_seconds), manifest_path: String(r.manifest_path ?? ""),
       self_owner: Number(r.self_owner),player_name: String(r.player_name),player_race: String(r.player_race),
+      observedName:String(r.player_name),observedNameKey:String(r.observed_name_key),nameNamespace:String(r.name_namespace),
+      canonicalPlayerKey:nullable(r.self_key),canonicalPlayerName:nullable(r.self_display),identityResolution:String(r.self_resolution),
+      opponentCanonicalPlayerKey:nullable(r.enemy_key),opponentCanonicalPlayerName:nullable(r.enemy_display),opponentIdentityResolution:String(r.enemy_resolution),
       opponent_owner: r.opponent_owner == null ? null : Number(r.opponent_owner),opponent_name: nullable(r.opponent_name),opponent_race: nullable(r.opponent_race),
       observation_id: Number(r.observation_id),opponent_observation_id: r.opponent_observation_id == null ? null : Number(r.opponent_observation_id),
       spec_id: Number(r.spec_id),clock_num: Number(r.clock_num),clock_den: Number(r.clock_den)
@@ -138,21 +157,30 @@ export function deaths(db: Database,row: Scope,from: number,to: number) {
 }
 
 function targets(db: Database,filters: PerspectiveFilters) {
-  const rows=scope(db,{player:filters.player,race:filters.race,matchup:filters.matchup,replayIds:filters.replay_ids});
+  const rows=scope(db,{...filters,replayIds:filters.replay_ids});
   return filters.as === "enemy" ? rows.filter(r=>r.opponent_observation_id!==null).map(r=>({ ...r,
     observation_id:r.opponent_observation_id!, target_owner:r.opponent_owner!,target_name:r.opponent_name! })) :
     uniqueScope(rows).map(r=>({...r,target_owner:r.self_owner,target_name:r.player_name}));
 }
 function identity(row: Scope & {target_owner:number;target_name:string}) {
   return { replay_id:row.replay_id,source_replay_filename:row.source_replay_filename,source_replay_path:row.source_replay_path,
-    self_owner:row.self_owner,target_owner:row.target_owner,player_name:row.player_name,target_name:row.target_name,matchup:row.matchup };
+    self_owner:row.self_owner,target_owner:row.target_owner,player_name:row.player_name,target_name:row.target_name,matchup:row.matchup,
+    ...identityMetadata(row),targetObservedName:row.target_name,
+    targetCanonicalPlayerKey:row.target_owner===row.self_owner?row.canonicalPlayerKey:row.opponentCanonicalPlayerKey,
+    targetCanonicalPlayerName:row.target_owner===row.self_owner?row.canonicalPlayerName:row.opponentCanonicalPlayerName,
+    targetIdentityResolution:row.target_owner===row.self_owner?row.identityResolution:row.opponentIdentityResolution };
 }
+export function identityMetadata(row:Scope) {
+  return {observedName:row.observedName,nameNamespace:row.nameNamespace,canonicalPlayerKey:row.canonicalPlayerKey,
+    canonicalPlayerName:row.canonicalPlayerName,identityResolution:row.identityResolution};
+}
+export function identityKey(row:Scope):string { return row.canonicalPlayerKey ? `canonical:${row.canonicalPlayerKey}` : JSON.stringify([row.nameNamespace,row.observedNameKey]); }
 export function findReplays(db:Database,filters:ReplayFilters) {
-  const selected=scope(db,{player:filters.player,race:filters.race,matchup:filters.matchup,replayIds:filters.replay_ids});
+  const selected=scope(db,{...filters,replayIds:filters.replay_ids});
   return [...new Map(selected.map(r=>[r.replay_id,r])).values()].map(r=>({replay_id:r.replay_id,
     source_replay_filename:r.source_replay_filename,source_replay_path:r.source_replay_path,matchup:r.matchup,map:r.map,
     duration_seconds:r.duration_seconds,manifest_path:r.manifest_path,
-    players:uniqueScope(scope(db,{replayIds:[r.replay_id]})).map(p=>({owner:p.self_owner,name:p.player_name,race:p.player_race,
+    players:uniqueScope(scope(db,{replayIds:[r.replay_id]})).map(p=>({owner:p.self_owner,name:p.player_name,race:p.player_race,...identityMetadata(p),
       zip_path:sqlRows(db,"SELECT name FROM sqlite_schema WHERE name='analysis_artifact_locations'").length ? String(sqlRows(db,
         `SELECT l.artifact_path FROM analysis_artifact_locations l JOIN current_analyses ca ON ca.analysis_id=l.analysis_id
           JOIN replays rr ON rr.replay_id=ca.replay_id WHERE rr.sha256=? AND l.artifact_key=?`,[r.replay_id,`player/${p.self_owner}/player.json`])[0]?.artifact_path??""):""}))}));

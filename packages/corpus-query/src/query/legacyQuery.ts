@@ -1,13 +1,14 @@
 import type { Database, Statement } from "../db/sqlite.js";
+import type { IdentityFilters } from "../identity/catalog.js";
 
-export interface ReplayFilters {
+export interface ReplayFilters extends IdentityFilters {
   matchup?: string;
   player?: string;
   race?: string;
   replay_ids?: string[];
 }
 
-export interface PerspectiveFilters {
+export interface PerspectiveFilters extends IdentityFilters {
   player: string;
   matchup?: string;
   race?: string;

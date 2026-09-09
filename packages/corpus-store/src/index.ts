@@ -71,3 +71,12 @@ async function runStore<T>(args: string[]): Promise<T> {
   }
   throw new Error("No Python runtime available; set BW_FORGE_PYTHON.");
 }
+
+/** Replace the user-curated catalog atomically; raw participation/analysis rows are untouched. */
+export async function applyIdentities(dbPath: string, configPath: string): Promise<{ status: "applied" | "no-op" }> {
+  return runStore(["identities", "--db", resolve(dbPath), "--config", resolve(configPath)]);
+}
+
+export async function exportIdentities(dbPath: string): Promise<Record<string, unknown>> {
+  return runStore(["identities", "--db", resolve(dbPath)]);
+}

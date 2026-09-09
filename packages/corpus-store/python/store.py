@@ -11,6 +11,8 @@ import time
 import uuid
 import zipfile
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 # Embedded Python does not put the script directory on sys.path.
 _spec = importlib.util.spec_from_file_location('sparse', Path(__file__).with_name('sparse.py'))
@@ -201,11 +203,13 @@ def register_publication(db, aid, manifest_path, manifest, raw, inventory):
 
 
 def initialize(db):
+    from migrations import migrate, migrate_in_transaction
     tables = db.execute("SELECT name FROM sqlite_schema WHERE type='table'").fetchall()
     if tables:
         require(db.execute('PRAGMA user_version').fetchone()[0] == 2, 'Refusing non-v2 database (v1 is never migrated)')
         row = db.execute('SELECT purpose FROM corpus_metadata WHERE singleton=1').fetchone()
         require(row and row[0] == 'corpus-store', 'Not a corpus-store database')
+        migrate(db)
         return
     require(db.execute('PRAGMA user_version').fetchone()[0] == 0, 'Refusing nonempty schema version')
     # executescript is deliberately confined to initialization, before the ingestion transaction.
@@ -213,6 +217,7 @@ def initialize(db):
                      '\n' + Path(__file__).with_name('events.sql').read_text(encoding='utf-8-sig'))
     db.execute('INSERT INTO corpus_metadata VALUES (1,2,?,?,?,?)',
                (str(uuid.uuid4()), int(time.time()*1000), 'python-casefold-v1', 'corpus-store'))
+    migrate_in_transaction(db)
     db.commit()
 
 
@@ -327,6 +332,15 @@ def ingest_replay_analysis(db_path, replay_manifest_path):
 
 
 if __name__ == '__main__':
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == 'identities':
+        from identities import administer
+        parser = argparse.ArgumentParser(description='Corpus v2 identity catalog')
+        parser.add_argument('--db', required=True)
+        parser.add_argument('--config')
+        args = parser.parse_args(sys.argv[2:])
+        print(canonical(administer(args.db, args.config)))
+        sys.exit(0)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('replay_manifest_path')
     parser.add_argument('--db')

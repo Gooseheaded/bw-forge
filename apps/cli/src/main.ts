@@ -6,7 +6,7 @@ import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { homedir, tmpdir } from "node:os";
-import { ingestReplayAnalysis } from "../../../packages/corpus-store/src/index.js";
+import { ingestReplayAnalysis, applyIdentities, exportIdentities } from "../../../packages/corpus-store/src/index.js";
 import { analyzeAndPublishReplay } from "../../../packages/corpus-store/src/publication.js";
 import { assertSafeAnalyzeOutputRoot } from "./analyze-output-path.js";
 import { buildCommandSpawnOptions } from "./child-process.js";
@@ -38,6 +38,15 @@ const PATHS = {
 async function main(): Promise<void> {
   const [, , command, ...args] = process.argv;
   switch (command) {
+    case "identities": {
+      const db = requireOption(args, "--db");
+      if (args[0] === "apply" && args[1] && !args[1].startsWith("--")) {
+        console.log(JSON.stringify(await applyIdentities(db, args[1]), null, 2));
+      } else if (args[0] === "export") {
+        console.log(JSON.stringify(await exportIdentities(db), null, 2));
+      } else throw new Error("Usage: bw-forge identities apply <config.json> --db <path> | identities export --db <path>");
+      return;
+    }
     case "analyze":
       await analyzeCommand(args);
       return;
@@ -629,6 +638,8 @@ Commands:
   bw-forge ingest <analysis-dir> --db <path>
   bw-forge ingest-v2 <replay-manifest.json> --db <path>
   bw-forge analyze-v2 <replay.rep> --corpus-root <dir> [--db <path>] [--keep-failed-work]
+  bw-forge identities apply <config.json> --db <path>
+  bw-forge identities export --db <path>
   bw-forge mcp --db <path> [--transport stdio|http] [--host <host>] [--port <port>] [--path <path>]
 
 Environment overrides:

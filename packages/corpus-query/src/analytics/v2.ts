@@ -12,7 +12,7 @@ import type * as cards from "./legacy_replayCard.js";
 
 function rows(db:Database,input:CorpusFilterInput) { return q.uniqueScope(q.scope(db,normalizeCorpusFilters(input))); }
 function payload(input:CorpusFilterInput) {return replayScopeFiltersPayload(normalizeCorpusFilters(input));}
-function example(r:q.Scope) {return {replayId:r.replay_id,filename:r.source_replay_filename,player:r.player_name,opponent:r.opponent_name};}
+function example(r:q.Scope) {return {replayId:r.replay_id,filename:r.source_replay_filename,player:r.player_name,opponent:r.opponent_name,...q.identityMetadata(r)};}
 function groupedReplays(scope:q.Scope[],field:"matchup"|"map") {
   const sets=new Map<string,Set<string>>();
   for(const r of scope){const key=r[field]||"unknown";const set=sets.get(key)??new Set<string>();set.add(r.replay_id);sets.set(key,set);}
@@ -31,7 +31,7 @@ export function getCorpusSummary(db:Database,input:CorpusFilterInput):discovery.
   const scope=rows(db,input),races=new Map<string,number>();
   for(const r of scope)races.set(r.player_race,(races.get(r.player_race)??0)+1);
   const present=(table:string)=>scope.some(r=>sqlRows(db,`SELECT 1 FROM ${table} WHERE observation_id=? LIMIT 1`,[r.observation_id]).length>0);
-  return {filters:payload(input),replayCount:new Set(scope.map(r=>r.replay_id)).size,playerCount:new Set(scope.map(r=>r.player_name.toLowerCase())).size,
+  return {filters:payload(input),replayCount:new Set(scope.map(r=>r.replay_id)).size,playerCount:new Set(scope.map(q.identityKey)).size,
     matchups:groupedReplays(scope,"matchup").map(x=>({matchup:x.name,replayCount:x.replayCount})),
     maps:groupedReplays(scope,"map").map(x=>({map:x.name,replayCount:x.replayCount})),
     races:[...races].map(([race,playerRows])=>({race,playerRows})),dataAvailability:{buildOrderEvents:present("build_events"),economySamples:present("economy_changes"),
@@ -39,9 +39,11 @@ export function getCorpusSummary(db:Database,input:CorpusFilterInput):discovery.
 }
 export function listPlayers(db:Database,input:Parameters<typeof discovery.listPlayers>[1]):discovery.PlayerListResult {
   const groups=new Map<string,q.Scope[]>();
-  for(const row of rows(db,input)){const key=row.player_name.toLowerCase();const group=groups.get(key)??[];group.push(row);groups.set(key,group);}
+  for(const row of rows(db,input)){const key=q.identityKey(row);const group=groups.get(key)??[];group.push(row);groups.set(key,group);}
   return {filters:payload(input),players:[...groups.values()].map(group=>{return {
-    name:group[0]!.player_name,races:[...new Set(group.map(r=>r.player_race))].sort(),replayCount:new Set(group.map(r=>r.replay_id)).size,
+    name:group[0]!.canonicalPlayerName??group[0]!.player_name,...q.identityMetadata(group[0]!),
+    observedNames:[...new Set(group.map(r=>r.observedName))].sort(),identityResolutions:[...new Set(group.map(r=>r.identityResolution))].sort(),
+    races:[...new Set(group.map(r=>r.player_race))].sort(),replayCount:new Set(group.map(r=>r.replay_id)).size,
     matchups:groupedReplays(group,"matchup").map(x=>({matchup:x.name,replayCount:x.replayCount}))};})
     .sort((a,b)=>b.replayCount-a.replayCount||a.name.localeCompare(b.name)).slice(0,clampListLimit(input.limit))};
 }
@@ -132,7 +134,7 @@ export function getDeathSummary(db:Database,input:Parameters<typeof deaths.getDe
     lost:summary(lost),killed:summary(killed),examples,coverage_basis:"observations_only",notes:["Counts are recorded death events, not proof of complete interval coverage. Killed means opponent losses, not attributed kills."]};
 }
 export function getPlayerReplayCard(db:Database,input:Parameters<typeof cards.getPlayerReplayCard>[1]) {
-  const row=rows(db,{player:input.player,...(input.replayId?{replayIds:[input.replayId]}:{})}).find(r=>!input.filenameContains||r.source_replay_filename?.toLowerCase().includes(input.filenameContains.toLowerCase()));
+  const row=rows(db,{...input,...(input.replayId?{replayIds:[input.replayId]}:{})}).find(r=>!input.filenameContains||r.source_replay_filename?.toLowerCase().includes(input.filenameContains.toLowerCase()));
   if(!row)throw new Error(`No replay/player row found for player "${input.player}".`);
   const anchors:Record<string,string[]>={zerg:["hatchery","spawning_pool","extractor","lair","spire","hydralisk_den","evolution_chamber","hive"],
     terran:["supply_depot","barracks","refinery","factory","academy","engineering_bay","starport","science_facility"],
@@ -141,9 +143,9 @@ export function getPlayerReplayCard(db:Database,input:Parameters<typeof cards.ge
   const buildAnchors=(anchors[row.player_race]??[]).flatMap(name=>{const label=actual.find(x=>x.toLowerCase().replaceAll(" ","_")===name);if(!label)return[];
     const e=q.builds(db,row,label,undefined,undefined,1)[0]!;return [{item:label,n:1,time:clock(e.time_seconds),timing_basis:e.timing_basis,frame_min:e.frame_min,frame_max:e.frame_max}];});
   const economyBenchmarks=[300,420].map(t=>{const s=q.economy(db,row,t);return {time:clock(t),workers:s.sample?.workers??null,availability:s.availability};});
-  const death=getDeathSummary(db,{player:row.player_name,replayIds:[row.replay_id],startSeconds:420,endSeconds:540});
+  const death=getDeathSummary(db,{...input,player:row.canonicalPlayerKey??row.player_name,replayIds:[row.replay_id],startSeconds:420,endSeconds:540});
   return {replayId:row.replay_id,filename:row.source_replay_filename,map:row.map??"unknown",duration:row.duration_seconds===null?"unknown":clock(row.duration_seconds),
-    duration_basis:"processed_end_frame",player:{name:row.player_name,race:row.player_race},opponent:{name:row.opponent_name,race:row.opponent_race},matchup:row.matchup,
+    duration_basis:"processed_end_frame",player:{name:row.player_name,race:row.player_race,...q.identityMetadata(row)},opponent:{name:row.opponent_name,race:row.opponent_race},matchup:row.matchup,
     ...(input.includeBuildAnchors===false?{}:{buildAnchors}),...(input.includeEconomyBenchmarks===false?{}:{economyBenchmarks}),
     ...(input.includeCombatSummary===false?{}:{combatSummary:[{window:"07:00-09:00",lost:death.examples[0]?.lost??{},killed:death.examples[0]?.killed??{},coverage_basis:"observations_only"}]})};
 }

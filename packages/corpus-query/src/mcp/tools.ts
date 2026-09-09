@@ -66,6 +66,7 @@ import {
   formatValidateReadonlySqlText
 } from "./textFormat.js";
 import * as z from "zod/v4";
+import { listCanonicalPlayers, getPlayerIdentity, listPlayerGroups, listScopes, type IdentityFilters } from "../identity/catalog.js";
 
 const nonEmptyString = z.string().trim().min(1);
 const optionalNonEmptyString = nonEmptyString.optional();
@@ -74,6 +75,16 @@ const perspectiveSchema = z.enum(["self", "enemy"]).optional();
 const finiteSeconds = z.number().finite();
 const limitSchema = z.number().int().positive().max(500).optional();
 
+const identityFilterInputSchema = {
+  player_group: optionalNonEmptyString,
+  opponent_group: optionalNonEmptyString,
+  scope: optionalNonEmptyString
+};
+function identityFilterArgs(args: {player_group?: string | undefined; opponent_group?: string | undefined; scope?: string | undefined}): IdentityFilters {
+  return {...(args.player_group ? {player_group:args.player_group} : {}),
+    ...(args.opponent_group ? {opponent_group:args.opponent_group} : {}),
+    ...(args.scope ? {scope:args.scope} : {})};
+}
 const corpusFilterInputSchema = {
   player: optionalNonEmptyString,
   opponent: optionalNonEmptyString,
@@ -81,6 +92,7 @@ const corpusFilterInputSchema = {
   opponentRace: optionalNonEmptyString,
   matchup: optionalNonEmptyString,
   map: optionalNonEmptyString,
+  ...identityFilterInputSchema,
   replay_ids: replayIdsSchema
 };
 
@@ -89,6 +101,7 @@ const findReplaysInputSchema = {
   matchup: optionalNonEmptyString,
   player: optionalNonEmptyString,
   race: optionalNonEmptyString,
+  ...identityFilterInputSchema,
   replay_ids: replayIdsSchema
 };
 
@@ -97,6 +110,7 @@ const perspectiveInputSchema = {
   player: nonEmptyString,
   matchup: optionalNonEmptyString,
   race: optionalNonEmptyString,
+  ...identityFilterInputSchema,
   replay_ids: replayIdsSchema,
   as: perspectiveSchema
 };
@@ -111,6 +125,7 @@ const getDeathsInputSchema = z.object({
   to_seconds: finiteSeconds,
   matchup: optionalNonEmptyString,
   race: optionalNonEmptyString,
+  ...identityFilterInputSchema,
   replay_ids: replayIdsSchema,
   as: perspectiveSchema
 }).refine((value) => value.from_seconds <= value.to_seconds, {
@@ -123,6 +138,7 @@ const listBuildEventsInputSchema = z.object({
   player: nonEmptyString,
   matchup: optionalNonEmptyString,
   race: optionalNonEmptyString,
+  ...identityFilterInputSchema,
   replay_ids: replayIdsSchema,
   as: perspectiveSchema,
   item: optionalNonEmptyString,
@@ -251,6 +267,7 @@ const getDeathSummaryInputSchema = z.object({
 });
 
 const getPlayerReplayCardInputSchema = z.object({
+  ...corpusFilterInputSchema,
   db_path: optionalNonEmptyString,
   replayId: optionalNonEmptyString,
   filenameContains: optionalNonEmptyString,
@@ -337,6 +354,10 @@ const DEFAULT_RESOURCE_DB_ENV_VAR = "BW_REPLAY_DB_PATH";
 const DEFAULT_RESOURCE_DB_FILENAME = "corpus.sqlite";
 
 const SUPPORTED_TOOL_NAMES = [
+  "list_canonical_players",
+  "get_player_identity",
+  "list_player_groups",
+  "list_scopes",
   "server_info",
   "ingest_corpus",
   "describe_schema",
@@ -582,6 +603,21 @@ export function createReplayCorpusMcpServer(): McpServer {
       })
   );
 
+  for (const [name, query] of [
+    ["list_canonical_players", listCanonicalPlayers], ["list_player_groups", listPlayerGroups], ["list_scopes", listScopes]
+  ] as const) {
+    server.registerTool(name, {description:"Read the user-curated Corpus v2 identity catalog.", inputSchema:{db_path:optionalNonEmptyString}, annotations:{readOnlyHint:true}},
+      async args => runStructuredTool(async () => {
+        const result = await withReadOnlyDb<unknown>(resolveDbPathForAnalytics(args), query);
+        return {content:[{type:"text" as const,text:JSON.stringify(result)}],structuredContent:result as unknown as StructuredContentRecord};
+      }));
+  }
+  server.registerTool("get_player_identity", {description:"Inspect a canonical player, aliases, overrides and groups (Corpus v2 only).",inputSchema:{db_path:optionalNonEmptyString,player:nonEmptyString},annotations:{readOnlyHint:true}},
+    async args => runStructuredTool(async () => {
+      const result=await withReadOnlyDb(resolveDbPathForAnalytics(args),db=>getPlayerIdentity(db,args.player));
+      return {content:[{type:"text" as const,text:JSON.stringify(result)}],structuredContent:result as unknown as StructuredContentRecord};
+    }));
+
   server.registerTool(
     "get_corpus_summary",
     {
@@ -598,6 +634,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.opponentRace ? { opponentRace: args.opponentRace } : {}),
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {})
           })
         );
@@ -629,6 +666,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.opponentRace ? { opponentRace: args.opponentRace } : {}),
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.limit !== undefined ? { limit: args.limit } : {})
           })
@@ -661,6 +699,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.opponentRace ? { opponentRace: args.opponentRace } : {}),
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.limit !== undefined ? { limit: args.limit } : {})
           })
@@ -693,6 +732,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.opponentRace ? { opponentRace: args.opponentRace } : {}),
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.limit !== undefined ? { limit: args.limit } : {})
           })
@@ -726,6 +766,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.opponentRace ? { opponentRace: args.opponentRace } : {}),
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.limit !== undefined ? { limit: args.limit } : {})
           })
@@ -758,6 +799,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.opponentRace ? { opponentRace: args.opponentRace } : {}),
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.source ? { source: args.source } : {}),
             ...(args.limit !== undefined ? { limit: args.limit } : {})
@@ -792,6 +834,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.opponentRace ? { opponentRace: args.opponentRace } : {}),
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.n !== undefined ? { n: args.n } : {}),
             ...(args.startSeconds !== undefined ? { startSeconds: args.startSeconds } : {}),
@@ -829,6 +872,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.opponentRace ? { opponentRace: args.opponentRace } : {}),
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.firstN !== undefined ? { firstN: args.firstN } : {}),
             ...(args.secondN !== undefined ? { secondN: args.secondN } : {}),
@@ -864,6 +908,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.opponentRace ? { opponentRace: args.opponentRace } : {}),
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.units ? { units: args.units } : {}),
             ...(args.limitExamples !== undefined ? { limitExamples: args.limitExamples } : {})
@@ -898,6 +943,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.opponentRace ? { opponentRace: args.opponentRace } : {}),
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.limitExamples !== undefined ? { limitExamples: args.limitExamples } : {})
           })
@@ -932,6 +978,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.opponentRace ? { opponentRace: args.opponentRace } : {}),
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.limitExamples !== undefined ? { limitExamples: args.limitExamples } : {})
           })
@@ -958,6 +1005,13 @@ export function createReplayCorpusMcpServer(): McpServer {
       runStructuredTool(async () => {
         const result = await withReadOnlyDb(resolveDbPathForAnalytics(args), (db) =>
           getPlayerReplayCard(db, {
+            ...identityFilterArgs(args),
+            ...(args.opponent ? {opponent:args.opponent} : {}),
+            ...(args.opponentRace ? {opponentRace:args.opponentRace} : {}),
+            ...(args.race ? {race:args.race} : {}),
+            ...(args.matchup ? {matchup:args.matchup} : {}),
+            ...(args.map ? {map:args.map} : {}),
+            ...(args.replay_ids ? {replayIds:args.replay_ids} : {}),
             player: args.player,
             ...(args.replayId ? { replayId: args.replayId } : {}),
             ...(args.filenameContains ? { filenameContains: args.filenameContains } : {}),
@@ -1057,6 +1111,7 @@ export function createReplayCorpusMcpServer(): McpServer {
           ...(args.matchup ? { matchup: args.matchup } : {}),
           ...(args.player ? { player: args.player } : {}),
           ...(args.race ? { race: args.race } : {}),
+          ...identityFilterArgs(args),
           ...(args.replay_ids ? { replay_ids: args.replay_ids } : {})
         })
       )
@@ -1075,6 +1130,7 @@ export function createReplayCorpusMcpServer(): McpServer {
           item: args.item,
           ...(args.matchup ? { matchup: args.matchup } : {}),
           ...(args.race ? { race: args.race } : {}),
+          ...identityFilterArgs(args),
           ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
           ...(args.as ? { as: args.as } : {})
         })
@@ -1093,6 +1149,7 @@ export function createReplayCorpusMcpServer(): McpServer {
           player: args.player,
           ...(args.matchup ? { matchup: args.matchup } : {}),
           ...(args.race ? { race: args.race } : {}),
+          ...identityFilterArgs(args),
           ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
           ...(args.as ? { as: args.as } : {}),
           ...(args.item ? { item: args.item } : {}),
@@ -1116,6 +1173,7 @@ export function createReplayCorpusMcpServer(): McpServer {
           n: args.n,
           ...(args.matchup ? { matchup: args.matchup } : {}),
           ...(args.race ? { race: args.race } : {}),
+          ...identityFilterArgs(args),
           ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
           ...(args.as ? { as: args.as } : {})
         })
@@ -1136,6 +1194,7 @@ export function createReplayCorpusMcpServer(): McpServer {
           at: args.at_seconds,
           ...(args.matchup ? { matchup: args.matchup } : {}),
           ...(args.race ? { race: args.race } : {}),
+          ...identityFilterArgs(args),
           ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
           ...(args.as ? { as: args.as } : {})
         })
@@ -1155,6 +1214,7 @@ export function createReplayCorpusMcpServer(): McpServer {
           at: args.at_seconds,
           ...(args.matchup ? { matchup: args.matchup } : {}),
           ...(args.race ? { race: args.race } : {}),
+          ...identityFilterArgs(args),
           ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
           ...(args.as ? { as: args.as } : {})
         })
@@ -1175,6 +1235,7 @@ export function createReplayCorpusMcpServer(): McpServer {
           to: args.to_seconds,
           ...(args.matchup ? { matchup: args.matchup } : {}),
           ...(args.race ? { race: args.race } : {}),
+          ...identityFilterArgs(args),
           ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
           ...(args.as ? { as: args.as } : {})
         })
@@ -1320,9 +1381,11 @@ async function readCompatibilityResource(
           matchup: optionalNonEmptyString,
           player: optionalNonEmptyString,
           race: optionalNonEmptyString,
+          ...identityFilterInputSchema,
           replay_ids: replayIdsSchema
         }).parse({
           db_path: dbPath,
+          ...identityFilterArgs({player_group:getOptionalStringQueryParam(uri,"player_group"),opponent_group:getOptionalStringQueryParam(uri,"opponent_group"),scope:getOptionalStringQueryParam(uri,"scope")}),
           matchup: getOptionalStringQueryParam(uri, "matchup"),
           player: getOptionalStringQueryParam(uri, "player"),
           race: getOptionalStringQueryParam(uri, "race"),
@@ -1334,6 +1397,7 @@ async function readCompatibilityResource(
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.player ? { player: args.player } : {}),
             ...(args.race ? { race: args.race } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replay_ids: args.replay_ids } : {})
           })
         );
@@ -1343,6 +1407,7 @@ async function readCompatibilityResource(
         const dbPath = resolveResourceDbPath(uri);
         const args = listBuildEventsInputSchema.parse({
           db_path: dbPath,
+          ...identityFilterArgs({player_group:getOptionalStringQueryParam(uri,"player_group"),opponent_group:getOptionalStringQueryParam(uri,"opponent_group"),scope:getOptionalStringQueryParam(uri,"scope")}),
           player: requireStringQueryParam(uri, "player"),
           matchup: getOptionalStringQueryParam(uri, "matchup"),
           race: getOptionalStringQueryParam(uri, "race"),
@@ -1358,6 +1423,7 @@ async function readCompatibilityResource(
             player: args.player,
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.race ? { race: args.race } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
             ...(args.as ? { as: args.as } : {}),
             ...(args.item ? { item: args.item } : {}),
@@ -1371,6 +1437,7 @@ async function readCompatibilityResource(
         const dbPath = resolveResourceDbPath(uri);
         const args = getDeathsInputSchema.parse({
           db_path: dbPath,
+          ...identityFilterArgs({player_group:getOptionalStringQueryParam(uri,"player_group"),opponent_group:getOptionalStringQueryParam(uri,"opponent_group"),scope:getOptionalStringQueryParam(uri,"scope")}),
           player: requireStringQueryParam(uri, "player"),
           from_seconds: requireNumberQueryParam(uri, "start", "from", "from_seconds"),
           to_seconds: requireNumberQueryParam(uri, "end", "to", "to_seconds"),
@@ -1387,6 +1454,7 @@ async function readCompatibilityResource(
             to: args.to_seconds,
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.race ? { race: args.race } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
             ...(args.as ? { as: args.as } : {})
           })
@@ -1397,6 +1465,7 @@ async function readCompatibilityResource(
         const dbPath = resolveResourceDbPath(uri);
         const args = getEconomyInputSchema.parse({
           db_path: dbPath,
+          ...identityFilterArgs({player_group:getOptionalStringQueryParam(uri,"player_group"),opponent_group:getOptionalStringQueryParam(uri,"opponent_group"),scope:getOptionalStringQueryParam(uri,"scope")}),
           player: requireStringQueryParam(uri, "player"),
           at_seconds: requireNumberQueryParam(uri, "time", "at", "at_seconds"),
           matchup: getOptionalStringQueryParam(uri, "matchup"),
@@ -1411,6 +1480,7 @@ async function readCompatibilityResource(
             at: args.at_seconds,
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.race ? { race: args.race } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
             ...(args.as ? { as: args.as } : {})
           })
@@ -1421,6 +1491,7 @@ async function readCompatibilityResource(
         const dbPath = resolveResourceDbPath(uri);
         const args = getUnitCountInputSchema.parse({
           db_path: dbPath,
+          ...identityFilterArgs({player_group:getOptionalStringQueryParam(uri,"player_group"),opponent_group:getOptionalStringQueryParam(uri,"opponent_group"),scope:getOptionalStringQueryParam(uri,"scope")}),
           player: requireStringQueryParam(uri, "player"),
           unit: requireStringQueryParam(uri, "unit"),
           at_seconds: requireNumberQueryParam(uri, "time", "at", "at_seconds"),
@@ -1437,6 +1508,7 @@ async function readCompatibilityResource(
             at: args.at_seconds,
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.race ? { race: args.race } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
             ...(args.as ? { as: args.as } : {})
           })
@@ -1447,6 +1519,7 @@ async function readCompatibilityResource(
         const dbPath = resolveResourceDbPath(uri);
         const args = findFirstEventInputSchema.parse({
           db_path: dbPath,
+          ...identityFilterArgs({player_group:getOptionalStringQueryParam(uri,"player_group"),opponent_group:getOptionalStringQueryParam(uri,"opponent_group"),scope:getOptionalStringQueryParam(uri,"scope")}),
           player: requireStringQueryParam(uri, "player"),
           item: requireStringQueryParam(uri, "event", "item"),
           matchup: getOptionalStringQueryParam(uri, "matchup"),
@@ -1461,6 +1534,7 @@ async function readCompatibilityResource(
             item: args.item,
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.race ? { race: args.race } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
             ...(args.as ? { as: args.as } : {})
           })
@@ -1471,6 +1545,7 @@ async function readCompatibilityResource(
         const dbPath = resolveResourceDbPath(uri);
         const args = findNthEventInputSchema.parse({
           db_path: dbPath,
+          ...identityFilterArgs({player_group:getOptionalStringQueryParam(uri,"player_group"),opponent_group:getOptionalStringQueryParam(uri,"opponent_group"),scope:getOptionalStringQueryParam(uri,"scope")}),
           player: requireStringQueryParam(uri, "player"),
           item: requireStringQueryParam(uri, "event", "item"),
           n: requireIntegerQueryParam(uri, "n"),
@@ -1487,6 +1562,7 @@ async function readCompatibilityResource(
             n: args.n,
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.race ? { race: args.race } : {}),
+            ...identityFilterArgs(args),
             ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
             ...(args.as ? { as: args.as } : {})
           })
@@ -1850,8 +1926,8 @@ async function runStructuredTool<T extends ToolPayload | IngestCorpusPayload | E
       structuredContent: {
         error: {
           message,
-          ...((error as {code?:unknown})?.code === "NOT_SUPPORTED_FOR_CORPUS_V2" ? {
-            code:"NOT_SUPPORTED_FOR_CORPUS_V2",backend:"v2"
+          ...((error as {code?:unknown})?.code && ["NOT_SUPPORTED_FOR_CORPUS_V2","NOT_SUPPORTED_FOR_CORPUS_V1","AMBIGUOUS_PLAYER_SELECTOR"].includes(String((error as {code?:unknown}).code)) ? {
+            code:(error as {code:string}).code,...((error as {backend?:string}).backend ? {backend:(error as {backend:string}).backend} : {})
           } : {})
         }
       } as StructuredContentRecord,
@@ -1882,6 +1958,7 @@ async function selectedServerInfo(base:ReturnType<typeof loadServerInfo>, explic
   try {
     const backend=path ? await selectedBackend({db_path:path}) : null;
     return {...base,corpus_backend:backend,supported_backends:["v1","v2"],
+      v2_only_tools:["list_canonical_players","get_player_identity","list_player_groups","list_scopes"],
       v1_only_tools:["ingest_corpus","execute_query_plan","export_query_plan_zip"]};
   } catch(error) {
     return {...base,corpus_backend:null,supported_backends:["v1","v2"],database_error:error instanceof Error?error.message:String(error)};

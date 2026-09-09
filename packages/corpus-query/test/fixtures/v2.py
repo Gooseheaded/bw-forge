@@ -24,7 +24,12 @@ for index in range(2):
         (fixture.artifacts/'raw.rep').write_bytes(raw)
         fixture.manifest['replay_id'] = replay_sha
         fixture.manifest['replay_analysis']['map'] = 'Map' + str(index)
-        fixture.manifest['players'].append({'owner': 1, 'name': 'Enemy', 'race': 'terran', 'legacy_zip_path': 'enemy.zip'})
+        identity_fixture = '--identities' in sys.argv
+        if identity_fixture:
+            fixture.player['name'] = ['Gooseheaded', 'G00se'][index]
+            fixture.manifest['players'][0]['name'] = fixture.player['name']
+        enemy_name = ['FirstLaw', 'Dex'][index] if identity_fixture else 'Enemy'
+        fixture.manifest['players'].append({'owner': 1, 'name': enemy_name, 'race': 'terran', 'legacy_zip_path': 'enemy.zip'})
         (fixture.artifacts/'manifest.json').write_text(json.dumps({
             'schema_version': 'replay-analysis-manifest-v1', 'replay_id': replay_sha,
             'players': fixture.manifest['players']}))
@@ -37,7 +42,7 @@ for index in range(2):
                     obj = json.loads(data)
                     obj['owner'] = 1
                     if name == 'player.json':
-                        obj.update(name='Enemy', race='terran')
+                        obj.update(name=enemy_name, race='terran')
                     if name == 'deaths.json':
                         for sample in obj['samples']:
                             sample['death'].update(owner=1,unit_type='marine')
