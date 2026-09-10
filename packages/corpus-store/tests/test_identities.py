@@ -24,7 +24,8 @@ class IdentityTests(unittest.TestCase):
             'overrides':[{'replay_sha256':self.fixture.manifest['replay_id'],'owner':0,'player':'other'}],
             'groups':[{'key':'friends','display_name':'Friends','players':['player','other']}],
             'scopes':[{'key':'mine','display_name':'Mine','self':{'groups':['friends']},'opponent':{'players':['other']},
-                       'filters':{'race':'zerg','matchup':'ZvT','map':'Map'},'replay_sha256':[self.fixture.manifest['replay_id']]}]}
+                       'filters':{'race':'zerg','matchup':'ZvT','map':'Map','played_from':'2025-01-01','played_before':'2026-01-01T00:00:00Z'},
+                       'replay_sha256':[self.fixture.manifest['replay_id']]}]}
 
     def tearDown(self):
         self.db.close()
@@ -83,6 +84,8 @@ class IdentityTests(unittest.TestCase):
         c=copy.deepcopy(self.config);c['scopes'][0]['self']['groups']=['missing'];variants.append(c)
         c=copy.deepcopy(self.config);c['overrides'][0]['owner']=999;variants.append(c)
         c=copy.deepcopy(self.config);c['scopes'][0]['filters']['sql']='SELECT 1';variants.append(c)
+        c=copy.deepcopy(self.config);c['scopes'][0]['filters']['played_from']='01/02/26';variants.append(c)
+        c=copy.deepcopy(self.config);c['scopes'][0]['filters']['played_from']='2027-01-01';variants.append(c)
         before=list(self.db.iterdump())
         for config in variants:
             with self.subTest(config=config), self.assertRaises(ValueError):

@@ -7,6 +7,8 @@
     ".": "./src/index.ts",
     "./publication": "./src/publication.ts",
     "./jobs": "./src/jobs.ts",
-    "./watcher": "./src/watcher.ts"
+    "./watcher": "./src/watcher.ts",
+    "./chronology": "./src/chronology.ts",
+    "./replay-metadata": "./src/replay-metadata.ts"
   }
 }

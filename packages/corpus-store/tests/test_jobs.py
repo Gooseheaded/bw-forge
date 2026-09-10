@@ -35,7 +35,7 @@ class JobMigrationTests(unittest.TestCase):
         self.assertEqual(first,list(self.db.iterdump()))
         self.assertEqual(before,self.snapshot())
         self.assertEqual(catalog,export_catalog(self.db))
-        self.assertEqual(self.db.execute('SELECT revision FROM corpus_migrations ORDER BY revision').fetchall(),[(1,),(2,)])
+        self.assertEqual(self.db.execute('SELECT revision FROM corpus_migrations ORDER BY revision').fetchall(),[(1,),(2,),(3,)])
         self.assertEqual(self.db.execute('PRAGMA user_version').fetchone()[0],2)
         self.assertEqual(self.db.execute('SELECT schema_version FROM corpus_metadata').fetchone()[0],2)
         self.assertEqual(self.db.execute('PRAGMA integrity_check').fetchone()[0],'ok')

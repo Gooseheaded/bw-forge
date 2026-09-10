@@ -43,7 +43,7 @@ async function fixture() {
   scopes:[
     {key:"my-zvt",display_name:"My ZvT",self:{players:["goose"],groups:[]},opponent:{players:[],groups:["friends"]},filters:{race:"zerg",opponent_race:"terran",matchup:"ZvT",map:"Map0"},replay_sha256:[]},
     {key:"all-mine",display_name:"All mine",self:{players:[],groups:["me"]},opponent:{players:[],groups:[]},filters:{},replay_sha256:[]},
-    {key:"second",display_name:"Second replay",self:{players:["goose"],groups:[]},opponent:{players:[],groups:[]},filters:{},replay_sha256:[data.replayIds[1]!]}
+    {key:"second",display_name:"Second replay",self:{players:["goose"],groups:[]},opponent:{players:[],groups:[]},filters:{played_from:"2026-01-01",played_before:"2027-01-01T00:00:00Z"},replay_sha256:[data.replayIds[1]!]}
   ]};
   const configPath=join(root,"identities.json");
   const admin=fileURLToPath(new URL("../../corpus-store/python/store.py",import.meta.url));
@@ -95,6 +95,8 @@ test("group and scope role OR, dimension AND, narrowing, empty groups and SHA re
   assert.equal(scope(f.db,{opponent_group:"friends"}).length,1);
   assert.equal(scope(f.db,{player_group:"empty"}).length,0);
   assert.equal(scope(f.db,{scope:"my-zvt"}).length,1);
+  assert.equal(scope(f.db,{player:"goose",opponent:"firstlaw",player_group:"me",opponent_group:"friends",matchup:"ZvT",
+    race:"zerg",opponentRace:"terran",map:"Map0",played_from:"2025-01-01",played_before:"2026-01-01"}).length,1);
   assert.equal(scope(f.db,{scope:"all-mine"}).length,2);
   assert.equal(scope(f.db,{scope:"my-zvt",map:"Map1"}).length,0);
   assert.equal(scope(f.db,{scope:"my-zvt",race:"terran"}).length,0);
@@ -102,6 +104,9 @@ test("group and scope role OR, dimension AND, narrowing, empty groups and SHA re
   assert.equal(scope(f.db,{scope:"my-zvt",player:"G00se"}).length,0);
   assert.deepEqual(scope(f.db,{scope:"second"}).map(r=>r.replay_id),[f.replayIds[1]]);
   assert.equal(scope(f.db,{scope:"second",replayIds:[f.replayIds[0]!]}).length,0);
+  assert.equal(scope(f.db,{scope:"second",played_before:"2026-01-01"}).length,0);
+  assert.deepEqual((identities.listScopes(f.db).scopes.find(s=>s.scopeKey==="second") as any).filters,
+    {played_from:"2026-01-01",played_before:"2027-01-01T00:00:00Z"});
   assert.throws(()=>scope(f.db,{scope:"missing"}),/Unknown query scope/);
   assert.throws(()=>scope(f.db,{player_group:"missing"}),/Unknown player group/);
   f.config.scopes[1]!.self.players=["firstlaw"];

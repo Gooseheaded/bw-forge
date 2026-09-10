@@ -2,7 +2,7 @@ import type { QueryExample } from "./queryExamples.js";
 import type { SchemaJoinHint, SchemaNotesResult } from "./schemaDescription.js";
 
 export const V2_PURPOSES:Record<string,string>={
-  corpus_migrations:"Additive v2 revisions; major markers stay 2. Revision 1 adds identities and revision 2 adds analysis jobs.",
+  corpus_migrations:"Additive v2 revisions; major markers stay 2. Revision 1 adds identities, revision 2 adds analysis jobs, and revision 3 adds replay chronology.",
   replay_sources:"Operational provenance for canonically registered replay bytes; multiple source references may identify one replay.",
   analysis_jobs:"Persistent queued/running/succeeded/failed analysis work with priority, leases, attempts and optional indexed result. It is not the current-analysis pointer.",
   analysis_job_attempts:"Compact claim history, including failed work and workers abandoned through lease expiry.",
@@ -11,11 +11,11 @@ export const V2_PURPOSES:Record<string,string>={
   participation_identity_overrides:"Explicit identity override for a participation; takes precedence over aliases. Configure by replay SHA256 + owner.",
   player_groups:"User-curated named groups; group_key is the stable external identifier.",
   player_group_members:"Many-to-many group membership of canonical players.",
-  query_scopes:"Named typed cohorts, scope_key plus JSON race/opponent_race/matchup/map constraints; never arbitrary SQL.",
+  query_scopes:"Named typed cohorts, scope_key plus JSON race/opponent_race/matchup/map and half-open played-at constraints; never arbitrary SQL.",
   scope_players:"Canonical player selectors by scope and self/opponent role.",
   scope_groups:"Canonical group selectors by scope and self/opponent role; union with same-role players.",
   scope_replays:"Optional replay SHA256 restrictions for a scope, independent of integer replay IDs.",
-  replays:"Stable external identity is sha256; integer replay_id is internal. map_name is observed metadata.",
+  replays:"Stable external identity is sha256; integer replay_id is internal. played_at_unix_s is nullable replay-declared UTC Unix seconds, independent of analysis and filesystem dates.",
   participations:"Stable replay-local participation for (replay_id,owner). observed_name is a raw name, not a canonical identity.",
   analysis_specs:"Immutable fingerprint, unit domain and rational frame clock (num_ms/den).",
   analysis_runs:"Analysis history; normal queries must select only the current indexed run.",
@@ -74,6 +74,9 @@ export const V2_NOTES:SchemaNotesResult["notes"]=[
     "Event comparisons with overlapping bounds are uncertain and excluded from definite-match percentages."]},
   {topic:"deaths",title:"Individual observed deaths",bullets:["Count individual death_events within inclusive frame ranges; do not deduplicate simultaneous events.",
     "Counts represent observed events. Missing events do not prove an interval is complete. Killed is opponent losses, not killer attribution."]},
+  {topic:"chronology",title:"Replay-declared UTC chronology",bullets:["replays.played_at_unix_s is Unix seconds from the replay Header section. NULL means unavailable; never infer it from a filename, mtime or ctime.",
+    "played_from is inclusive and played_before is exclusive. YYYY-MM-DD boundaries mean UTC midnight; timestamps must be unambiguous RFC3339 with a timezone.",
+    "Bounded filters exclude NULL chronology. Unfiltered queries retain those replays. Use replays_by_played_at for ranges and strftime('%Y',played_at_unix_s,'unixepoch') for UTC year cohorts."]},
   {topic:"paths",title:"Immutable publication metadata",bullets:["analysis_publications and analysis_artifact_locations reference immutable published files and canonical raw replays.",
     "Unpublished 2A databases can lack these optional tables; paths may be unavailable. Logical analysis_artifacts checksums include uncompressed ZIP members.",
     "ingest_corpus, execute_query_plan and export_query_plan_zip are v1-only for now. Use analyze-v2/ingest-v2 for v2 ingestion."]}
@@ -109,5 +112,9 @@ ${current} JOIN stream_coverage c ON c.observation_id=ap.observation_id AND c.st
 JOIN analysis_unit_domain d ON d.spec_id=s.spec_id JOIN unit_types u ON u.unit_type_id=d.unit_type_id LIMIT 50`,notes:["Zero is valid only within domain and complete coverage. Explicit zero overrides prior positives."]},
   {topic:"deaths",title:"Current individual deaths in frame interval",sql:`SELECT r.sha256,p.observed_name,d.frame,u.unit_key,d.category ${current} JOIN death_events d ON d.observation_id=ap.observation_id JOIN unit_types u ON u.unit_type_id=d.unit_type_id WHERE d.frame BETWEEN 0 AND 100 ORDER BY r.sha256,d.frame,d.occurrence LIMIT 50`,notes:["Observed losses, not complete interval coverage or killer attribution."]},
   {topic:"event_sequences",title:"Definitely ordered build occurrences",sql:`SELECT r.sha256,p.observed_name,b1.occurrence,b2.occurrence ${current} JOIN build_events b1 ON b1.observation_id=ap.observation_id JOIN build_events b2 ON b2.observation_id=ap.observation_id AND b1.frame_max<b2.frame_min LIMIT 50`,notes:["Overlapping uncertainty bounds do not prove event order."]},
+  {topic:"chronology",title:"Current economy by UTC replay year",sql:`SELECT strftime('%Y',r.played_at_unix_s,'unixepoch') AS played_year,count(DISTINCT r.replay_id) AS replays,avg(e.minerals) AS mean_minerals ${current}
+JOIN economy_changes e ON e.observation_id=ap.observation_id AND e.frame=1
+WHERE r.played_at_unix_s>=unixepoch('2025-01-01T00:00:00Z') AND r.played_at_unix_s<unixepoch('2026-01-01T00:00:00Z')
+GROUP BY played_year ORDER BY played_year LIMIT 50`,notes:["Half-open UTC range. NULL played_at values are excluded by the bounded predicates."]},
   {topic:"replay_cards",title:"Current replay card metadata",sql:`SELECT r.sha256,r.map_name,p.observed_name,p.race,a.processed_end_frame,s.frame_duration_num_ms,s.frame_duration_den ${current} LIMIT 50`,notes:["Published locations are optional; processed endpoint is not guaranteed full duration."]}
 ];

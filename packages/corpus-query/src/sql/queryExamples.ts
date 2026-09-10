@@ -9,6 +9,7 @@ export type QueryExampleTopic =
   | "economy"
   | "composition"
   | "deaths"
+  | "chronology"
   | "replay_cards";
 
 export type QueryExample = {

@@ -12,7 +12,7 @@ import type * as cards from "./legacy_replayCard.js";
 
 function rows(db:Database,input:CorpusFilterInput) { return q.uniqueScope(q.scope(db,normalizeCorpusFilters(input))); }
 function payload(input:CorpusFilterInput) {return replayScopeFiltersPayload(normalizeCorpusFilters(input));}
-function example(r:q.Scope) {return {replayId:r.replay_id,filename:r.source_replay_filename,player:r.player_name,opponent:r.opponent_name,...q.identityMetadata(r)};}
+function example(r:q.Scope) {return {replayId:r.replay_id,filename:r.source_replay_filename,playedAt:r.playedAt,playedAtUnixSeconds:r.played_at_unix_s,player:r.player_name,opponent:r.opponent_name,...q.identityMetadata(r)};}
 function groupedReplays(scope:q.Scope[],field:"matchup"|"map") {
   const sets=new Map<string,Set<string>>();
   for(const r of scope){const key=r[field]||"unknown";const set=sets.get(key)??new Set<string>();set.add(r.replay_id);sets.set(key,set);}
@@ -144,7 +144,7 @@ export function getPlayerReplayCard(db:Database,input:Parameters<typeof cards.ge
     const e=q.builds(db,row,label,undefined,undefined,1)[0]!;return [{item:label,n:1,time:clock(e.time_seconds),timing_basis:e.timing_basis,frame_min:e.frame_min,frame_max:e.frame_max}];});
   const economyBenchmarks=[300,420].map(t=>{const s=q.economy(db,row,t);return {time:clock(t),workers:s.sample?.workers??null,availability:s.availability};});
   const death=getDeathSummary(db,{...input,player:row.canonicalPlayerKey??row.player_name,replayIds:[row.replay_id],startSeconds:420,endSeconds:540});
-  return {replayId:row.replay_id,filename:row.source_replay_filename,map:row.map??"unknown",duration:row.duration_seconds===null?"unknown":clock(row.duration_seconds),
+  return {replayId:row.replay_id,filename:row.source_replay_filename,playedAt:row.playedAt,playedAtUnixSeconds:row.played_at_unix_s,map:row.map??"unknown",duration:row.duration_seconds===null?"unknown":clock(row.duration_seconds),
     duration_basis:"processed_end_frame",player:{name:row.player_name,race:row.player_race,...q.identityMetadata(row)},opponent:{name:row.opponent_name,race:row.opponent_race},matchup:row.matchup,
     ...(input.includeBuildAnchors===false?{}:{buildAnchors}),...(input.includeEconomyBenchmarks===false?{}:{economyBenchmarks}),
     ...(input.includeCombatSummary===false?{}:{combatSummary:[{window:"07:00-09:00",lost:death.examples[0]?.lost??{},killed:death.examples[0]?.killed??{},coverage_basis:"observations_only"}]})};

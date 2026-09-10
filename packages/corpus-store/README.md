@@ -321,3 +321,27 @@ watcher / downloader
         -> leased worker
         -> analyzeAndPublishReplay
 ```
+
+## Replay chronology
+
+Additive Corpus v2 revision 3 adds nullable `replays.played_at_unix_s` and the
+`replays_by_played_at` range index while preserving both major version markers
+at 2. The value is UTC Unix seconds declared at offset `0x08` of the replay
+Header section. BW Forge reads it from bwsim's decoded replay data and never
+uses the replay filename, mtime, or ctime. Zero or an unreadable header remains
+`NULL`. Once populated, registration and reanalysis do not change it.
+
+New registrations extract chronology automatically. Existing managed replays
+can be filled explicitly, without analysis, using:
+
+```sh
+bw-forge replays backfill-played-at --corpus-root /srv/bw-forge/corpus --db /srv/bw-forge/corpus/db/corpus.sqlite
+```
+
+Backfill verifies each canonical replay against its SHA-256 before decoding,
+updates only `NULL` rows in one transaction, and reports unavailable or invalid
+replays. Repeating it is idempotent.
+
+This field is the clock value recorded by the replay and is not externally
+verified. It is distinct from source first-seen time, queue creation time,
+analysis time, and publication time.

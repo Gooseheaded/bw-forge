@@ -30,6 +30,13 @@ def migrate_in_transaction(db):
             if statement.strip():
                 db.execute(statement)
         db.execute('INSERT INTO corpus_migrations VALUES (2,?,?)', ('analysis-jobs-v1', int(time.time()*1000)))
+    if not db.execute('SELECT 1 FROM corpus_migrations WHERE revision=3').fetchone():
+        statements = Path(__file__).with_name('chronology.sql').read_text().split(';')
+        columns = {row[1] for row in db.execute('PRAGMA table_info(replays)')}
+        for index, statement in enumerate(statements):
+            if statement.strip() and (index != 0 or 'played_at_unix_s' not in columns):
+                db.execute(statement)
+        db.execute('INSERT INTO corpus_migrations VALUES (3,?,?)', ('replay-played-at-v1', int(time.time()*1000)))
 
 
 def migrate(db):

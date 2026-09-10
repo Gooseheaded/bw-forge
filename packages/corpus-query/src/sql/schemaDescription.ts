@@ -44,6 +44,7 @@ export type SchemaNotesTopic =
   | "unit_counts"
   | "economy"
   | "build_order"
+  | "chronology"
   | "paths";
 
 export type SchemaNotesResult = {

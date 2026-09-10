@@ -36,6 +36,13 @@ async function main() {
     outfile: resolve(OUTPUT_ROOT, "apps", "cli", "src", "main.js"),
     format: "esm"
   });
+  // corpus-store's replay chronology decoder runs in Node because bwsim uses
+  // WebAssembly memory64; keep the spawned helper beside the bundled CLI.
+  await bundleEntrypoint(esbuildExecutable, {
+    entrypoint: resolve(REPO_ROOT, "packages", "corpus-store", "src", "replay-metadata-runtime.mjs"),
+    outfile: resolve(OUTPUT_ROOT, "apps", "cli", "src", "replay-metadata-runtime.mjs"),
+    format: "esm"
+  });
   await bundleEntrypoint(esbuildExecutable, {
     entrypoint: resolve(REPO_ROOT, "apps", "cli", "src", "bwsim-exporter.ts"),
     outfile: resolve(OUTPUT_ROOT, "apps", "cli", "src", "bwsim-exporter.js"),

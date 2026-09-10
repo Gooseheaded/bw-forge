@@ -11,6 +11,7 @@ import { analyzeAndPublishReplay } from "../../../packages/corpus-store/src/publ
 import { createAnalysisWorker, createWorkerId, enqueueReplay, listAnalysisJobs, retryAnalysisJob,
   showAnalysisJob, type JobStatus } from "../../../packages/corpus-store/src/jobs.js";
 import { createReplayWatcher } from "../../../packages/corpus-store/src/watcher.js";
+import { backfillReplayPlayedAt } from "../../../packages/corpus-store/src/chronology.js";
 import { assertSafeAnalyzeOutputRoot } from "./analyze-output-path.js";
 import { buildCommandSpawnOptions } from "./child-process.js";
 import { corpusQueryRuntimeArgs } from "./corpus-query-runtime.js";
@@ -98,6 +99,12 @@ async function main(): Promise<void> {
       } else if (args[0] === "export") {
         console.log(JSON.stringify(await exportIdentities(db), null, 2));
       } else throw new Error("Usage: bw-forge identities apply <config.json> --db <path> | identities export --db <path>");
+      return;
+    }
+    case "replays": {
+      if(args[0]!=="backfill-played-at")throw new Error("Usage: bw-forge replays backfill-played-at --corpus-root <root> --db <path>");
+      console.log(JSON.stringify(await backfillReplayPlayedAt({corpusRoot:resolveOptionPath(requireOption(args,"--corpus-root")),
+        dbPath:resolveOptionPath(requireOption(args,"--db"))}),null,2));
       return;
     }
     case "analyze":
@@ -707,6 +714,7 @@ Commands:
   bw-forge analyze-v2 <replay.rep> --corpus-root <dir> [--db <path>] [--keep-failed-work]
   bw-forge identities apply <config.json> --db <path>
   bw-forge identities export --db <path>
+  bw-forge replays backfill-played-at --corpus-root <root> --db <path>
   bw-forge jobs enqueue <replay.rep> --corpus-root <root> --db <path> [--priority <n>] [--force]
   bw-forge jobs list --db <path> [--status queued|running|succeeded|failed] [--limit <n>]
   bw-forge jobs show <job-key> --db <path>

@@ -62,10 +62,13 @@ test("mismatching managed replay content is rejected and never overwritten",asyn
 
 test("indexed replay is not queued unless forced and force cannot duplicate active work",async()=>{
   await enqueue();await worker().once({corpusRoot,dbPath,workerId:"worker",leaseMs:300,heartbeatMs:50});
+  const db=new Database(dbPath);db.exec("UPDATE replays SET played_at_unix_s=123");db.close();
   expect((await enqueue()).status).toBe("already-indexed");
   const forced=await enqueue({force:true});expect(forced.status).toBe("queued");
   const duplicate=await enqueue({force:true});expect(duplicate.status).toBe("already-queued");expect(duplicate.job!.jobKey).toBe(forced.job!.jobKey);
   expect(rows("SELECT count(*) n FROM analysis_jobs")).toEqual([{n:2}]);
+  await worker().once({corpusRoot,dbPath,workerId:"reanalysis",leaseMs:300,heartbeatMs:50});
+  expect(rows("SELECT played_at_unix_s FROM replays")).toEqual([{played_at_unix_s:123}]);
 });
 
 test("explicit analyzer failure is retained and retry preserves attempt history",async()=>{

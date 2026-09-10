@@ -43,7 +43,7 @@ export function playerSelector(db: Database, value: string): { playerId?: number
   return {rawKey:normalized,...(resolved ? {resolvedPlayerId:Number(resolved.player_id)} : {})};
 }
 
-export function identityConditions(db:Database, filters:{[K in keyof IdentityFilters]?: string | undefined} & {player?:string | undefined;opponent?:string | undefined}, conditions:string[], args:unknown[]): void {
+export function identityConditions(db:Database, filters:{[K in keyof IdentityFilters]?: string | undefined} & {player?:string | undefined;opponent?:string | undefined}, conditions:string[], args:unknown[], chronologyAvailable=true): void {
   for(const [value,p,prefix] of [[filters.player,"p","self_"],[filters.opponent,"enemy","enemy_"]] as const) {
     if(!value)continue;
     const selector=playerSelector(db,value);
@@ -72,6 +72,16 @@ export function identityConditions(db:Database, filters:{[K in keyof IdentityFil
     if(stored[field!]){
       if(field==="map" && stored[field]!.toLowerCase()==="unknown")conditions.push("(r.map_name IS NULL OR trim(r.map_name)='')");
       else{conditions.push(`${column}=? COLLATE NOCASE`);args.push(stored[field!]);}
+    }
+  }
+  for(const [field,operator] of [["played_from",">="],["played_before","<"]] as const){
+    if(stored[field]){
+      if(!chronologyAvailable)conditions.push("0");
+      else{
+        const timestamp=Date.parse(stored[field]!)/1000;
+        if(!Number.isFinite(timestamp))throw new Error(`Invalid ${field} in query scope ${filters.scope}`);
+        conditions.push(`r.played_at_unix_s ${operator} ?`);args.push(timestamp);
+      }
     }
   }
   if(sqlRows(db,"SELECT 1 FROM scope_replays WHERE scope_id=? LIMIT 1",[scope.scope_id]).length){

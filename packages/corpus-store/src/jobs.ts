@@ -38,10 +38,12 @@ export async function enqueueReplay(options:{
   const registered=await registerCanonicalReplay(options);
   const result=await command<JobResult>(options.dbPath,"enqueue",{
     sha256:registered.replaySha256,byte_size:registered.byteSize,raw_relative_path:registered.canonicalRelativePath,
+    played_at_unix_s:registered.playedAtUnixSeconds,
     source_kind:options.sourceKind??"manual",source_ref:resolve(options.sourceRef??options.replayPath),
     priority,force:options.force??false,max_attempts:maxAttempts
   });
-  return {...result,replaySha256:registered.replaySha256,canonicalReplayPath:registered.canonicalReplayPath,rawReused:registered.reused};
+  return {...result,replaySha256:registered.replaySha256,canonicalReplayPath:registered.canonicalReplayPath,rawReused:registered.reused,
+    playedAtUnixSeconds:registered.playedAtUnixSeconds,metadataError:registered.metadataError};
 }
 
 export const listAnalysisJobs=(dbPath:string,options:{status?:JobStatus;limit?:number}={})=>{

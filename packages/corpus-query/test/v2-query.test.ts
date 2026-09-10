@@ -24,10 +24,11 @@ import { listQueryExamples } from "../src/sql/queryExamples.js";
 import { validateReadonlySql } from "../src/sql/readonlySql.js";
 import { createReplayCorpusMcpServer } from "../src/mcp/tools.js";
 
-async function fixture() {
+async function fixture(options:{unknownSecond?:boolean;preM8?:boolean}={}) {
   const root=await mkdtemp(join(tmpdir(),"corpus-v2-query-"));
   const python=process.env.BW_FORGE_PYTHON??(process.platform==="win32"?"py":"python3");
-  const result=spawnSync(python,[...(python==="py"?["-3"]:[]),fileURLToPath(new URL("./fixtures/v2.py",import.meta.url)),root],{encoding:"utf8",windowsHide:true});
+  const result=spawnSync(python,[...(python==="py"?["-3"]:[]),fileURLToPath(new URL("./fixtures/v2.py",import.meta.url)),root,
+    ...(options.unknownSecond?["--unknown-second"]:[]),...(options.preM8?["--pre-m8"]:[])],{encoding:"utf8",windowsHide:true});
   if(result.error)throw result.error;
   assert.equal(result.status,0,result.stderr);
   const data=JSON.parse(result.stdout) as {dbPath:string;replayIds:string[]};
@@ -63,6 +64,48 @@ test("v2 discovery, occurrences and current-only observations",async()=>{
   assert.equal(first.time_seconds,1);assert.equal(first.frame,null);assert.equal(first.frame_min,24);assert.equal(first.frame_max,47);
   assert.equal((query.findNthEvent(f.db,{...filters,n:2})[0]!.event as any).occurrence,1);
   assert.equal(query.findNthEvent(f.db,{...filters,n:3})[0]!.event,null);
+});
+test("played-at chronology is UTC, half-open, shared across query layers, and indexed",async()=>{
+  await using f=await fixture();
+  const all=query.findReplays(f.db,{} as any) as any[];
+  assert.deepEqual(all.map(row=>[row.playedAtUnixSeconds,row.playedAt]),[
+    [1735689600,"2025-01-01T00:00:00Z"],[1767225600,"2026-01-01T00:00:00Z"]]);
+  const y2025={played_from:"2025-01-01",played_before:"2026-01-01"};
+  assert.deepEqual((query.findReplays(f.db,y2025) as any[]).map(row=>row.replay_id),[f.replayIds[0]]);
+  assert.equal(query.findReplays(f.db,{played_from:"2026-01-01",played_before:"2027-01-01"}).length,1);
+  assert.equal(query.findReplays(f.db,{played_before:"2025-01-01"}).length,0);
+  assert.equal(query.findReplays(f.db,{played_from:"2025-01-01T01:00:00+01:00",played_before:"2025-01-02T00:00:00Z"}).length,1);
+  for(const value of ["2025","01/01/2025","2025-02-30","2025-02-30T00:00:00Z","2025-01-01T00:00:00","2025-01-01 00:00:00Z"])
+    assert.throws(()=>query.findReplays(f.db,{played_from:value}),/played|RFC3339/i);
+  assert.throws(()=>query.findReplays(f.db,{played_from:"2026-01-01",played_before:"2025-01-01"}),/earlier/);
+  assert.equal(query.getEconomyAtOrBefore(f.db,{player:"Player",at:.042,...y2025})[0]?.sample?.minerals,77);
+  const economy2025=compositions.getEconomyDistribution(f.db,{player:"Player",timeSeconds:.042,...y2025});
+  const economy2026=compositions.getEconomyDistribution(f.db,{player:"Player",timeSeconds:.042,played_from:"2026-01-01",played_before:"2027-01-01"});
+  assert.deepEqual([economy2025.sampleSize,economy2025.minerals?.mean,economy2026.sampleSize,economy2026.minerals?.mean],[1,77,1,97]);
+  assert.equal(discovery.getCorpusSummary(f.db,y2025).replayCount,1);
+  const card=getPlayerReplayCard(f.db,{player:"Player",replayId:f.replayIds[0]!}) as any;
+  assert.equal(card.playedAt,"2025-01-01T00:00:00Z");assert.equal(card.playedAtUnixSeconds,1735689600);
+  const years=sqlRows(f.db,`SELECT strftime('%Y',played_at_unix_s,'unixepoch') AS year,count(*) AS n FROM replays GROUP BY year ORDER BY year`);
+  assert.deepEqual(years.map(row=>({...row})),[{year:"2025",n:1},{year:"2026",n:1}]);
+  assert.match(JSON.stringify(sqlRows(f.db,"EXPLAIN QUERY PLAN SELECT replay_id FROM replays WHERE played_at_unix_s>=1735689600 AND played_at_unix_s<1767225600")),/replays_by_played_at/);
+});
+test("unknown chronology is retained for unfiltered queries and excluded from bounded ranges",async()=>{
+  await using f=await fixture({unknownSecond:true});
+  const all=query.findReplays(f.db,{}) as any[];assert.equal(all.length,2);assert.equal(all[1]!.playedAt,null);
+  assert.equal(query.findReplays(f.db,{played_from:"2025-01-01",played_before:"2026-01-01"}).length,1);
+  assert.equal(query.findReplays(f.db,{played_from:"2026-01-01"}).length,0);
+});
+test("pre-chronology v2 databases stay byte-identical and readable through the read-only backend",async()=>{
+  await using f=await fixture({preM8:true});const before=await readFile(f.dbPath);
+  assert.equal(query.findReplays(f.db,{}).length,2);
+  assert.equal(query.findReplays(f.db,{played_from:"2025-01-01"}).length,0);
+  const server=createReplayCorpusMcpServer(),client=new Client({name:"pre-m8-test",version:"1"});const [a,b]=InMemoryTransport.createLinkedPair();
+  await Promise.all([client.connect(a),server.connect(b)]);
+  try{
+    const summary=await client.callTool({name:"get_corpus_summary",arguments:{db_path:f.dbPath}});assert.equal((summary.structuredContent as any).replayCount,2);
+    const dated=await client.callTool({name:"find_replays",arguments:{db_path:f.dbPath,played_from:"2025-01-01"}});assert.equal((dated.structuredContent as any).count,0);
+  }finally{await client.close();await server.close();}
+  assert.deepEqual(await readFile(f.dbPath),before);
 });
 test("sparse economy and unit semantics: zeros, domain, coverage and boundaries",async()=>{
   await using f=await fixture();const filters={player:"Player",replay_ids:[f.replayIds[0]!]};
@@ -159,6 +202,9 @@ test("shared MCP tools and resources execute on v2 and reject v1-only operations
       ["describe_schema",{}],["validate_readonly_sql",{sql:"SELECT sha256 FROM replays"}]
     ] as [string,Record<string,unknown>][]) await call(name,args);
     assert.equal((await call("find_replays",{player:"Player"})).count,2);
+    const dated=await call("find_replays",{player:"Player",played_from:"2025-01-01",played_before:"2026-01-01"});
+    assert.equal(dated.count,1);assert.equal(dated.results[0].playedAt,"2025-01-01T00:00:00Z");
+    assert.equal((await call("get_economy_distribution",{player:"Player",timeSeconds:.042,played_from:"2025-01-01",played_before:"2026-01-01"})).sampleSize,1);
     const zero=await call("get_unit_count",{player:"Player",unit:"zergling",at_seconds:.084});
     assert.equal(zero.results[0].sample.count,0);
     await call("get_economy",{player:"Player",at_seconds:.042});
@@ -174,6 +220,8 @@ test("shared MCP tools and resources execute on v2 and reject v1-only operations
       assert.equal(rejected.isError,true);assert.match(JSON.stringify(rejected),/NOT_SUPPORTED_FOR_CORPUS_V2/);}
     const resource=await client.readResource({uri:`bw_replay://unit_count?db_path=${encodeURIComponent(f.dbPath)}&player=Player&unit=zergling&time=0.084`});
     assert.equal(JSON.parse((resource.contents[0] as any).text).results[0].sample.count,0);
+    const datedResource=await client.readResource({uri:`bw_replay://economy?db_path=${encodeURIComponent(f.dbPath)}&player=Player&time=0.042&played_from=2025-01-01&played_before=2026-01-01`});
+    assert.equal(JSON.parse((datedResource.contents[0] as any).text).results.length,1);
     const info=await client.readResource({uri:`bw_replay://server_info?db_path=${encodeURIComponent(f.dbPath)}`});
     assert.equal(JSON.parse((info.contents[0] as any).text).corpus_backend,"v2");
   }finally{await client.close();await server.close();}

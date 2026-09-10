@@ -6,6 +6,8 @@ export interface ReplayFilters extends IdentityFilters {
   player?: string;
   race?: string;
   replay_ids?: string[];
+  played_from?: string;
+  played_before?: string;
 }
 
 export interface PerspectiveFilters extends IdentityFilters {
@@ -13,6 +15,8 @@ export interface PerspectiveFilters extends IdentityFilters {
   matchup?: string;
   race?: string;
   replay_ids?: string[];
+  played_from?: string;
+  played_before?: string;
   as?: "self" | "enemy";
 }
 
@@ -60,6 +64,7 @@ export function findReplays(
   manifest_path: string;
   players: Array<{ owner: number; name: string; race: string; zip_path: string }>;
 }> {
+  rejectChronologyFilters(filters);
   const conditions: string[] = [];
   const params: unknown[] = [];
 
@@ -606,6 +611,7 @@ export function findMutaVesselCandidates(
 }
 
 function resolveTargets(db: Database, filters: PerspectiveFilters): TargetPlayer[] {
+  rejectChronologyFilters(filters);
   const asPerspective = filters.as ?? "self";
   const params: unknown[] = [filters.player];
   const clauses: string[] = [];
@@ -667,6 +673,11 @@ function resolveTargets(db: Database, filters: PerspectiveFilters): TargetPlayer
     ORDER BY self_player.replay_id, self_player.owner, enemy.owner;`,
     params
   ).map((row) => mapTargetPlayer(row));
+}
+
+function rejectChronologyFilters(filters: {played_from?:string;played_before?:string}):void {
+  if(filters.played_from||filters.played_before)throw Object.assign(new Error("Replay played-at filters require Corpus v2"),
+    {code:"NOT_SUPPORTED_FOR_CORPUS_V1",backend:"v1"});
 }
 
 function mapTargetPlayer(row: Record<string, unknown>): TargetPlayer {

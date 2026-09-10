@@ -221,7 +221,7 @@ def initialize(db):
     db.commit()
 
 
-def ingest_replay_analysis(db_path, replay_manifest_path):
+def ingest_replay_analysis(db_path, replay_manifest_path, played_at_unix_s=None):
     manifest, raw, size, bundles, spec, fingerprint, inventory, key = prepare(replay_manifest_path)
     db_path = Path(db_path).resolve()
     require(not db_path.is_relative_to(Path(replay_manifest_path).resolve().parent),
@@ -233,9 +233,14 @@ def ingest_replay_analysis(db_path, replay_manifest_path):
         db.execute('PRAGMA foreign_keys=ON')
         initialize(db)
         db.execute('BEGIN IMMEDIATE')
-        existing = db.execute('SELECT analysis_id,status FROM analysis_runs WHERE analysis_key=?', (key,)).fetchone()
+        if played_at_unix_s is not None:
+            require(type(played_at_unix_s) is int and 1 <= played_at_unix_s <= 0xffffffff, 'Invalid replay-declared timestamp')
+        existing = db.execute('SELECT analysis_id,replay_id,status FROM analysis_runs WHERE analysis_key=?', (key,)).fetchone()
         if existing:
             require(existing['status'] == 'indexed', 'Existing analysis is not indexed')
+            if played_at_unix_s is not None:
+                db.execute('UPDATE replays SET played_at_unix_s=? WHERE replay_id=? AND played_at_unix_s IS NULL',
+                           (played_at_unix_s, existing['replay_id']))
             if manifest.get('publication', {}).get('format') == 'bw-forge-publication-v1':
                 register_publication(db,existing['analysis_id'],replay_manifest_path,manifest,raw,inventory)
                 db.commit()
@@ -244,9 +249,11 @@ def ingest_replay_analysis(db_path, replay_manifest_path):
             return {'status': 'no-op', 'analysisId': existing['analysis_id'], 'analysisKey': key,
                     'replaySha256': manifest['replay_id']}
         now = int(time.time()*1000)
-        db.execute('INSERT INTO replays(sha256,byte_size,raw_relative_path,first_seen_at_ms,map_name) VALUES (?,?,?,?,?) ON CONFLICT(sha256) DO NOTHING',
-                   (manifest['replay_id'], size, manifest['source']['copied_path'], now, manifest['replay_analysis'].get('map')))
+        db.execute('INSERT INTO replays(sha256,byte_size,raw_relative_path,first_seen_at_ms,map_name,played_at_unix_s) VALUES (?,?,?,?,?,?) ON CONFLICT(sha256) DO NOTHING',
+                   (manifest['replay_id'], size, manifest['source']['copied_path'], now, manifest['replay_analysis'].get('map'), played_at_unix_s))
         rid = db.execute('SELECT replay_id FROM replays WHERE sha256=?', (manifest['replay_id'],)).fetchone()[0]
+        if played_at_unix_s is not None:
+            db.execute('UPDATE replays SET played_at_unix_s=? WHERE replay_id=? AND played_at_unix_s IS NULL', (played_at_unix_s,rid))
         p = spec['producer']
         db.execute('''INSERT INTO analysis_specs(fingerprint_sha256,bw_forge_version,bwsim_version,bwsim_wasm_sha256,
             asset_pack_sha256,reducer_version,artifact_format,telemetry_contract,settings_json,
@@ -349,10 +356,20 @@ if __name__ == '__main__':
         args = parser.parse_args(sys.argv[2:])
         print(canonical(administer(args.db,args.operation,json.loads(args.payload),initialize)))
         sys.exit(0)
+    if len(sys.argv) > 1 and sys.argv[1] == 'replays':
+        from chronology import administer
+        parser = argparse.ArgumentParser(description='Corpus v2 replay chronology')
+        parser.add_argument('operation')
+        parser.add_argument('--db', required=True)
+        parser.add_argument('--payload', default='{}')
+        args = parser.parse_args(sys.argv[2:])
+        print(canonical(administer(args.db,args.operation,json.loads(args.payload),initialize)))
+        sys.exit(0)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('replay_manifest_path')
     parser.add_argument('--db')
     parser.add_argument('--prepare', action='store_true')
+    parser.add_argument('--played-at-unix-s', type=int)
     args = parser.parse_args()
     if args.prepare:
         manifest, _, _, _, _, fingerprint, inventory, key = prepare(args.replay_manifest_path)
@@ -361,4 +378,4 @@ if __name__ == '__main__':
     else:
         if not args.db:
             parser.error('--db is required for ingestion')
-        print(canonical(ingest_replay_analysis(args.db, args.replay_manifest_path)))
+        print(canonical(ingest_replay_analysis(args.db, args.replay_manifest_path, args.played_at_unix_s)))

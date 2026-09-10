@@ -161,6 +161,8 @@ type ReplayCardResult = {
   player: { name: string; race: string };
   opponent: { name: string | null; race: string | null };
   matchup: string | null;
+  playedAt?: string | null;
+  playedAtUnixSeconds?: number | null;
   buildAnchors?: Array<{ item: string; n: number; time: string }>;
   economyBenchmarks?: Array<{ time: string; workers: number | null }>;
   combatSummary?: Array<{ window: string; lost: Record<string, number>; killed: Record<string, number> }>;
@@ -465,6 +467,7 @@ export function formatReplayCardText(result: ReplayCardResult): string {
     `- Replay ID: ${result.replayId}`,
     `- Matchup: ${result.matchup ?? "unknown"}`,
     `- Map: ${result.map ?? "unknown"}`,
+    ...(Object.prototype.hasOwnProperty.call(result,"playedAt") ? [`- Played at: ${result.playedAt ?? "unknown"}`] : []),
     `- Duration: ${result.duration}`,
     `- Player: ${result.player.name} (${result.player.race})`,
     `- Opponent: ${result.opponent.name ?? "unknown"} (${result.opponent.race ?? "unknown"})`
@@ -660,6 +663,7 @@ function formatPrimitiveReplayList(payload: PrimitiveToolResult): string {
     source_replay_filename: string | null;
     matchup: string | null;
     duration_seconds: number | null;
+    playedAt?: string | null;
     players: Array<{ name: string; race: string }>;
   }>;
   return [
@@ -667,8 +671,10 @@ function formatPrimitiveReplayList(payload: PrimitiveToolResult): string {
     formatRankedSection(
       "Replays",
       rows,
-      (row) =>
-        `${row.source_replay_filename ?? row.replay_id} — ${row.matchup ?? "unknown"} — ${row.duration_seconds === null ? "unknown" : formatSecondsClock(row.duration_seconds)} — players: ${row.players.map((player) => `${player.name} (${player.race})`).join(", ")}`,
+      (row) => {
+        const chronology=Object.prototype.hasOwnProperty.call(row,"playedAt") ? ` — played ${row.playedAt ?? "unknown"}` : "";
+        return `${row.source_replay_filename ?? row.replay_id} — ${row.matchup ?? "unknown"}${chronology} — ${row.duration_seconds === null ? "unknown" : formatSecondsClock(row.duration_seconds)} — players: ${row.players.map((player) => `${player.name} (${player.race})`).join(", ")}`;
+      },
       payload.count
     )
   ].join("\n\n");
@@ -837,6 +843,8 @@ function formatFilterSuffix(filters: FiltersRecord): string {
   if (typeof filters.map === "string") {
     parts.push(`map ${filters.map}`);
   }
+  if(typeof filters.played_from==="string")parts.push(`played from ${filters.played_from}`);
+  if(typeof filters.played_before==="string")parts.push(`played before ${filters.played_before}`);
   return parts.length > 0 ? ` for ${parts.join(", ")}` : "";
 }
 

@@ -3,6 +3,7 @@ import json
 import re
 import sqlite3
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from migrations import require_v2, migrate_in_transaction
 
@@ -46,6 +47,18 @@ def array(value):
     if not isinstance(value, list):
         raise ValueError('Expected array')
     return value
+
+
+def chronology_boundary(value):
+    value = text(value)
+    try:
+        if re.fullmatch(r'\d{4}-\d{2}-\d{2}', value):
+            return datetime.strptime(value, '%Y-%m-%d').replace(tzinfo=timezone.utc).timestamp()
+        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})', value):
+            raise ValueError()
+        return datetime.fromisoformat(value.replace('Z', '+00:00')).timestamp()
+    except (ValueError, OverflowError):
+        raise ValueError('Scope chronology must be YYYY-MM-DD or RFC3339 with timezone')
 
 
 def references(values, known):
@@ -105,11 +118,16 @@ def validate(db, config):
         for role in ('self','opponent'):
             selector = obj(s.get(role, {}), ('players','groups'))
             row[role] = {kind:references(selector.get(kind, []), known[kind]) for kind in ('players','groups')}
-        filters = obj(s.get('filters', {}), ('race','opponent_race','matchup','map'))
+        filters = obj(s.get('filters', {}), ('race','opponent_race','matchup','map','played_from','played_before'))
         row['filters'] = {k:text(v) for k,v in filters.items()}
         for k in ('race','opponent_race'):
             if k in filters and filters[k] not in ('zerg','terran','protoss','unknown'):
                 raise ValueError('Invalid scope race')
+        for k in ('played_from','played_before'):
+            if k in filters:
+                chronology_boundary(filters[k])
+        if 'played_from' in filters and 'played_before' in filters and chronology_boundary(filters['played_from']) >= chronology_boundary(filters['played_before']):
+            raise ValueError('Scope played_from must be earlier than played_before')
         row['replay_sha256'] = sorted(set(sha(v) for v in array(s.get('replay_sha256', []))))
         result['scopes'].append(row)
     for section in ('players','groups','scopes'):

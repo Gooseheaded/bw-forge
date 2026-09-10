@@ -6,6 +6,7 @@ import { ingestReplayAnalysis, prepareReplayAnalysis, type IngestReplayAnalysisO
   type IngestReplayAnalysisResult } from "./index.js";
 import { existingAnalyzerSpecification, runExistingAnalyzer, type StagedAnalysisOptions } from "./analyzer.js";
 import type { BwForgeReplayManifest } from "../../schemas/src/index.js";
+import { readReplayMetadata } from "./replay-metadata.js";
 
 export interface AnalyzeAndPublishReplayOptions {
   replayPath: string;
@@ -82,6 +83,8 @@ export interface RegisteredCanonicalReplay {
   canonicalReplayPath: string;
   canonicalRelativePath: string;
   reused: boolean;
+  playedAtUnixSeconds: number | null;
+  metadataError: string | null;
 }
 
 /** Register raw bytes without trusting the source filename. A verified temp file
@@ -103,8 +106,9 @@ export async function registerCanonicalReplay(options: {
   const target=join(rawDir,`${inputHash.sha256}.rep`);
   if(await info(target)){
     if(JSON.stringify(await checksum(target))!==JSON.stringify(inputHash))throw new Error("Canonical replay content mismatch");
+    const metadata=await replayMetadataOrUnknown(target);
     return {replaySha256:inputHash.sha256,byteSize:inputHash.byteSize,canonicalReplayPath:target,
-      canonicalRelativePath:relative(root,target).split(sep).join("/"),reused:true};
+      canonicalRelativePath:relative(root,target).split(sep).join("/"),reused:true,...metadata};
   }
   const temporary=join(rawDir,`.${inputHash.sha256}.${randomUUID()}.tmp`);
   let reused=false;
@@ -118,8 +122,14 @@ export async function registerCanonicalReplay(options: {
   } finally {
     try{await unlink(temporary);}catch(error){if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;}
   }
+  const metadata=await replayMetadataOrUnknown(target);
   return {replaySha256:inputHash.sha256,byteSize:inputHash.byteSize,canonicalReplayPath:target,
-    canonicalRelativePath:relative(root,target).split(sep).join("/"),reused};
+    canonicalRelativePath:relative(root,target).split(sep).join("/"),reused,...metadata};
+}
+
+async function replayMetadataOrUnknown(path:string):Promise<{playedAtUnixSeconds:number|null;metadataError:string|null}>{
+  try{return {...await readReplayMetadata(path),metadataError:null};}
+  catch(error){return {playedAtUnixSeconds:null,metadataError:error instanceof Error?error.message:String(error)};}
 }
 
 async function fileInventory(root: string): Promise<FileChecksum[]> {

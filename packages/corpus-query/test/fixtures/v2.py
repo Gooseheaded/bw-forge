@@ -1,6 +1,7 @@
 """Real v2 ingestion fixtures, sharing corpus-store's artifact oracle (no handwritten schema)."""
 import importlib.util
 import json
+import sqlite3
 import sys
 import zipfile
 from pathlib import Path
@@ -65,4 +66,13 @@ for index in range(2):
         module.store.ingest_replay_analysis(database, fixture.manifest_path)
     finally:
         fixture.tearDown()
+
+with sqlite3.connect(database) as connection:
+    connection.execute('UPDATE replays SET played_at_unix_s=? WHERE sha256=?', (1735689600, ids[0]))
+    if '--unknown-second' not in sys.argv:
+        connection.execute('UPDATE replays SET played_at_unix_s=? WHERE sha256=?', (1767225600, ids[1]))
+    if '--pre-m8' in sys.argv:
+        connection.execute('DROP INDEX IF EXISTS replays_by_played_at')
+        connection.execute('ALTER TABLE replays DROP COLUMN played_at_unix_s')
+        connection.execute("DELETE FROM corpus_migrations WHERE revision=3")
 print(json.dumps({'dbPath': str(database), 'replayIds': ids}))

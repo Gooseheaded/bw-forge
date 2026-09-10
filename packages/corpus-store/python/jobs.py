@@ -57,20 +57,25 @@ JOB_SELECT = '''SELECT j.*,r.sha256,r.raw_relative_path,a.analysis_key
 def enqueue(db, args):
     now = now_ms()
     sha, size, rel = args['sha256'], args['byte_size'], args['raw_relative_path']
+    played_at = args.get('played_at_unix_s')
     if len(sha) != 64 or any(c not in '0123456789abcdef' for c in sha):
         raise ValueError('Invalid replay SHA256')
     if type(size) is not int or size < 0 or not rel:
         raise ValueError('Invalid canonical replay metadata')
+    if played_at is not None and (type(played_at) is not int or not 1 <= played_at <= 0xffffffff):
+        raise ValueError('Invalid replay-declared timestamp')
     db.execute('BEGIN IMMEDIATE')
     try:
-        db.execute('''INSERT INTO replays(sha256,byte_size,raw_relative_path,first_seen_at_ms,map_name)
-            VALUES (?,?,?,?,NULL) ON CONFLICT(sha256) DO NOTHING''', (sha,size,rel,now))
-        replay = db.execute('SELECT replay_id,byte_size,raw_relative_path FROM replays WHERE sha256=?', (sha,)).fetchone()
+        db.execute('''INSERT INTO replays(sha256,byte_size,raw_relative_path,first_seen_at_ms,map_name,played_at_unix_s)
+            VALUES (?,?,?,?,NULL,?) ON CONFLICT(sha256) DO NOTHING''', (sha,size,rel,now,played_at))
+        replay = db.execute('SELECT replay_id,byte_size,raw_relative_path,played_at_unix_s FROM replays WHERE sha256=?', (sha,)).fetchone()
         if replay['byte_size'] != size:
             raise ValueError('Registered replay byte size mismatch')
         # Preserve an established publication path; otherwise fill the canonical queue path.
         if replay['raw_relative_path'] is None:
             db.execute('UPDATE replays SET raw_relative_path=? WHERE replay_id=?', (rel,replay['replay_id']))
+        if replay['played_at_unix_s'] is None and played_at is not None:
+            db.execute('UPDATE replays SET played_at_unix_s=? WHERE replay_id=? AND played_at_unix_s IS NULL', (played_at,replay['replay_id']))
         source_existed = db.execute('''SELECT 1 FROM replay_sources
             WHERE replay_id=? AND source_kind=? AND source_ref=?''',
             (replay['replay_id'],args['source_kind'],args['source_ref'])).fetchone() is not None

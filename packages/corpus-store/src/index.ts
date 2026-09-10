@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { readFile } from "node:fs/promises";
+import { readReplayMetadata } from "./replay-metadata.js";
 
 export interface IngestReplayAnalysisOptions {
   dbPath: string;
@@ -34,7 +36,18 @@ export async function prepareReplayAnalysis(replayManifestPath: string): Promise
  * Requires Python >=3.11 with SQLite >=3.37. BW_FORGE_PYTHON selects the runtime.
  */
 export async function ingestReplayAnalysis(options: IngestReplayAnalysisOptions): Promise<IngestReplayAnalysisResult> {
-  return runStore([resolve(options.replayManifestPath), "--db", resolve(options.dbPath)]);
+  const manifestPath = resolve(options.replayManifestPath);
+  let playedAtUnixSeconds: number | null = null;
+  try {
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as { source?: { copied_path?: unknown } };
+    if (typeof manifest.source?.copied_path === "string") {
+      playedAtUnixSeconds = (await readReplayMetadata(resolve(dirname(manifestPath), manifest.source.copied_path))).playedAtUnixSeconds;
+    }
+  } catch {
+    // Valid analytical artifacts may reference a replay whose chronology is unavailable.
+  }
+  return runStore([manifestPath, "--db", resolve(options.dbPath),
+    ...(playedAtUnixSeconds === null ? [] : ["--played-at-unix-s", String(playedAtUnixSeconds)])]);
 }
 
 export async function runStore<T>(args: string[]): Promise<T> {

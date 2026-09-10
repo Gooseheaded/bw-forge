@@ -9,6 +9,8 @@ export interface CorpusFilterInput extends IdentityFilters {
   matchup?: string;
   map?: string;
   replayIds?: string[];
+  played_from?: string;
+  played_before?: string;
 }
 
 export interface NormalizedCorpusFilters extends IdentityFilters {
@@ -19,6 +21,8 @@ export interface NormalizedCorpusFilters extends IdentityFilters {
   matchup?: string;
   map?: string;
   replayIds?: string[];
+  played_from?: string;
+  played_before?: string;
 }
 
 export interface ReplayScopeRow {
@@ -53,6 +57,8 @@ export function normalizeCorpusFilters(input: CorpusFilterInput): NormalizedCorp
   const opponentRace = normalizeOptional(input.opponentRace);
   const matchup = normalizeOptional(input.matchup);
   const map = normalizeOptional(input.map);
+  const playedFrom = normalizeOptional(input.played_from);
+  const playedBefore = normalizeOptional(input.played_before);
 
   if (player) {
     normalized.player = player;
@@ -72,6 +78,10 @@ export function normalizeCorpusFilters(input: CorpusFilterInput): NormalizedCorp
   if (map) {
     normalized.map = map;
   }
+  if (playedFrom) normalized.played_from = normalizePlayedAtBoundary(playedFrom,"played_from");
+  if (playedBefore) normalized.played_before = normalizePlayedAtBoundary(playedBefore,"played_before");
+  if(normalized.played_from&&normalized.played_before&&playedAtBoundaryUnixSeconds(normalized.played_from)>=playedAtBoundaryUnixSeconds(normalized.played_before))
+    throw new Error("played_from must be earlier than played_before");
   if (input.replayIds && input.replayIds.length > 0) {
     normalized.replayIds = [...new Set(input.replayIds.map((value) => value.trim()).filter(Boolean))];
   }
@@ -97,7 +107,9 @@ export function replayScopeFiltersPayload(filters: NormalizedCorpusFilters): Rec
     opponentRace: filters.opponentRace ?? null,
     matchup: filters.matchup ?? null,
     map: filters.map ?? null,
-    replayIds: filters.replayIds ?? null
+    replayIds: filters.replayIds ?? null,
+    ...(filters.played_from ? {played_from:filters.played_from} : {}),
+    ...(filters.played_before ? {played_before:filters.played_before} : {})
   };
 }
 
@@ -105,6 +117,7 @@ export function buildReplayScope(
   db: Database,
   filters: NormalizedCorpusFilters
 ): ReplayScopeRow[] {
+  if(filters.played_from||filters.played_before)throw new Error("Replay played-at filters require Corpus v2");
   const conditions: string[] = [];
   const params: unknown[] = [];
 
@@ -179,6 +192,35 @@ export function buildReplayScope(
     opponent_name: toNullableString(row.opponent_name),
     opponent_race: toNullableString(row.opponent_race)
   }));
+}
+
+export function playedAtBoundaryUnixSeconds(value:string):number{
+  const milliseconds=Date.parse(value);if(!Number.isFinite(milliseconds))throw new Error(`Invalid played-at boundary: ${value}`);return milliseconds/1000;
+}
+
+export function normalizePlayedAtBoundary(value:string,name="played-at boundary"):string{
+  const dateOnly=/^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if(dateOnly){
+    const milliseconds=Date.UTC(Number(dateOnly[1]),Number(dateOnly[2])-1,Number(dateOnly[3]));
+    const normalized=new Date(milliseconds).toISOString().slice(0,10);
+    if(normalized!==value)throw new Error(`Invalid ${name}: ${value}`);
+    return `${value}T00:00:00Z`;
+  }
+  const rfc3339=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(?:Z|[+-](\d{2}):(\d{2}))$/.exec(value);
+  if(!rfc3339 || !validCalendarDate(Number(rfc3339[1]),Number(rfc3339[2]),Number(rfc3339[3])) ||
+    Number(rfc3339[4])>23 || Number(rfc3339[5])>59 || Number(rfc3339[6])>59 ||
+    Number(rfc3339[7]??0)>23 || Number(rfc3339[8]??0)>59 || !Number.isFinite(Date.parse(value)))
+    throw new Error(`Invalid ${name}: expected YYYY-MM-DD or RFC3339 with timezone`);
+  return new Date(Date.parse(value)).toISOString().replace(".000Z","Z");
+}
+
+function validCalendarDate(year:number,month:number,day:number):boolean {
+  const date=new Date(Date.UTC(year,month-1,day));
+  return date.getUTCFullYear()===year && date.getUTCMonth()===month-1 && date.getUTCDate()===day;
+}
+
+export function formatPlayedAt(timestamp:number|null):string|null{
+  return timestamp===null?null:new Date(timestamp*1000).toISOString().replace(".000Z","Z");
 }
 
 export function queryAll(db: Database, sql: string, params: unknown[]): Array<Record<string, unknown>> {

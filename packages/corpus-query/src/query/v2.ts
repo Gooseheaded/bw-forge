@@ -4,6 +4,7 @@ import { sqlRows } from "../db/backend.js";
 import type { CorpusFilterInput, ReplayScopeRow } from "../analytics/filters.js";
 import type { PerspectiveFilters, ReplayFilters, BuildEventFilters } from "./query.js";
 import { hasIdentities, identityJoins, identitySelect, identityConditions } from "../identity/catalog.js";
+import { formatPlayedAt, normalizeCorpusFilters, playedAtBoundaryUnixSeconds } from "../analytics/filters.js";
 
 export interface Scope extends ReplayScopeRow {
   observation_id: number;
@@ -18,6 +19,8 @@ export interface Scope extends ReplayScopeRow {
   canonicalPlayerKey: string | null;
   canonicalPlayerName: string | null;
   identityResolution: string;
+  played_at_unix_s: number | null;
+  playedAt: string | null;
   opponentCanonicalPlayerKey: string | null;
   opponentCanonicalPlayerName: string | null;
   opponentIdentityResolution: string;
@@ -27,9 +30,11 @@ const nullable = (value: unknown): string | null => value == null ? null : Strin
 export function scope(db: Database, filters: { [K in keyof CorpusFilterInput]?: CorpusFilterInput[K] | undefined }): Scope[] {
   const published = sqlRows(db, "SELECT 1 FROM sqlite_schema WHERE name='analysis_publications'").length > 0;
   const identities = hasIdentities(db);
+  const chronology = sqlRows(db,"PRAGMA table_info(replays)").some(row=>row.name==="played_at_unix_s");
+  const normalized=normalizeCorpusFilters(filters as unknown as CorpusFilterInput);
   const conditions: string[] = [];
   const args: unknown[] = [];
-  if (identities) identityConditions(db,filters,conditions,args);
+  if (identities) identityConditions(db,filters,conditions,args,chronology);
   else if(filters.scope || filters.player_group || filters.opponent_group) throw new Error("Identity catalog is not installed; use identities apply first");
   for (const [value, column] of [[identities ? undefined : filters.player,"p.observed_name"], [filters.race,"p.race"],
     [identities ? undefined : filters.opponent,"enemy.observed_name"], [filters.opponentRace,"enemy.race"], [filters.matchup,"matchup"]]) {
@@ -42,7 +47,13 @@ export function scope(db: Database, filters: { [K in keyof CorpusFilterInput]?: 
   if (filters.replayIds?.length) {
     conditions.push(`r.sha256 IN (${filters.replayIds.map(() => "?").join(",")})`); args.push(...filters.replayIds);
   }
+  for(const [value,operator] of [[normalized.played_from,">="],[normalized.played_before,"<"]] as const){
+    if(value){if(!chronology)conditions.push("0");else{conditions.push(`r.played_at_unix_s ${operator} ?`);args.push(playedAtBoundaryUnixSeconds(value));}}
+  }
+  const replaySource=chronology&&conditions.some(condition=>condition.includes("r.played_at_unix_s"))
+    ? "replays r INDEXED BY replays_by_played_at" : "replays r";
   return sqlRows(db, `SELECT r.sha256 AS replay_id,r.map_name AS map,
+    ${chronology?"r.played_at_unix_s":"NULL"} AS played_at_unix_s,
     (SELECT group_concat(initial,'v') FROM (SELECT upper(substr(pp.race,1,1)) AS initial FROM participations pp
       JOIN analysis_participations pa ON pa.participation_id=pp.participation_id AND pa.analysis_id=a.analysis_id
       WHERE pp.replay_id=r.replay_id ORDER BY pp.owner)) AS matchup,
@@ -55,7 +66,7 @@ export function scope(db: Database, filters: { [K in keyof CorpusFilterInput]?: 
     enemy.owner AS opponent_owner,enemy.observed_name AS opponent_name,enemy.race AS opponent_race,
     ap.observation_id,ep.observation_id AS opponent_observation_id,s.spec_id,
     s.frame_duration_num_ms AS clock_num,s.frame_duration_den AS clock_den
-    FROM replays r JOIN current_analyses ca ON ca.replay_id=r.replay_id
+    FROM ${replaySource} JOIN current_analyses ca ON ca.replay_id=r.replay_id
     JOIN analysis_runs a ON a.analysis_id=ca.analysis_id AND a.replay_id=r.replay_id AND a.status='indexed'
     JOIN analysis_specs s ON s.spec_id=a.spec_id
     JOIN analysis_participations ap ON ap.analysis_id=a.analysis_id AND ap.replay_id=r.replay_id
@@ -67,6 +78,7 @@ export function scope(db: Database, filters: { [K in keyof CorpusFilterInput]?: 
     ${conditions.length ? "WHERE " + conditions.join(" AND ") : ""}
     ORDER BY r.sha256,p.owner,enemy.owner`, args).map(r => ({
       replay_id: String(r.replay_id), matchup: nullable(r.matchup), map: nullable(r.map),
+      played_at_unix_s:r.played_at_unix_s==null?null:Number(r.played_at_unix_s),playedAt:formatPlayedAt(r.played_at_unix_s==null?null:Number(r.played_at_unix_s)),
       source_replay_path: nullable(r.source_replay_path), source_replay_filename: r.source_replay_path ? basename(String(r.source_replay_path)) : null,
       duration_seconds: r.duration_seconds == null ? null : Number(r.duration_seconds), manifest_path: String(r.manifest_path ?? ""),
       self_owner: Number(r.self_owner),player_name: String(r.player_name),player_race: String(r.player_race),
@@ -165,6 +177,7 @@ function targets(db: Database,filters: PerspectiveFilters) {
 function identity(row: Scope & {target_owner:number;target_name:string}) {
   return { replay_id:row.replay_id,source_replay_filename:row.source_replay_filename,source_replay_path:row.source_replay_path,
     self_owner:row.self_owner,target_owner:row.target_owner,player_name:row.player_name,target_name:row.target_name,matchup:row.matchup,
+    playedAt:row.playedAt,playedAtUnixSeconds:row.played_at_unix_s,
     ...identityMetadata(row),targetObservedName:row.target_name,
     targetCanonicalPlayerKey:row.target_owner===row.self_owner?row.canonicalPlayerKey:row.opponentCanonicalPlayerKey,
     targetCanonicalPlayerName:row.target_owner===row.self_owner?row.canonicalPlayerName:row.opponentCanonicalPlayerName,
@@ -179,7 +192,7 @@ export function findReplays(db:Database,filters:ReplayFilters) {
   const selected=scope(db,{...filters,replayIds:filters.replay_ids});
   return [...new Map(selected.map(r=>[r.replay_id,r])).values()].map(r=>({replay_id:r.replay_id,
     source_replay_filename:r.source_replay_filename,source_replay_path:r.source_replay_path,matchup:r.matchup,map:r.map,
-    duration_seconds:r.duration_seconds,manifest_path:r.manifest_path,
+    duration_seconds:r.duration_seconds,manifest_path:r.manifest_path,playedAt:r.playedAt,playedAtUnixSeconds:r.played_at_unix_s,
     players:uniqueScope(scope(db,{replayIds:[r.replay_id]})).map(p=>({owner:p.self_owner,name:p.player_name,race:p.player_race,...identityMetadata(p),
       zip_path:sqlRows(db,"SELECT name FROM sqlite_schema WHERE name='analysis_artifact_locations'").length ? String(sqlRows(db,
         `SELECT l.artifact_path FROM analysis_artifact_locations l JOIN current_analyses ca ON ca.analysis_id=l.analysis_id

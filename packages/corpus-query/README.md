@@ -13,6 +13,21 @@ V1 implementations remain in `query/legacyQuery.ts` and `analytics/legacy_*`;
 the public query/analytics modules dispatch beneath the existing MCP handlers.
 There is no v1-to-v2 migration or production cutover. V2 has transactional additive revisions.
 
+Corpus v2 replay discovery and analytical tools accept `played_from`
+(inclusive) and `played_before` (exclusive). Use `YYYY-MM-DD` for UTC midnight
+or RFC3339 with an explicit timezone. Bounded queries exclude replays whose
+chronology is `NULL`; unfiltered queries retain them. Responses expose nullable
+Unix seconds and normalized UTC text. Named scopes accept the same fields and
+intersect them with explicit filters. Older pre-chronology v2 databases remain
+read-only and queryable; bounded date filters match no rows until a corpus-store
+write path applies revision 3.
+
+For example, the same existing aggregate can compare UTC year cohorts:
+
+```json
+{"player":"Soulkey","matchup":"ZvP","timeSeconds":300,"played_from":"2025-01-01","played_before":"2026-01-01"}
+```
+
 ```sh
 bw-forge mcp --db /srv/bw-forge/corpus/db/corpus.sqlite
 ```

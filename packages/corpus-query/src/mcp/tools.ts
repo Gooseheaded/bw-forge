@@ -85,6 +85,13 @@ function identityFilterArgs(args: {player_group?: string | undefined; opponent_g
     ...(args.opponent_group ? {opponent_group:args.opponent_group} : {}),
     ...(args.scope ? {scope:args.scope} : {})};
 }
+const chronologyFilterInputSchema = {
+  played_from: optionalNonEmptyString,
+  played_before: optionalNonEmptyString
+};
+function chronologyFilterArgs(args:{played_from?:string|undefined;played_before?:string|undefined}){
+  return {...(args.played_from?{played_from:args.played_from}:{}),...(args.played_before?{played_before:args.played_before}:{})};
+}
 const corpusFilterInputSchema = {
   player: optionalNonEmptyString,
   opponent: optionalNonEmptyString,
@@ -93,6 +100,7 @@ const corpusFilterInputSchema = {
   matchup: optionalNonEmptyString,
   map: optionalNonEmptyString,
   ...identityFilterInputSchema,
+  ...chronologyFilterInputSchema,
   replay_ids: replayIdsSchema
 };
 
@@ -102,6 +110,7 @@ const findReplaysInputSchema = {
   player: optionalNonEmptyString,
   race: optionalNonEmptyString,
   ...identityFilterInputSchema,
+  ...chronologyFilterInputSchema,
   replay_ids: replayIdsSchema
 };
 
@@ -111,6 +120,7 @@ const perspectiveInputSchema = {
   matchup: optionalNonEmptyString,
   race: optionalNonEmptyString,
   ...identityFilterInputSchema,
+  ...chronologyFilterInputSchema,
   replay_ids: replayIdsSchema,
   as: perspectiveSchema
 };
@@ -126,6 +136,7 @@ const getDeathsInputSchema = z.object({
   matchup: optionalNonEmptyString,
   race: optionalNonEmptyString,
   ...identityFilterInputSchema,
+  ...chronologyFilterInputSchema,
   replay_ids: replayIdsSchema,
   as: perspectiveSchema
 }).refine((value) => value.from_seconds <= value.to_seconds, {
@@ -139,6 +150,7 @@ const listBuildEventsInputSchema = z.object({
   matchup: optionalNonEmptyString,
   race: optionalNonEmptyString,
   ...identityFilterInputSchema,
+  ...chronologyFilterInputSchema,
   replay_ids: replayIdsSchema,
   as: perspectiveSchema,
   item: optionalNonEmptyString,
@@ -281,8 +293,8 @@ const getPlayerReplayCardInputSchema = z.object({
 });
 
 const sqlParamSchema = z.union([z.string(), z.number().finite(), z.boolean(), z.null()]);
-const schemaTopicSchema = z.enum(["all", "joins", "deaths", "timings", "unit_counts", "economy", "build_order", "paths"]);
-const queryExampleTopicSchema = z.enum(["all", "players", "matchups", "build_timings", "event_sequences", "economy", "composition", "deaths", "replay_cards"]);
+const schemaTopicSchema = z.enum(["all", "joins", "deaths", "timings", "unit_counts", "economy", "build_order", "chronology", "paths"]);
+const queryExampleTopicSchema = z.enum(["all", "players", "matchups", "build_timings", "event_sequences", "economy", "composition", "deaths", "chronology", "replay_cards"]);
 
 const describeSchemaInputSchema = z.object({
   db_path: optionalNonEmptyString,
@@ -635,6 +647,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {})
           })
         );
@@ -667,6 +680,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.limit !== undefined ? { limit: args.limit } : {})
           })
@@ -700,6 +714,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.limit !== undefined ? { limit: args.limit } : {})
           })
@@ -733,6 +748,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.limit !== undefined ? { limit: args.limit } : {})
           })
@@ -767,6 +783,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.limit !== undefined ? { limit: args.limit } : {})
           })
@@ -800,6 +817,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.source ? { source: args.source } : {}),
             ...(args.limit !== undefined ? { limit: args.limit } : {})
@@ -835,6 +853,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.n !== undefined ? { n: args.n } : {}),
             ...(args.startSeconds !== undefined ? { startSeconds: args.startSeconds } : {}),
@@ -873,6 +892,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.firstN !== undefined ? { firstN: args.firstN } : {}),
             ...(args.secondN !== undefined ? { secondN: args.secondN } : {}),
@@ -909,6 +929,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.units ? { units: args.units } : {}),
             ...(args.limitExamples !== undefined ? { limitExamples: args.limitExamples } : {})
@@ -944,6 +965,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.limitExamples !== undefined ? { limitExamples: args.limitExamples } : {})
           })
@@ -979,6 +1001,7 @@ export function createReplayCorpusMcpServer(): McpServer {
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.map ? { map: args.map } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replayIds: args.replay_ids } : {}),
             ...(args.limitExamples !== undefined ? { limitExamples: args.limitExamples } : {})
           })
@@ -1006,6 +1029,7 @@ export function createReplayCorpusMcpServer(): McpServer {
         const result = await withReadOnlyDb(resolveDbPathForAnalytics(args), (db) =>
           getPlayerReplayCard(db, {
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.opponent ? {opponent:args.opponent} : {}),
             ...(args.opponentRace ? {opponentRace:args.opponentRace} : {}),
             ...(args.race ? {race:args.race} : {}),
@@ -1112,6 +1136,7 @@ export function createReplayCorpusMcpServer(): McpServer {
           ...(args.player ? { player: args.player } : {}),
           ...(args.race ? { race: args.race } : {}),
           ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
           ...(args.replay_ids ? { replay_ids: args.replay_ids } : {})
         })
       )
@@ -1131,6 +1156,7 @@ export function createReplayCorpusMcpServer(): McpServer {
           ...(args.matchup ? { matchup: args.matchup } : {}),
           ...(args.race ? { race: args.race } : {}),
           ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
           ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
           ...(args.as ? { as: args.as } : {})
         })
@@ -1150,6 +1176,7 @@ export function createReplayCorpusMcpServer(): McpServer {
           ...(args.matchup ? { matchup: args.matchup } : {}),
           ...(args.race ? { race: args.race } : {}),
           ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
           ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
           ...(args.as ? { as: args.as } : {}),
           ...(args.item ? { item: args.item } : {}),
@@ -1174,6 +1201,7 @@ export function createReplayCorpusMcpServer(): McpServer {
           ...(args.matchup ? { matchup: args.matchup } : {}),
           ...(args.race ? { race: args.race } : {}),
           ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
           ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
           ...(args.as ? { as: args.as } : {})
         })
@@ -1195,6 +1223,7 @@ export function createReplayCorpusMcpServer(): McpServer {
           ...(args.matchup ? { matchup: args.matchup } : {}),
           ...(args.race ? { race: args.race } : {}),
           ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
           ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
           ...(args.as ? { as: args.as } : {})
         })
@@ -1215,6 +1244,7 @@ export function createReplayCorpusMcpServer(): McpServer {
           ...(args.matchup ? { matchup: args.matchup } : {}),
           ...(args.race ? { race: args.race } : {}),
           ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
           ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
           ...(args.as ? { as: args.as } : {})
         })
@@ -1236,6 +1266,7 @@ export function createReplayCorpusMcpServer(): McpServer {
           ...(args.matchup ? { matchup: args.matchup } : {}),
           ...(args.race ? { race: args.race } : {}),
           ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
           ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
           ...(args.as ? { as: args.as } : {})
         })
@@ -1261,14 +1292,25 @@ function registerCompatibilityResources(
   );
 
   server.registerResource(
+    "find_replays_legacy_template",
+    new ResourceTemplate("bw_replay://find_replays{?db_path,player,matchup,race,replay,replay_id,replay_ids}", { list: undefined }),
+    {
+      title: "Find Replays",
+      description: "Original read-only compatibility template for find_replays.",
+      mimeType: RESOURCE_MIME_TYPE
+    },
+    async (uri) => await readCompatibilityResource(uri.toString(), serverInfo)
+  );
+
+  server.registerResource(
     "find_replays_resource",
-    new ResourceTemplate("bw_replay://find_replays{?db_path,player,matchup,race,replay,replay_id,replay_ids}", {
+    new ResourceTemplate("bw_replay://find_replays{?db_path,player,matchup,race,replay,replay_id,replay_ids,played_from,played_before}", {
       list: undefined
     }),
     {
       title: "Find Replays",
       description:
-        "Read-only compatibility resource equivalent to find_replays. Query params: player, matchup, race, replay/replay_id/replay_ids, optional db_path.",
+        "Read-only compatibility resource equivalent to find_replays. Query params include player, matchup, race, replay IDs, played_from, played_before, and optional db_path.",
       mimeType: RESOURCE_MIME_TYPE
     },
     async (uri) => await readCompatibilityResource(uri.toString(), serverInfo)
@@ -1276,7 +1318,7 @@ function registerCompatibilityResources(
 
   server.registerResource(
     "build_events_resource",
-    new ResourceTemplate("bw_replay://build_events{?db_path,replay,replay_id,replay_ids,player,matchup,race,as,item,start,end}", {
+    new ResourceTemplate("bw_replay://build_events{?db_path,replay,replay_id,replay_ids,player,matchup,race,as,item,start,end,played_from,played_before}", {
       list: undefined
     }),
     {
@@ -1290,7 +1332,7 @@ function registerCompatibilityResources(
 
   server.registerResource(
     "deaths_resource",
-    new ResourceTemplate("bw_replay://deaths{?db_path,replay,replay_id,replay_ids,player,matchup,race,as,start,end}", {
+    new ResourceTemplate("bw_replay://deaths{?db_path,replay,replay_id,replay_ids,player,matchup,race,as,start,end,played_from,played_before}", {
       list: undefined
     }),
     {
@@ -1304,7 +1346,7 @@ function registerCompatibilityResources(
 
   server.registerResource(
     "economy_resource",
-    new ResourceTemplate("bw_replay://economy{?db_path,replay,replay_id,replay_ids,player,matchup,race,as,time}", {
+    new ResourceTemplate("bw_replay://economy{?db_path,replay,replay_id,replay_ids,player,matchup,race,as,time,played_from,played_before}", {
       list: undefined
     }),
     {
@@ -1318,7 +1360,7 @@ function registerCompatibilityResources(
 
   server.registerResource(
     "unit_count_resource",
-    new ResourceTemplate("bw_replay://unit_count{?db_path,replay,replay_id,replay_ids,player,matchup,race,as,unit,time}", {
+    new ResourceTemplate("bw_replay://unit_count{?db_path,replay,replay_id,replay_ids,player,matchup,race,as,unit,time,played_from,played_before}", {
       list: undefined
     }),
     {
@@ -1332,7 +1374,7 @@ function registerCompatibilityResources(
 
   server.registerResource(
     "first_event_resource",
-    new ResourceTemplate("bw_replay://first_event{?db_path,replay,replay_id,replay_ids,player,matchup,race,as,event}", {
+    new ResourceTemplate("bw_replay://first_event{?db_path,replay,replay_id,replay_ids,player,matchup,race,as,event,played_from,played_before}", {
       list: undefined
     }),
     {
@@ -1346,7 +1388,7 @@ function registerCompatibilityResources(
 
   server.registerResource(
     "nth_event_resource",
-    new ResourceTemplate("bw_replay://nth_event{?db_path,replay,replay_id,replay_ids,player,matchup,race,as,event,n}", {
+    new ResourceTemplate("bw_replay://nth_event{?db_path,replay,replay_id,replay_ids,player,matchup,race,as,event,n,played_from,played_before}", {
       list: undefined
     }),
     {
@@ -1382,10 +1424,12 @@ async function readCompatibilityResource(
           player: optionalNonEmptyString,
           race: optionalNonEmptyString,
           ...identityFilterInputSchema,
+          ...chronologyFilterInputSchema,
           replay_ids: replayIdsSchema
         }).parse({
           db_path: dbPath,
           ...identityFilterArgs({player_group:getOptionalStringQueryParam(uri,"player_group"),opponent_group:getOptionalStringQueryParam(uri,"opponent_group"),scope:getOptionalStringQueryParam(uri,"scope")}),
+          ...chronologyResourceArgs(uri),
           matchup: getOptionalStringQueryParam(uri, "matchup"),
           player: getOptionalStringQueryParam(uri, "player"),
           race: getOptionalStringQueryParam(uri, "race"),
@@ -1398,6 +1442,7 @@ async function readCompatibilityResource(
             ...(args.player ? { player: args.player } : {}),
             ...(args.race ? { race: args.race } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replay_ids: args.replay_ids } : {})
           })
         );
@@ -1408,6 +1453,7 @@ async function readCompatibilityResource(
         const args = listBuildEventsInputSchema.parse({
           db_path: dbPath,
           ...identityFilterArgs({player_group:getOptionalStringQueryParam(uri,"player_group"),opponent_group:getOptionalStringQueryParam(uri,"opponent_group"),scope:getOptionalStringQueryParam(uri,"scope")}),
+          ...chronologyResourceArgs(uri),
           player: requireStringQueryParam(uri, "player"),
           matchup: getOptionalStringQueryParam(uri, "matchup"),
           race: getOptionalStringQueryParam(uri, "race"),
@@ -1424,6 +1470,7 @@ async function readCompatibilityResource(
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.race ? { race: args.race } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
             ...(args.as ? { as: args.as } : {}),
             ...(args.item ? { item: args.item } : {}),
@@ -1438,6 +1485,7 @@ async function readCompatibilityResource(
         const args = getDeathsInputSchema.parse({
           db_path: dbPath,
           ...identityFilterArgs({player_group:getOptionalStringQueryParam(uri,"player_group"),opponent_group:getOptionalStringQueryParam(uri,"opponent_group"),scope:getOptionalStringQueryParam(uri,"scope")}),
+          ...chronologyResourceArgs(uri),
           player: requireStringQueryParam(uri, "player"),
           from_seconds: requireNumberQueryParam(uri, "start", "from", "from_seconds"),
           to_seconds: requireNumberQueryParam(uri, "end", "to", "to_seconds"),
@@ -1455,6 +1503,7 @@ async function readCompatibilityResource(
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.race ? { race: args.race } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
             ...(args.as ? { as: args.as } : {})
           })
@@ -1466,6 +1515,7 @@ async function readCompatibilityResource(
         const args = getEconomyInputSchema.parse({
           db_path: dbPath,
           ...identityFilterArgs({player_group:getOptionalStringQueryParam(uri,"player_group"),opponent_group:getOptionalStringQueryParam(uri,"opponent_group"),scope:getOptionalStringQueryParam(uri,"scope")}),
+          ...chronologyResourceArgs(uri),
           player: requireStringQueryParam(uri, "player"),
           at_seconds: requireNumberQueryParam(uri, "time", "at", "at_seconds"),
           matchup: getOptionalStringQueryParam(uri, "matchup"),
@@ -1481,6 +1531,7 @@ async function readCompatibilityResource(
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.race ? { race: args.race } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
             ...(args.as ? { as: args.as } : {})
           })
@@ -1492,6 +1543,7 @@ async function readCompatibilityResource(
         const args = getUnitCountInputSchema.parse({
           db_path: dbPath,
           ...identityFilterArgs({player_group:getOptionalStringQueryParam(uri,"player_group"),opponent_group:getOptionalStringQueryParam(uri,"opponent_group"),scope:getOptionalStringQueryParam(uri,"scope")}),
+          ...chronologyResourceArgs(uri),
           player: requireStringQueryParam(uri, "player"),
           unit: requireStringQueryParam(uri, "unit"),
           at_seconds: requireNumberQueryParam(uri, "time", "at", "at_seconds"),
@@ -1509,6 +1561,7 @@ async function readCompatibilityResource(
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.race ? { race: args.race } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
             ...(args.as ? { as: args.as } : {})
           })
@@ -1520,6 +1573,7 @@ async function readCompatibilityResource(
         const args = findFirstEventInputSchema.parse({
           db_path: dbPath,
           ...identityFilterArgs({player_group:getOptionalStringQueryParam(uri,"player_group"),opponent_group:getOptionalStringQueryParam(uri,"opponent_group"),scope:getOptionalStringQueryParam(uri,"scope")}),
+          ...chronologyResourceArgs(uri),
           player: requireStringQueryParam(uri, "player"),
           item: requireStringQueryParam(uri, "event", "item"),
           matchup: getOptionalStringQueryParam(uri, "matchup"),
@@ -1535,6 +1589,7 @@ async function readCompatibilityResource(
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.race ? { race: args.race } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
             ...(args.as ? { as: args.as } : {})
           })
@@ -1546,6 +1601,7 @@ async function readCompatibilityResource(
         const args = findNthEventInputSchema.parse({
           db_path: dbPath,
           ...identityFilterArgs({player_group:getOptionalStringQueryParam(uri,"player_group"),opponent_group:getOptionalStringQueryParam(uri,"opponent_group"),scope:getOptionalStringQueryParam(uri,"scope")}),
+          ...chronologyResourceArgs(uri),
           player: requireStringQueryParam(uri, "player"),
           item: requireStringQueryParam(uri, "event", "item"),
           n: requireIntegerQueryParam(uri, "n"),
@@ -1563,6 +1619,7 @@ async function readCompatibilityResource(
             ...(args.matchup ? { matchup: args.matchup } : {}),
             ...(args.race ? { race: args.race } : {}),
             ...identityFilterArgs(args),
+            ...chronologyFilterArgs(args),
             ...(args.replay_ids ? { replay_ids: args.replay_ids } : {}),
             ...(args.as ? { as: args.as } : {})
           })
@@ -1833,6 +1890,8 @@ function getOptionalReplayIdsQueryParam(uri: CompatibilityUrl): string[] | undef
 
   return [...new Set(values)];
 }
+
+function chronologyResourceArgs(uri:CompatibilityUrl){return {played_from:getOptionalStringQueryParam(uri,"played_from"),played_before:getOptionalStringQueryParam(uri,"played_before")};}
 
 function getOptionalStringQueryParam(uri: CompatibilityUrl, ...names: string[]): string | undefined {
   for (const name of names) {
