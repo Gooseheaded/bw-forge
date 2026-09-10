@@ -66,6 +66,13 @@ The design deliberately separates two responsibilities:
 
 Entry point: `apps/cli/src/main.ts`
 
+### Debian appliance services
+
+`ops/systemd` contains the unprivileged watcher, worker, and MCP HTTP service units,
+their appliance target, centralized environment renderer, and idempotent installer.
+See [the systemd appliance guide](ops/systemd/README.md) for installation, ownership,
+operations, upgrades, crash recovery, and reboot validation.
+
 ### Windows desktop application
 
 `apps/desktop` is an Electron, React, TypeScript, and Vite product shell around

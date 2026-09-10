@@ -1,0 +1,25 @@
+[Unit]
+Description=BW Forge replay analysis worker
+After=local-fs.target
+PartOf=bw-forge.target
+StartLimitIntervalSec=60s
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=@SERVICE_USER@
+WorkingDirectory=@APP_ROOT@
+EnvironmentFile=@ENV_FILE@
+ExecStart=@BUN_EXECUTABLE@ @CLI_ENTRYPOINT@ worker run --corpus-root ${BW_FORGE_CORPUS_ROOT} --db ${BW_FORGE_DB}
+Restart=on-failure
+RestartSec=2s
+KillSignal=SIGTERM
+TimeoutStopSec=15min
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bw-forge-worker
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0027
+CapabilityBoundingSet=
+RestrictSUIDSGID=true

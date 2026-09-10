@@ -1,0 +1,7 @@
+[Unit]
+Description=BW Forge appliance services
+Wants=bw-forge-watch.service bw-forge-worker.service bw-forge-mcp.service
+After=bw-forge-watch.service bw-forge-worker.service bw-forge-mcp.service
+
+[Install]
+WantedBy=multi-user.target

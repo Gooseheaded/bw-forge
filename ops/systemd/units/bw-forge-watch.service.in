@@ -1,0 +1,25 @@
+[Unit]
+Description=BW Forge replay filesystem watcher
+After=local-fs.target
+PartOf=bw-forge.target
+StartLimitIntervalSec=60s
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=@SERVICE_USER@
+WorkingDirectory=@APP_ROOT@
+EnvironmentFile=@ENV_FILE@
+ExecStart=@BUN_EXECUTABLE@ @CLI_ENTRYPOINT@ watch run --path ${BW_FORGE_INBOX} --corpus-root ${BW_FORGE_CORPUS_ROOT} --db ${BW_FORGE_DB} --stability-ms ${BW_FORGE_WATCH_STABILITY_MS} --reconcile-seconds ${BW_FORGE_WATCH_RECONCILE_SECONDS}
+Restart=on-failure
+RestartSec=2s
+KillSignal=SIGTERM
+TimeoutStopSec=30s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bw-forge-watch
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0027
+CapabilityBoundingSet=
+RestrictSUIDSGID=true

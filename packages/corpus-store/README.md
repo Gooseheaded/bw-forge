@@ -233,7 +233,8 @@ The database may be outside the corpus root, matching existing publication API
 behavior, but it cannot overlap `replays`, `analyses`, or `work`. At execution the
 worker requires the SHA-derived canonical replay path under the supplied root;
 this is the reliable root/DB consistency check available today. There is no remote
-submission, cancellation, downloader, scheduler, systemd unit, or web UI.
+submission, cancellation, downloader, scheduler, or web UI. Repository-owned Debian
+service supervision is documented in [`ops/systemd`](../../ops/systemd/README.md).
 
 ## Filesystem replay watcher
 
