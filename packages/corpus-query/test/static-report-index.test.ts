@@ -21,6 +21,7 @@ async function fixture(count:number){
     async [Symbol.asyncDispose](){await rm(root,{recursive:true,force:true});}};
 }
 function embedded(html:string):StaticReportRow[]{const match=/<script id="report-data" type="application\/json">([^]*?)<\/script>/.exec(html);assert.ok(match);return JSON.parse(match[1]!);}
+function embeddedClient(html:string):string{const match=/<\/script><script>([^]*?)<\/script><\/body>/.exec(html);assert.ok(match);return match[1]!;}
 
 test("28 current analyses render once with chronology, identities, safe relative reports, and offline controls",async()=>{
   await using f=await fixture(28);const before=await readFile(f.dbPath),result=await generateStaticReportIndex(f),html=await readFile(result.output,"utf8"),rows=embedded(html);
@@ -37,6 +38,7 @@ test("28 current analyses render once with chronology, identities, safe relative
   assert.ok(!html.includes("</script><svg"));assert.ok(!html.includes("<img src=x"));assert.ok(!html.includes("Canonical </script>"));assert.match(html,/\\u003c\/script\\u003e/);
   for(const forbidden of ["https://","http://","fetch(","XMLHttpRequest","WebSocket","src=\"//"])assert.ok(!html.includes(forbidden));
   for(const expected of ["Content-Security-Policy","report-data","type=\"search\"","id=\"player\"","id=\"map\"","id=\"year\"","id=\"racePair\"","id=\"reset\"","id=\"resultCount\"","data-sort=\"played\""])assert.ok(html.includes(expected));
+  const client=embeddedClient(html);assert.doesNotThrow(()=>new Function(client));assert.ok(client.includes('.join("\\n")'));
   assert.deepEqual(await readFile(f.dbPath),before);
 });
 
