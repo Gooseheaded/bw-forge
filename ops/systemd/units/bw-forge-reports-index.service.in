@@ -1,0 +1,15 @@
+[Unit]
+Description=BW Forge static replay report index
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=@SERVICE_USER@
+WorkingDirectory=@APP_ROOT@
+EnvironmentFile=@ENV_FILE@
+UMask=0022
+NoNewPrivileges=true
+PrivateTmp=true
+CapabilityBoundingSet=
+RestrictSUIDSGID=true
+ExecStart=@BUN_EXECUTABLE@ @CLI_ENTRYPOINT@ reports index --db ${BW_FORGE_DB} --analyses-root @ANALYSES_ROOT@

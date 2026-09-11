@@ -103,6 +103,7 @@ PYTHON_PATH=$(resolve_executable Python "$PYTHON_PATH" python3)
 [ -d "$APP_ROOT" ] || die "app root is not a directory: $APP_ROOT"
 [ -r "$APP_ROOT/apps/cli/src/main.ts" ] || die "BW Forge CLI is missing or unreadable: $APP_ROOT/apps/cli/src/main.ts"
 [ -d "$CORPUS_ROOT" ] || die "corpus root is not a directory: $CORPUS_ROOT"
+[ -d "$CORPUS_ROOT/analyses" ] || die "analyses root is not a directory: $CORPUS_ROOT/analyses"
 [ -f "$DB_PATH" ] || die "Corpus database does not exist; refusing to initialize it: $DB_PATH"
 DB_DIR=$(dirname -- "$DB_PATH")
 [ -d "$DB_DIR" ] || die "database directory is not a directory: $DB_DIR"
@@ -140,7 +141,7 @@ as_service_user() {
 check_access() { as_service_user /usr/bin/test "$1" "$3" || die "service user '$SERVICE_USER' needs $2 access: $3"; }
 check_access -x "traverse" "$APP_ROOT"
 check_access -r "read" "$APP_ROOT/apps/cli/src/main.ts"
-for path in "$CORPUS_ROOT" "$INBOX" "$DB_DIR"; do
+for path in "$CORPUS_ROOT" "$CORPUS_ROOT/analyses" "$INBOX" "$DB_DIR"; do
   check_access -r "read" "$path"; check_access -w "write" "$path"; check_access -x "traverse" "$path"
 done
 check_access -r "read" "$DB_PATH"; check_access -w "write" "$DB_PATH"
@@ -170,7 +171,7 @@ CONFIG_DIR="$DESTDIR/etc/bw-forge"
 UNIT_DIR="$DESTDIR/etc/systemd/system"
 install -d -m 0755 -- "$CONFIG_DIR" "$UNIT_DIR"
 install -m 0640 -- "$STAGING/bw-forge.env" "$CONFIG_DIR/bw-forge.env"
-for unit in bw-forge-watch.service bw-forge-worker.service bw-forge-mcp.service bw-forge.target; do
+for unit in bw-forge-watch.service bw-forge-worker.service bw-forge-mcp.service bw-forge-reports-index.service bw-forge-reports-index.timer bw-forge.target; do
   install -m 0644 -- "$STAGING/$unit" "$UNIT_DIR/$unit"
 done
 
@@ -183,5 +184,5 @@ else
 fi
 
 printf 'Installed configuration: %s\n' "$CONFIG_DIR/bw-forge.env"
-printf 'Installed units: %s/{bw-forge-watch.service,bw-forge-worker.service,bw-forge-mcp.service,bw-forge.target}\n' "$UNIT_DIR"
+printf 'Installed units: %s/{bw-forge-watch.service,bw-forge-worker.service,bw-forge-mcp.service,bw-forge-reports-index.service,bw-forge-reports-index.timer,bw-forge.target}\n' "$UNIT_DIR"
 if [ -z "$DESTDIR" ] && [ "$START" = 0 ]; then printf 'Enabled for boot; start with: systemctl start bw-forge.target\n'; fi

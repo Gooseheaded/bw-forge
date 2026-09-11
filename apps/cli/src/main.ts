@@ -107,6 +107,12 @@ async function main(): Promise<void> {
         dbPath:resolveOptionPath(requireOption(args,"--db"))}),null,2));
       return;
     }
+    case "reports": {
+      if(args[0]!=="index")throw new Error("Usage: bw-forge reports index --db <path> --analyses-root <root>");
+      await runCorpusQuerySubcommand({entrypointName:"corpus-query CLI",entrypoint:"cli",args:["reports","index",
+        "--db",resolveOptionPath(requireOption(args,"--db")),"--analyses-root",resolveOptionPath(requireOption(args,"--analyses-root"))]});
+      return;
+    }
     case "analyze":
       await analyzeCommand(args);
       return;
@@ -715,6 +721,7 @@ Commands:
   bw-forge identities apply <config.json> --db <path>
   bw-forge identities export --db <path>
   bw-forge replays backfill-played-at --corpus-root <root> --db <path>
+  bw-forge reports index --db <path> --analyses-root <root>
   bw-forge jobs enqueue <replay.rep> --corpus-root <root> --db <path> [--priority <n>] [--force]
   bw-forge jobs list --db <path> [--status queued|running|succeeded|failed] [--limit <n>]
   bw-forge jobs show <job-key> --db <path>

@@ -28,6 +28,29 @@ For example, the same existing aggregate can compare UTC year cohorts:
 {"player":"Soulkey","matchup":"ZvP","timeSeconds":300,"played_from":"2025-01-01","played_before":"2026-01-01"}
 ```
 
+## Static report index
+
+Generate the offline replay-report library from Corpus v2 and immutable published
+reports with:
+
+```sh
+bun ./apps/cli/src/main.ts reports index \
+  --db /srv/bw-forge/corpus/db/corpus.sqlite \
+  --analyses-root /srv/bw-forge/corpus/analyses
+```
+
+This creates the replaceable `/srv/bw-forge/corpus/analyses/index.html`. Corpus v2
+and `current_analyses` select one accepted run per replay; historical immutable
+reports remain untouched. Publication manifests resolve the actual HTML artifacts,
+and links are validated beneath the analyses root and emitted as URI-safe relative
+paths. Missing or unsafe reports appear as unavailable rather than disappearing.
+
+The page embeds its CSS, JavaScript, and replay metadata, uses no network requests,
+and works directly from a read-only SMB mapping such as `B:\index.html`. Search,
+player, neutral race-pair, map and replay-played-year filters run locally. Player
+and map metadata is handled as untrusted text, while a restrictive offline CSP and
+safe JSON serialization prevent markup or script injection.
+
 ```sh
 bw-forge mcp --db /srv/bw-forge/corpus/db/corpus.sqlite
 ```

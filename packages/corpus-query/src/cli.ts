@@ -14,6 +14,7 @@ import {
 } from "./query/query.js";
 import { executeQueryPlan } from "./query-plan/executor.js";
 import { exportQueryPlanZip } from "./query-plan/export.js";
+import { generateStaticReportIndex } from "./reports/staticIndex.js";
 
 const program = new Command();
 
@@ -59,6 +60,16 @@ program
 
 const queryCommand = program.command("query");
 const queryPlanCommand = program.command("query-plan");
+
+program.command("reports")
+  .command("index")
+  .requiredOption("--db <path>")
+  .requiredOption("--analyses-root <root>")
+  .action(async(options:{db:string;analysesRoot:string})=>{
+    const result=await generateStaticReportIndex({dbPath:options.db,analysesRoot:options.analysesRoot});
+    for(const warning of result.warnings)console.error(`[reports] unavailable replay=${warning.replaySha256} analysis=${warning.analysisKey}: ${warning.message}`);
+    console.log(JSON.stringify(result,null,2));
+  });
 
 queryCommand
   .command("replays")

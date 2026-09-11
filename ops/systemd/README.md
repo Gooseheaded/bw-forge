@@ -1,6 +1,7 @@
 # Debian systemd appliance integration
 
-These files supervise the existing BW Forge watcher, worker, and MCP HTTP server.
+These files supervise the existing BW Forge watcher, worker, MCP HTTP server, and
+the timer that refreshes the static replay report index.
 Systemd starts and restarts the processes; replay registration, queue correctness,
 worker leases, immutable publication, and accepted analyses remain application and
 SQLite responsibilities.
@@ -12,6 +13,8 @@ The installer writes exactly:
 /etc/systemd/system/bw-forge-watch.service
 /etc/systemd/system/bw-forge-worker.service
 /etc/systemd/system/bw-forge-mcp.service
+/etc/systemd/system/bw-forge-reports-index.service
+/etc/systemd/system/bw-forge-reports-index.timer
 /etc/systemd/system/bw-forge.target
 ```
 
@@ -104,7 +107,7 @@ bun /srv/bw-forge/app/apps/cli/src/main.ts mcp \
   --transport http --host 127.0.0.1 --port 8089 --path /mcp
 ```
 
-All three start after local filesystems only. They use `Restart=on-failure` with a
+The three long-running services start after local filesystems only. They use `Restart=on-failure` with a
 two-second delay and a five-start-per-minute limit; a clean systemd stop does not
 restart them. SIGTERM reaches the application normally. Watcher and MCP get 30
 seconds to stop. The worker gets 15 minutes so an ordinary analysis can finish; if
@@ -114,7 +117,8 @@ at-least-once worker recovery reclaims the job.
 Each service remains independently controllable. Stopping the watcher leaves queued
 work and the worker intact; stopping the worker still allows enqueueing; stopping MCP
 does not stop analysis. `bw-forge.target` provides group start/stop/restart and pulls
-all three services into boot through `multi-user.target`.
+the three long-running services plus the report-index timer into boot through
+`multi-user.target`.
 
 The conservative hardening is `NoNewPrivileges=true`, `PrivateTmp=true`,
 `UMask=0027`, an empty capability bounding set, and `RestrictSUIDSGID=true`. Corpus,
@@ -168,11 +172,11 @@ sudo systemctl start bw-forge.target
 On the real appliance, install and enable the target, then run `sudo reboot`. After
 boot, without an interactive login:
 
-1. Confirm the target and all three services are active with `systemctl status`.
+1. Confirm the target, three long-running services, and report-index timer are active with `systemctl status`.
 2. Confirm `http://127.0.0.1:8089/mcp` accepts an MCP initialize/request sequence.
 3. Copy a new replay to `/srv/bw-forge/inbox` without moving or deleting it afterward.
 4. Follow watcher and worker journals; inspect `bw-forge jobs list` until the job is
-   `succeeded`.
+`succeeded`.
 5. Query the replay through Corpus v2/MCP.
 6. Kill each main PID unexpectedly in turn. Confirm systemd restarts that service;
    for a killed worker, wait for lease expiry and confirm the job is reclaimed.
@@ -182,3 +186,39 @@ boot, without an interactive login:
 `systemd-analyze verify` can validate staged or installed unit files. The renderer's
 `--output-dir` and installer's `--destdir` are intended for packaging and tests and do
 not call `systemctl`.
+
+## Static replay report library
+
+`bw-forge-reports-index.timer` starts with `bw-forge.target` and activates the
+oneshot service about once per minute. The service runs as the same configured
+unprivileged user and executes:
+
+```sh
+bun /srv/bw-forge/app/apps/cli/src/main.ts reports index \
+  --db /srv/bw-forge/corpus/db/corpus.sqlite \
+  --analyses-root /srv/bw-forge/corpus/analyses
+```
+
+The result is `/srv/bw-forge/corpus/analyses/index.html`. It is a replaceable,
+self-contained view of Corpus v2 `current_analyses`; immutable per-analysis HTML
+reports remain the underlying artifacts. Links are relative, so an administrator
+can expose the analyses directory through a read-only SMB share and open
+`B:\index.html` without an HTTP server or Internet access. Missing or unsafe report
+artifacts remain visible as unavailable rows.
+
+The index supports local search, player, neutral race-pair, map and played-year
+filters plus sortable columns. Replay-declared UTC chronology supplies its dates;
+ingestion and analysis timestamps are not substitutes. Replay metadata is treated
+as untrusted text and report links come only from validated publication paths.
+
+Refresh immediately with the command above. For appliance acceptance:
+
+```sh
+sudo systemctl restart bw-forge.target
+systemctl is-active bw-forge-reports-index.timer
+systemctl status bw-forge-reports-index.service
+```
+
+After at most one timer interval, confirm the index exists and opens from the
+read-only reports share. A report-index failure is operationally separate from the
+worker and cannot change a successful analysis job into a failure.

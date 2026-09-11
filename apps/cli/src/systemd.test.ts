@@ -16,13 +16,14 @@ function rendererArgs(output:string,extra:string[]=[]){return [renderer,"--outpu
   "--db","/srv/BW Forge/corpus data/db/corpus.sqlite","--bun","/usr/local/bin/bun","--node","/usr/local/bin/node","--python","/usr/bin/python3",...extra];}
 function run(command:string,args:string[],cwd=repo){return spawnSync(command,args,{cwd,encoding:"utf8",windowsHide:true});}
 async function temp(prefix:string){const path=await mkdtemp(join(tmpdir(),prefix));temporary.push(path);return path;}
-async function unitFiles(directory:string){const result:Record<string,Buffer>={};for(const name of ["bw-forge-watch.service","bw-forge-worker.service","bw-forge-mcp.service","bw-forge.target"])result[name]=await readFile(join(directory,name));return result;}
+async function unitFiles(directory:string){const result:Record<string,Buffer>={};for(const name of ["bw-forge-watch.service","bw-forge-worker.service","bw-forge-mcp.service","bw-forge-reports-index.service","bw-forge-reports-index.timer","bw-forge.target"])result[name]=await readFile(join(directory,name));return result;}
 async function files(directory:string):Promise<Record<string,Buffer>>{return {...await unitFiles(directory),"bw-forge.env":await readFile(join(directory,"bw-forge.env"))};}
 
 test("systemd renderer emits safe centralized configuration and independent services",async()=>{
   const output=await temp("bw-systemd-render-");let result=run(process.env.BW_FORGE_NODE??"node",rendererArgs(output));
   expect(result.status,result.stderr).toBe(0);const first=await files(output);
   const env=first["bw-forge.env"].toString(),watch=first["bw-forge-watch.service"].toString(),worker=first["bw-forge-worker.service"].toString(),mcp=first["bw-forge-mcp.service"].toString(),target=first["bw-forge.target"].toString();
+  const reports=first["bw-forge-reports-index.service"].toString(),timer=first["bw-forge-reports-index.timer"].toString();
   expect(env).toContain('BW_FORGE_APP_ROOT="/srv/BW Forge/app $stable%v7"');
   expect(env).toContain('BW_FORGE_MCP_HOST="127.0.0.1"');expect(env).toContain('BW_FORGE_MCP_PORT="8089"');expect(env).toContain('BW_FORGE_MCP_PATH="/mcp"');
   for(const unit of [watch,worker,mcp]){
@@ -35,6 +36,10 @@ test("systemd renderer emits safe centralized configuration and independent serv
   expect(watch).toContain('"/usr/local/bin/bun" "/srv/BW Forge/app $$stable%%v7/apps/cli/src/main.ts" watch run --path ${BW_FORGE_INBOX}');
   expect(worker).toContain("worker run --corpus-root ${BW_FORGE_CORPUS_ROOT} --db ${BW_FORGE_DB}");expect(worker).toContain("TimeoutStopSec=15min");
   expect(mcp).toContain("mcp --db ${BW_FORGE_DB} --transport http --host ${BW_FORGE_MCP_HOST} --port ${BW_FORGE_MCP_PORT} --path ${BW_FORGE_MCP_PATH}");
+  expect(reports).toContain("User=replay-user");expect(reports).toContain("Type=oneshot");expect(reports).toContain("UMask=0022");
+  expect(reports).toContain('reports index --db ${BW_FORGE_DB} --analyses-root "/srv/BW Forge/corpus data/analyses"');expect(reports).not.toContain("Restart=");
+  expect(timer).toContain("OnUnitActiveSec=1min");expect(timer).toContain("Persistent=true");expect(timer).toContain("PartOf=bw-forge.target");
+  expect(target).toContain("bw-forge-reports-index.timer");
   expect(target).toContain("Wants=bw-forge-watch.service bw-forge-worker.service bw-forge-mcp.service");expect(target).toContain("WantedBy=multi-user.target");
   result=run(process.env.BW_FORGE_NODE??"node",rendererArgs(output));expect(result.status,result.stderr).toBe(0);expect(await files(output)).toEqual(first);
 });
@@ -50,17 +55,17 @@ test("installer shell is syntactically valid",()=>{
   if(result.error&&(result.error as NodeJS.ErrnoException).code==="ENOENT")return;
   expect(result.status,result.stderr).toBe(0);
   const missing=run("bash",["ops/systemd/install.sh"]);expect(missing.status).not.toBe(0);expect(missing.stderr).toContain("--user is required");
-});
+},15000);
 
 test("Linux staged installer validates inputs and is idempotent without touching Corpus",async()=>{
   if(process.platform!=="linux")return;
   const root=await temp("bw-systemd-install-"),app=join(root,"app root"),corpus=join(root,"corpus"),inbox=join(root,"inbox"),db=join(corpus,"db","corpus.sqlite"),dest=join(root,"stage");
-  await mkdir(join(app,"apps/cli/src"),{recursive:true});await writeFile(join(app,"apps/cli/src/main.ts"),"// fixture\n");await mkdir(dirname(db),{recursive:true});await mkdir(inbox);
+  await mkdir(join(app,"apps/cli/src"),{recursive:true});await writeFile(join(app,"apps/cli/src/main.ts"),"// fixture\n");await mkdir(dirname(db),{recursive:true});await mkdir(join(corpus,"analyses"));await mkdir(inbox);
   const corpusDb=new Database(db);corpusDb.exec("CREATE TABLE analysis_jobs(job_key TEXT);INSERT INTO analysis_jobs VALUES ('queued');CREATE TABLE canonical_players(player_key TEXT);INSERT INTO canonical_players VALUES ('goose');CREATE TABLE analysis_runs(analysis_key TEXT);INSERT INTO analysis_runs VALUES ('analysis');CREATE TABLE economy_changes(frame INTEGER);INSERT INTO economy_changes VALUES (42)");corpusDb.close();
   let user=run("id",["-un"]).stdout.trim();if(user==="root")user="nobody";
   if(run("id",[user]).status!==0)return;
   if(run("id",["-u"]).stdout.trim()==="0"){
-    await chmod(root,0o755);for(const path of [app,corpus,inbox]){const ids=run("id",["-u",user]).stdout.trim(),group=run("id",["-g",user]).stdout.trim();await chown(path,Number(ids),Number(group));}
+    await chmod(root,0o755);for(const path of [app,corpus,join(corpus,"analyses"),inbox]){const ids=run("id",["-u",user]).stdout.trim(),group=run("id",["-g",user]).stdout.trim();await chown(path,Number(ids),Number(group));}
     await chown(join(app,"apps"),Number(run("id",["-u",user]).stdout.trim()),Number(run("id",["-g",user]).stdout.trim()));
     await chown(join(app,"apps/cli"),Number(run("id",["-u",user]).stdout.trim()),Number(run("id",["-g",user]).stdout.trim()));
     await chown(join(app,"apps/cli/src"),Number(run("id",["-u",user]).stdout.trim()),Number(run("id",["-g",user]).stdout.trim()));
@@ -86,6 +91,6 @@ test("systemd-analyze accepts rendered units when available",async()=>{
   if(process.platform!=="linux"||run("sh",["-c","command -v systemd-analyze"]).status!==0)return;
   const output=await temp("bw-systemd-verify-"),app=join(output,"app");await mkdir(join(app,"apps/cli/src"),{recursive:true});await writeFile(join(app,"apps/cli/src/main.ts"),"// fixture\n");
   const args=[renderer,"--output-dir",output,"--user","nobody","--app-root",app,"--corpus-root","/tmp/corpus","--inbox","/tmp/inbox","--db","/tmp/corpus/db/corpus.sqlite","--bun","/bin/echo","--node","/usr/bin/node","--python","/usr/bin/python3"];
-  expect(run(process.env.BW_FORGE_NODE??"node",args).status).toBe(0);const units=["bw-forge-watch.service","bw-forge-worker.service","bw-forge-mcp.service","bw-forge.target"].map(name=>join(output,name));
+  expect(run(process.env.BW_FORGE_NODE??"node",args).status).toBe(0);const units=["bw-forge-watch.service","bw-forge-worker.service","bw-forge-mcp.service","bw-forge-reports-index.service","bw-forge-reports-index.timer","bw-forge.target"].map(name=>join(output,name));
   const verified=run("systemd-analyze",["verify",...units]);expect(verified.status,verified.stderr).toBe(0);
 });

@@ -1,0 +1,13 @@
+[Unit]
+Description=Refresh BW Forge static replay report index
+PartOf=bw-forge.target
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=1min
+AccuracySec=10s
+Persistent=true
+Unit=bw-forge-reports-index.service
+
+[Install]
+WantedBy=bw-forge.target

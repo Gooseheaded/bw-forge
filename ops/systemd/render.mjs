@@ -4,7 +4,8 @@ import { dirname, join, posix } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const UNIT_NAMES = ["bw-forge-watch.service", "bw-forge-worker.service", "bw-forge-mcp.service"];
+const UNIT_NAMES = ["bw-forge-watch.service", "bw-forge-worker.service", "bw-forge-mcp.service",
+  "bw-forge-reports-index.service", "bw-forge-reports-index.timer"];
 
 export function renderEnvironment(config) {
   validateConfig(config);
@@ -32,7 +33,8 @@ export async function renderUnits(config) {
     APP_ROOT: systemdSetting(config.appRoot),
     ENV_FILE: systemdSetting(config.environmentFile),
     BUN_EXECUTABLE: systemdExecQuote(config.bun),
-    CLI_ENTRYPOINT: systemdExecQuote(posix.join(config.appRoot, "apps/cli/src/main.ts"))
+    CLI_ENTRYPOINT: systemdExecQuote(posix.join(config.appRoot, "apps/cli/src/main.ts")),
+    ANALYSES_ROOT: systemdExecQuote(posix.join(config.corpusRoot,"analyses"))
   };
   const units = {};
   for (const name of UNIT_NAMES) {
