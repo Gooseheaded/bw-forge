@@ -609,9 +609,13 @@ casefold, without trimming or compatibility normalization). The query implementa
 ships the generated casefold mapping; it does not substitute locale lowercasing.
 Different namespaces are distinct. No fuzzy matching or identity inference occurs.
 
-`player` and `opponent` accept canonical keys or display names, selecting all
-resolved aliases; raw alias spellings remain usable as raw-name filters. Ambiguous
-text is rejected instead of guessed. `list_players` collapses resolved aliases,
+`player` and `opponent` accept canonical keys, display names, or configured aliases;
+each spelling selects all participations resolved to that canonical human, including
+when the alias has never appeared in a replay. A name remains a raw selector only
+when it has no canonical key, display-name, or alias match. Ambiguous text is rejected
+instead of guessed. Aliases in several namespaces may resolve safely when they all
+identify the same player; different canonical targets or a conflicting unresolved raw
+identity produce `AMBIGUOUS_PLAYER_SELECTOR`. `list_players` collapses resolved aliases,
 counts each replay once per identity, and keeps unresolved namespace/name identities
 separate. Results retain raw names and add `observedName`, `nameNamespace`,
 `canonicalPlayerKey`, `canonicalPlayerName`, and `identityResolution` where useful.
@@ -622,6 +626,7 @@ The CLI owns all writes:
 ```sh
 bw-forge identities apply identities.json --db /srv/bw-forge/corpus/db/corpus.sqlite
 bw-forge identities export --db /srv/bw-forge/corpus/db/corpus.sqlite > identities.json
+bw-forge identities import aliases.csv --base identities.json --output identities-next.json --dry-run
 ```
 
 The configuration is the **entire authoritative catalog**, not a patch: omitted
@@ -660,6 +665,60 @@ An override entry has `replay_sha256`, nonnegative integer `owner`, and `player`
 may refer to future replays. New ingested replays resolve existing aliases immediately,
 without reapplying the catalog. Alias edits change query interpretation immediately;
 they never require re-ingestion.
+
+Aliases are identity-overlay configuration, not replay evidence. Applying them changes
+query grouping and canonical presentation without rewriting observed profile names,
+telemetry, analysis, jobs, provenance, or report artifacts. The static report index
+embeds every configured alias as search-only metadata for resolved participants, so
+searching any alias finds all rows for that human while display and the player dropdown
+remain canonical-human oriented.
+
+### Community alias import
+
+The import helper merges CSV or JSON alias rows into a supplied complete base catalog.
+It never opens or modifies Corpus SQLite and never applies the result. CSV requires
+`player_key`, `namespace`, and `alias`; `display_name` is optional for existing players:
+
+```csv
+player_key,display_name,namespace,alias
+jaedong,Jaedong,legacy-unknown,July
+jaedong,Jaedong,legacy-unknown,n.Die_Jaedong
+jaedong,Jaedong,legacy-unknown,JD
+```
+
+JSON accepts the equivalent array or an object with an `aliases` array:
+
+```json
+{"aliases":[
+  {"player_key":"jaedong","display_name":"Jaedong","namespace":"legacy-unknown","alias":"July"},
+  {"player_key":"jaedong","namespace":"legacy-unknown","alias":"JD"}
+]}
+```
+
+```sh
+bw-forge identities import community-aliases.csv \
+  --base /etc/bw-forge/identities.json \
+  --output /tmp/identities-next.json \
+  --format csv --dry-run
+bw-forge identities import community-aliases.csv \
+  --base /etc/bw-forge/identities.json \
+  --output /tmp/identities-next.json
+bw-forge identities apply /tmp/identities-next.json \
+  --db /srv/bw-forge/corpus/db/corpus.sqlite
+```
+
+Dry-run returns structured added/unchanged/conflict counts and writes nothing. Unknown
+player keys, conflicting display names, and namespace-plus-casefold collisions are
+reported rather than guessed; duplicate mappings are deterministic no-ops. A normal
+conflict writes nothing, while success atomically writes a complete
+`bw-forge-identities-v1` catalog. Keep community source/comment/URL provenance external:
+the v1 catalog has no provenance field, and `name_namespace` must not be misused for it.
+
+Keep `/etc/bw-forge/identities.json` as the authoritative appliance copy with mode
+`0640`, backups, and version history. Import to a candidate, inspect it, apply it, then
+replace the authoritative file deliberately. Nothing is applied at boot. The existing
+report-index timer sees database identity changes naturally; use `bw-forge reports
+index --db ... --analyses-root ...` for an immediate independent refresh.
 
 Groups are sets of canonical players. Shared filters add `player_group`,
 `opponent_group`, and `scope`. Within each scope role, selected players and group

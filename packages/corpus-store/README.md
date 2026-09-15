@@ -151,6 +151,11 @@ write such as `identities apply`, queue use, or ingest.
 same administration API as `bw-forge identities apply <config.json> --db <path>`
 and `bw-forge identities export --db <path>`. The versioned JSON catalog is
 validated in full and replaced atomically; raw evidence and telemetry are untouched.
+`bw-forge identities import <aliases.csv|json> --base <catalog.json> --output
+<next.json> [--dry-run]` performs a database-free community-list merge. It preserves
+unrelated catalog sections, rejects unknown canonical players and conflicting
+namespace/casefold mappings, and writes only a complete catalog via atomic replacement.
+Alias provenance stays external, so this adds no Corpus migration.
 See [the query identity documentation](../corpus-query/README.md#curated-corpus-v2-identities-and-scopes)
 for the full format, precedence, namespace normalization and appliance examples.
 

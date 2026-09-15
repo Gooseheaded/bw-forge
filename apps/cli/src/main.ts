@@ -6,7 +6,7 @@ import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { homedir, tmpdir } from "node:os";
-import { ingestReplayAnalysis, applyIdentities, exportIdentities } from "../../../packages/corpus-store/src/index.js";
+import { ingestReplayAnalysis, applyIdentities, exportIdentities, importIdentities } from "../../../packages/corpus-store/src/index.js";
 import { analyzeAndPublishReplay } from "../../../packages/corpus-store/src/publication.js";
 import { createAnalysisWorker, createWorkerId, enqueueReplay, listAnalysisJobs, retryAnalysisJob,
   showAnalysisJob, type JobStatus } from "../../../packages/corpus-store/src/jobs.js";
@@ -93,12 +93,22 @@ async function main(): Promise<void> {
       return;
     }
     case "identities": {
-      const db = requireOption(args, "--db");
-      if (args[0] === "apply" && args[1] && !args[1].startsWith("--")) {
-        console.log(JSON.stringify(await applyIdentities(db, args[1]), null, 2));
-      } else if (args[0] === "export") {
-        console.log(JSON.stringify(await exportIdentities(db), null, 2));
-      } else throw new Error("Usage: bw-forge identities apply <config.json> --db <path> | identities export --db <path>");
+      if(args[0]==="import"&&args[1]&&!args[1].startsWith("--")){
+        const format=optionalOption(args,"--format");
+        if(format&&format!=="csv"&&format!=="json")throw new Error("--format must be csv or json");
+        const result=await importIdentities({inputPath:args[1],basePath:requireOption(args,"--base"),
+          outputPath:requireOption(args,"--output"),...(format?{format:format as "csv"|"json"}:{}),dryRun:hasFlag(args,"--dry-run")});
+        console.log(JSON.stringify(result,null,2));
+        for(const conflict of result.conflictDetails)console.error(`[identities] ${String(conflict.message??"Alias import conflict")}`);
+        if(result.conflicts)process.exitCode=2;
+      }else{
+        const db = requireOption(args, "--db");
+        if (args[0] === "apply" && args[1] && !args[1].startsWith("--")) {
+          console.log(JSON.stringify(await applyIdentities(db, args[1]), null, 2));
+        } else if (args[0] === "export") {
+          console.log(JSON.stringify(await exportIdentities(db), null, 2));
+        } else throw new Error("Usage: bw-forge identities apply <config.json> --db <path> | identities export --db <path> | identities import <aliases.csv|json> --base <catalog.json> --output <catalog.json> [--format csv|json] [--dry-run]");
+      }
       return;
     }
     case "replays": {
@@ -720,6 +730,7 @@ Commands:
   bw-forge analyze-v2 <replay.rep> --corpus-root <dir> [--db <path>] [--keep-failed-work]
   bw-forge identities apply <config.json> --db <path>
   bw-forge identities export --db <path>
+  bw-forge identities import <aliases.csv|json> --base <catalog.json> --output <catalog.json> [--format csv|json] [--dry-run]
   bw-forge replays backfill-played-at --corpus-root <root> --db <path>
   bw-forge reports index --db <path> --analyses-root <root>
   bw-forge jobs enqueue <replay.rep> --corpus-root <root> --db <path> [--priority <n>] [--force]

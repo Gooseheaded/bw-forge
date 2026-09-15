@@ -339,6 +339,17 @@ def ingest_replay_analysis(db_path, replay_manifest_path, played_at_unix_s=None)
 
 
 if __name__ == '__main__':
+    if len(sys.argv) > 1 and sys.argv[1] == 'identities-import':
+        from identity_import import administer
+        parser = argparse.ArgumentParser(description='Merge community aliases into an identity catalog')
+        parser.add_argument('input')
+        parser.add_argument('--base', required=True)
+        parser.add_argument('--output', required=True)
+        parser.add_argument('--format', choices=('csv', 'json'))
+        parser.add_argument('--dry-run', action='store_true')
+        args = parser.parse_args(sys.argv[2:])
+        print(canonical(administer(args.input, args.base, args.output, args.format, args.dry_run)))
+        sys.exit(0)
     if len(sys.argv) > 1 and sys.argv[1] == 'identities':
         from identities import administer
         parser = argparse.ArgumentParser(description='Corpus v2 identity catalog')

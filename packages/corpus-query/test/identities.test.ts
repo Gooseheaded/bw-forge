@@ -35,8 +35,8 @@ async function fixture() {
   const root=await mkdtemp(join(tmpdir(),"bw-identities-"));
   const data=JSON.parse(python([fileURLToPath(new URL("fixtures/v2.py",import.meta.url)),root,"--identities"])) as {dbPath:string;replayIds:string[]};
   const config={schema_version:"bw-forge-identities-v1",players:[
-    {key:"goose",display_name:"Gooseheaded",aliases:[{namespace:"legacy-unknown",name:"Gooseheaded"},{namespace:"legacy-unknown",name:"G00se"}]},
-    {key:"firstlaw",display_name:"FirstLaw",aliases:[{namespace:"legacy-unknown",name:"FirstLaw"}]},
+    {key:"goose",display_name:"Gooseheaded",aliases:[{namespace:"legacy-unknown",name:"Gooseheaded"},{namespace:"legacy-unknown",name:"G00se"},{namespace:"legacy-unknown",name:"Honker"}]},
+    {key:"firstlaw",display_name:"FirstLaw",aliases:[{namespace:"legacy-unknown",name:"FirstLaw"},{namespace:"legacy-unknown",name:"TheLaw"}]},
     {key:"archive",display_name:"Archived Person",aliases:[]}
   ],overrides:[] as Array<{replay_sha256:string;owner:number;player:string}>,
   groups:[{key:"friends",display_name:"Friends",players:["firstlaw"]},{key:"me",display_name:"Me",players:["goose"]},{key:"empty",display_name:"Empty",players:[]}],
@@ -53,18 +53,34 @@ async function fixture() {
   return {...data,root,db,config,configPath,apply,admin,async [Symbol.asyncDispose](){db.close();await rm(root,{recursive:true,force:true});}};
 }
 
-test("canonical keys/display names expand aliases; raw alias and unresolved player still work",async()=>{
+test("canonical keys, display names and configured aliases expand the canonical human",async()=>{
   await using f=await fixture();
-  for(const player of ["goose","Gooseheaded"]){
+  for(const player of ["goose","Gooseheaded","G00se","Honker"]){
     const rows=query.getEconomyAtOrBefore(f.db,{player,at:.042});
     assert.equal(rows.length,2);assert.deepEqual(rows.map(r=>r.sample?.minerals),[77,97]);
     assert.ok(rows.every(r=>(r as any).canonicalPlayerKey==="goose"));
   }
-  assert.equal(scope(f.db,{player:"G00se"}).length,1);
+  assert.equal(scope(f.db,{opponent:"TheLaw"}).length,scope(f.db,{opponent:"firstlaw"}).length);
   const unresolved=scope(f.db,{player:"Dex"});assert.equal(unresolved.length,1);assert.equal(unresolved[0]!.identityResolution,"unresolved");
   // Unmapped replay names remain raw evidence.
   assert.equal(unresolved[0]!.canonicalPlayerKey,null);
   assert.equal(scope(f.db,{player:"Gooseheaded"})[0]!.observedName,"Gooseheaded");
+});
+
+test("Jaedong aliases select the same corpus even when JD was never observed",async()=>{
+  await using f=await fixture();
+  const writer=await openDatabase(f.dbPath);
+  writer.db.run("UPDATE participations SET observed_name='July',observed_name_key='july' WHERE owner=0 AND replay_id=1");
+  writer.db.run("UPDATE participations SET observed_name='n.Die_Jaedong',observed_name_key='n.die_jaedong' WHERE owner=0 AND replay_id=2");
+  writer.db.close();
+  f.config.players[0]={key:"jaedong",display_name:"Jaedong",aliases:[
+    {namespace:"legacy-unknown",name:"July"},{namespace:"legacy-unknown",name:"n.Die_Jaedong"},{namespace:"legacy-unknown",name:"JD"}]};
+  f.config.groups.find(group=>group.key==="me")!.players=["jaedong"];
+  for(const configured of f.config.scopes)configured.self.players=configured.self.players.map(player=>player==="goose"?"jaedong":player);
+  await f.apply();
+  for(const selector of ["jaedong","Jaedong","July","n.Die_Jaedong","JD"])
+    assert.deepEqual(scope(f.db,{player:selector}).map(row=>row.replay_id),f.replayIds);
+  assert.deepEqual(scope(f.db,{opponent:"JD"}).map(row=>row.replay_id),f.replayIds);
 });
 
 test("canonical list_players and all sparse aggregates use current aliases exactly once",async()=>{
@@ -101,7 +117,7 @@ test("group and scope role OR, dimension AND, narrowing, empty groups and SHA re
   assert.equal(scope(f.db,{scope:"my-zvt",map:"Map1"}).length,0);
   assert.equal(scope(f.db,{scope:"my-zvt",race:"terran"}).length,0);
   assert.equal(scope(f.db,{scope:"my-zvt",matchup:"TvZ"}).length,0);
-  assert.equal(scope(f.db,{scope:"my-zvt",player:"G00se"}).length,0);
+  assert.equal(scope(f.db,{scope:"my-zvt",player:"G00se"}).length,1);
   assert.deepEqual(scope(f.db,{scope:"second"}).map(r=>r.replay_id),[f.replayIds[1]]);
   assert.equal(scope(f.db,{scope:"second",replayIds:[f.replayIds[0]!]}).length,0);
   assert.equal(scope(f.db,{scope:"second",played_before:"2026-01-01"}).length,0);
@@ -125,7 +141,7 @@ test("overrides win and catalog changes take effect without ingest or telemetry 
   assert.equal(scope(f.db,{player:"goose"}).length,1);
   const override=scope(f.db,{player:"firstlaw"}).find(r=>r.self_owner===0)!;
   assert.equal(override.observedName,"G00se");assert.equal(override.identityResolution,"override");
-  assert.equal(identities.getPlayerIdentity(f.db,"G00se").player?.playerKey,"firstlaw");
+  assert.equal(identities.getPlayerIdentity(f.db,"G00se").player?.playerKey,"goose");
   assert.deepEqual(sqlRows(f.db,"SELECT * FROM participations"),before);assert.deepEqual(sqlRows(f.db,"SELECT * FROM current_analyses"),current);
   f.config.overrides=[];f.config.players[0]!.display_name="Renamed Goose";await f.apply();
   assert.equal(scope(f.db,{player:"Renamed Goose"}).length,2);
@@ -140,12 +156,30 @@ test("namespace matching, ambiguity and Python casefold semantics",async()=>{
   const {db}=await openDatabase(f.dbPath);
   db.run("UPDATE participations SET name_namespace='ladder' WHERE observed_name='G00se'");db.close();
   assert.equal(scope(f.db,{player:"goose"}).length,1);
-  assert.equal(scope(f.db,{player:"G00se"})[0]!.identityResolution,"unresolved");
+  assert.throws(()=>scope(f.db,{player:"G00se"}),/Ambiguous player selector/);
   f.config.players[0]!.aliases.push({namespace:"ladder",name:"G00se"});await f.apply();
   assert.equal(scope(f.db,{player:"goose"}).length,2);
+  assert.equal(scope(f.db,{player:"G00se"}).length,2);
   f.config.players[1]!.display_name="Gooseheaded";await f.apply();
   assert.throws(()=>scope(f.db,{player:"Gooseheaded"}),/Ambiguous player selector/);
   assert.equal(scope(f.db,{player:"goose"}).length,2);
+});
+
+test("same alias spelling across namespaces resolves only when it denotes one human",async()=>{
+  await using f=await fixture();
+  f.config.players[0]!.aliases.push({namespace:"ladder",name:"Shared"},{namespace:"legacy-unknown",name:"Shared"});await f.apply();
+  assert.equal(scope(f.db,{player:"Shared"}).length,2);
+  f.config.players[0]!.aliases=f.config.players[0]!.aliases.filter(alias=>alias.name!=="Shared");
+  f.config.players[0]!.aliases.push({namespace:"ladder",name:"Shared"});
+  f.config.players[1]!.aliases.push({namespace:"legacy-unknown",name:"Shared"});await f.apply();
+  assert.throws(()=>scope(f.db,{player:"Shared"}),/Ambiguous player selector/);
+});
+
+test("authoritative alias removal immediately restores unresolved raw identity",async()=>{
+  await using f=await fixture();
+  f.config.players[0]!.aliases=f.config.players[0]!.aliases.filter(alias=>alias.name!=="G00se");await f.apply();
+  const raw=scope(f.db,{player:"G00se"});assert.equal(raw.length,1);assert.equal(raw[0]!.identityResolution,"unresolved");
+  assert.equal(scope(f.db,{player:"goose"}).length,1);
 });
 
 test("unresolved identical spellings in separate namespaces remain distinct and ambiguous",async()=>{
@@ -181,8 +215,10 @@ test("read-only MCP discovery, scoped analytics/resources, and structured v1 rej
       const result=await client.callTool({name,arguments:{db_path:f.dbPath,...(name==="get_player_identity"?{player:"goose"}:{})}});
       assert.notEqual(result.isError,true,JSON.stringify(result));assert.match(JSON.stringify(result),/goose|friends/);
     }
-    const result=await client.callTool({name:"get_economy_distribution",arguments:{db_path:f.dbPath,scope:"my-zvt",player:"goose",timeSeconds:.042}});
-    assert.notEqual(result.isError,true,JSON.stringify(result));assert.equal((result.structuredContent as any).sampleSize,1);
+    for(const player of ["goose","Gooseheaded","G00se","Honker"]){
+      const result=await client.callTool({name:"get_economy_distribution",arguments:{db_path:f.dbPath,player,timeSeconds:.042}});
+      assert.notEqual(result.isError,true,JSON.stringify(result));assert.equal((result.structuredContent as any).sampleSize,2);
+    }
     const primitive=await client.callTool({name:"get_economy",arguments:{db_path:f.dbPath,scope:"second",player:"goose",at_seconds:.042}});
     assert.equal((primitive.structuredContent as any).count,1);
     for(const [name,extra] of [
@@ -198,7 +234,7 @@ test("read-only MCP discovery, scoped analytics/resources, and structured v1 rej
       const invalid=await client.callTool({name,arguments:{db_path:f.dbPath,player:"goose",scope:"nonexistent",...extra}});
       assert.equal(invalid.isError,true,`${name} must propagate the shared scope filter`);
     }
-    const resource=await client.readResource({uri:`bw_replay://economy?db_path=${encodeURIComponent(f.dbPath)}&player=goose&scope=second&time=0.042`});
+    const resource=await client.readResource({uri:`bw_replay://economy?db_path=${encodeURIComponent(f.dbPath)}&player=Honker&scope=second&time=0.042`});
     assert.equal(JSON.parse((resource.contents[0] as any).text).count,1);
     const {db:v1}=await openDatabase(join(f.root,"v1.sqlite"));ensureSchema(v1);v1.close();
     for(const name of ["list_canonical_players","get_player_identity","list_player_groups","list_scopes"]){

@@ -80,6 +80,14 @@ BW_FORGE_WATCH_STABILITY_MS="1500"
 BW_FORGE_WATCH_RECONCILE_SECONDS="60"
 ```
 
+Keep the authoritative identity overlay at `/etc/bw-forge/identities.json`. Export or
+copy a known-good catalog, import community aliases to a separate candidate with a
+dry-run first, inspect the structured conflicts and diff, apply the candidate to Corpus,
+then deliberately install it with mode `0640` while retaining backups/version history.
+The installer does not create or apply this file, and there is no boot-time identity
+service. The report-index timer observes applied changes on its next run; the existing
+`bw-forge reports index` command provides an immediate refresh when desired.
+
 The default MCP endpoint is `http://127.0.0.1:8089/mcp`. Loopback requires no
 external link and does not expose the unauthenticated, unencrypted endpoint to the
 LAN. A non-loopback `--mcp-host` is allowed for deliberate advanced use; the

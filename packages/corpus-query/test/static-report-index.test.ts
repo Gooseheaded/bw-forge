@@ -50,6 +50,22 @@ test("pure client filtering and sorting cover search, player, map, year, pairing
   assert.deepEqual(sortReportRows(rows,"map","asc").map(row=>row.map),[...rows.map(row=>row.map)].sort((a,b)=>a.localeCompare(b)));
 });
 
+test("all configured aliases search every canonical row without changing display or enabling injection",async()=>{
+  await using f=await fixture(2);const db=new DatabaseSync(f.dbPath);
+  db.exec(`UPDATE canonical_players SET player_key='jaedong',display_name='Jaedong' WHERE player_id=1;
+    INSERT INTO player_aliases
+    SELECT name_namespace,observed_name_key,observed_name,1 FROM participations WHERE owner=0
+    UNION ALL SELECT 'legacy-unknown','jd','JD </script><img src=x onerror="boom"> & ""quoted""',1`);
+  db.close();
+  const result=await generateStaticReportIndex(f),html=await readFile(result.output,"utf8"),rows=embedded(html);
+  assert.equal(rows.length,2);assert.ok(rows.every(row=>row.participants[0]!.name==="Jaedong"));
+  assert.equal(filterReportRows(rows,{search:"Jaedong"}).length,2);
+  for(const alias of rows[0]!.participants[0]!.knownNames)assert.equal(filterReportRows(rows,{search:alias}).length,2);
+  assert.equal(filterReportRows(rows,{search:"jd </script>"}).length,2);
+  assert.ok(!html.includes('JD </script><img'));assert.match(html,/JD \\u003c\/script\\u003e\\u003cimg/);
+  const client=embeddedClient(html);assert.doesNotThrow(()=>new Function(client));
+});
+
 test("empty catalog and missing participant metadata degrade to raw names and a valid empty index",async()=>{
   await using f=await fixture(2);const db=new DatabaseSync(f.dbPath);db.exec("DELETE FROM participation_identity_overrides;DELETE FROM canonical_players");db.close();
   const rows=embedded(await readFile((await generateStaticReportIndex(f)).output,"utf8"));assert.match(rows.find(row=>row.replaySha256===f.firstReplay)!.participants[0]!.name,/^Raw /);

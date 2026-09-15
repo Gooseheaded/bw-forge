@@ -30,15 +30,19 @@ export function playerSelector(db: Database, value: string): { playerId?: number
   const normalized = normalizeName(value);
   const players = sqlRows(db,"SELECT player_id,player_key,display_name FROM canonical_players")
     .filter(p=>normalizeName(String(p.player_key))===normalized || normalizeName(String(p.display_name))===normalized);
+  const aliases = sqlRows(db,"SELECT DISTINCT player_id FROM player_aliases WHERE observed_name_key=?",[normalized]);
   const raw = sqlRows(db,`SELECT DISTINCT p.name_namespace,c.player_id FROM participations p
     LEFT JOIN participation_identity_overrides o USING(participation_id)
     LEFT JOIN player_aliases a ON a.name_namespace=p.name_namespace AND a.observed_name_key=p.observed_name_key
     LEFT JOIN canonical_players c ON c.player_id=coalesce(o.player_id,a.player_id)
     WHERE p.observed_name_key=?`,[normalized]);
-  const identities = new Set([...players.map(p=>`player:${p.player_id}`),
-    ...raw.map(p=>p.player_id==null ? `raw:${p.name_namespace}:${normalized}` : `player:${p.player_id}`)]);
-  if (identities.size>1) throw Object.assign(new Error(`Ambiguous player selector "${value}"; use an unambiguous player key or a curated scope`),{code:"AMBIGUOUS_PLAYER_SELECTOR"});
-  if (players.length===1) return {playerId:Number(players[0]!.player_id)};
+  const canonicalIds=new Set([...players,...aliases].map(p=>Number(p.player_id)));
+  const unresolved=new Set(raw.filter(row=>row.player_id==null).map(row=>String(row.name_namespace)));
+  if(canonicalIds.size>1 || (canonicalIds.size===1&&unresolved.size))
+    throw Object.assign(new Error(`Ambiguous player selector "${value}"; use an unambiguous player key or a curated scope`),{code:"AMBIGUOUS_PLAYER_SELECTOR"});
+  if(canonicalIds.size===1)return {playerId:[...canonicalIds][0]!};
+  const rawIdentities=new Set(raw.map(p=>p.player_id==null ? `raw:${p.name_namespace}:${normalized}` : `player:${p.player_id}`));
+  if(rawIdentities.size>1)throw Object.assign(new Error(`Ambiguous player selector "${value}"; use an unambiguous player key or a curated scope`),{code:"AMBIGUOUS_PLAYER_SELECTOR"});
   const resolved=raw.find(r=>r.player_id!=null);
   return {rawKey:normalized,...(resolved ? {resolvedPlayerId:Number(resolved.player_id)} : {})};
 }

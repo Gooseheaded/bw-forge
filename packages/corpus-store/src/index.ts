@@ -93,3 +93,28 @@ export async function applyIdentities(dbPath: string, configPath: string): Promi
 export async function exportIdentities(dbPath: string): Promise<Record<string, unknown>> {
   return runStore(["identities", "--db", resolve(dbPath)]);
 }
+
+export interface ImportIdentitiesOptions {
+  inputPath:string;
+  basePath:string;
+  outputPath:string;
+  format?:"csv"|"json";
+  dryRun?:boolean;
+}
+
+export interface ImportIdentitiesResult {
+  status:"dry-run"|"conflict"|"no-op"|"written";
+  playersAdded:number;
+  aliasesAdded:number;
+  aliasesUnchanged:number;
+  conflicts:number;
+  outputWouldChange:boolean;
+  conflictDetails:Array<Record<string,unknown>>;
+  output:string;
+}
+
+/** Merge community alias rows into a complete catalog file without opening a database. */
+export async function importIdentities(options:ImportIdentitiesOptions):Promise<ImportIdentitiesResult> {
+  return runStore(["identities-import",resolve(options.inputPath),"--base",resolve(options.basePath),
+    "--output",resolve(options.outputPath),...(options.format?["--format",options.format]:[]),...(options.dryRun?["--dry-run"]:[])]);
+}
