@@ -10,7 +10,7 @@ import { ingestReplayAnalysis, applyIdentities, exportIdentities, importIdentiti
 import { analyzeAndPublishReplay } from "../../../packages/corpus-store/src/publication.js";
 import { createAnalysisWorker, createWorkerId, enqueueReplay, listAnalysisJobs, retryAnalysisJob,
   showAnalysisJob, type JobStatus } from "../../../packages/corpus-store/src/jobs.js";
-import { createReplayWatcher } from "../../../packages/corpus-store/src/watcher.js";
+import { createReplayWatcher, WATCH_DEFAULTS } from "../../../packages/corpus-store/src/watcher.js";
 import { backfillReplayPlayedAt } from "../../../packages/corpus-store/src/chronology.js";
 import { assertSafeAnalyzeOutputRoot } from "./analyze-output-path.js";
 import { buildCommandSpawnOptions } from "./child-process.js";
@@ -47,10 +47,11 @@ async function main(): Promise<void> {
       if(operation!=="once"&&operation!=="run")throw new Error("Usage: bw-forge watch once|run --path <dir> [--path <dir> ...] --corpus-root <root> --db <path>");
       const paths=optionValues(rest,"--path").map(resolveOptionPath);
       if(!paths.length)throw new Error("At least one --path is required");
-      const stabilityMs=integerOption(rest,"--stability-ms",1500);
-      const reconcileSeconds=integerOption(rest,"--reconcile-seconds",60);
+      const stabilityMs=integerOption(rest,"--stability-ms",WATCH_DEFAULTS.stabilityMs);
+      const reconcileSeconds=integerOption(rest,"--reconcile-seconds",WATCH_DEFAULTS.reconcileMs/1000);
+      const registrationConcurrency=integerOption(rest,"--registration-concurrency",WATCH_DEFAULTS.registrationConcurrency);
       const options={paths,corpusRoot:resolveOptionPath(requireOption(rest,"--corpus-root")),dbPath:resolveOptionPath(requireOption(rest,"--db")),
-        recursive:hasFlag(rest,"--recursive"),stabilityMs,reconcileMs:reconcileSeconds*1000};
+        recursive:hasFlag(rest,"--recursive"),stabilityMs,reconcileMs:reconcileSeconds*1000,registrationConcurrency};
       const watcher=createReplayWatcher();
       if(operation==="once")console.log(JSON.stringify(await watcher.once(options),null,2));
       else{
@@ -739,8 +740,8 @@ Commands:
   bw-forge jobs retry <job-key> --db <path>
   bw-forge worker once --corpus-root <root> --db <path> [--worker-id <id>]
   bw-forge worker run --corpus-root <root> --db <path> [--worker-id <id>] [--poll-ms <ms>]
-  bw-forge watch once --path <dir> [--path <dir> ...] --corpus-root <root> --db <path> [--recursive] [--stability-ms <n>]
-  bw-forge watch run --path <dir> [--path <dir> ...] --corpus-root <root> --db <path> [--recursive] [--stability-ms <n>] [--reconcile-seconds <n>]
+  bw-forge watch once --path <dir> [--path <dir> ...] --corpus-root <root> --db <path> [--recursive] [--stability-ms <n>] [--registration-concurrency <n>]
+  bw-forge watch run --path <dir> [--path <dir> ...] --corpus-root <root> --db <path> [--recursive] [--stability-ms <n>] [--reconcile-seconds <n>] [--registration-concurrency <n>]
   bw-forge mcp --db <path> [--transport stdio|http] [--host <host>] [--port <port>] [--path <path>]
 
 Environment overrides:

@@ -275,10 +275,17 @@ recursive directories. A stat signature cache avoids repeatedly hashing unchange
 files during one process lifetime; restart recovery always rescans and durable SHA
 registration remains the source of truth.
 
+All live registration sources share one bounded gate per `watch run` process.
+`--registration-concurrency` defaults to 4 and limits concurrent calls into
+`enqueueReplay()` across startup and periodic scans, filesystem events, recursive
+watchers, rename reconciliation, and multiple roots. Stability checks may proceed
+concurrently; `watch once` retains its sequential registration behavior.
+
 One failed or disappearing candidate does not stop `watch run`. Errors are logged
 with their source path, while analyzer failures remain worker-owned job failures.
-SIGINT/SIGTERM stops notifications and new readiness work, lets any registration
-already inside `enqueueReplay()` finish, closes watchers, and exits. Multiple
+SIGINT/SIGTERM stops notifications and new readiness work, releases candidates
+waiting at the registration gate, lets only registrations already inside
+`enqueueReplay()` finish, closes watchers, and exits. Multiple
 watchers may overlap safely because canonical publication and the SQLite active-job
 constraint remain atomic.
 

@@ -60,6 +60,9 @@ to the appliance's ownership policy.
 is enabled for future boots but remains stopped until explicitly started. Rerunning
 the installer replaces only the environment/unit definitions, runs
 `systemctl daemon-reload`, and re-enables the target; it is safe after an app upgrade.
+After upgrading to a release with watcher registration backpressure, rerun this same
+installer so the existing watcher unit and environment receive
+`BW_FORGE_WATCH_REGISTRATION_CONCURRENCY`; no additional service is installed.
 
 ## Central configuration
 
@@ -78,6 +81,7 @@ BW_FORGE_MCP_PORT="8089"
 BW_FORGE_MCP_PATH="/mcp"
 BW_FORGE_WATCH_STABILITY_MS="1500"
 BW_FORGE_WATCH_RECONCILE_SECONDS="60"
+BW_FORGE_WATCH_REGISTRATION_CONCURRENCY="4"
 ```
 
 Keep the authoritative identity overlay at `/etc/bw-forge/identities.json`. Export or
@@ -104,7 +108,8 @@ bun /srv/bw-forge/app/apps/cli/src/main.ts watch run \
   --path /srv/bw-forge/inbox \
   --corpus-root /srv/bw-forge/corpus \
   --db /srv/bw-forge/corpus/db/corpus.sqlite \
-  --stability-ms 1500 --reconcile-seconds 60
+  --stability-ms 1500 --reconcile-seconds 60 \
+  --registration-concurrency 4
 
 bun /srv/bw-forge/app/apps/cli/src/main.ts worker run \
   --corpus-root /srv/bw-forge/corpus \
@@ -159,6 +164,10 @@ An unexpected watcher exit is restarted and its mandatory startup scan reconcile
 missed files. An unexpected worker exit is restarted and lease expiry makes abandoned
 jobs reclaimable. An unexpected MCP exit is restarted and recreates the HTTP endpoint.
 No systemd-specific rows or schema revision are added to Corpus v2.
+
+The watcher defaults to four concurrent replay registrations across startup scans,
+periodic reconciliation, and filesystem events. Large existing inboxes therefore feed
+the queue steadily without creating one metadata runtime per replay.
 
 ## Application upgrades
 

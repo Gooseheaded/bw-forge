@@ -21,7 +21,8 @@ export function renderEnvironment(config) {
     BW_FORGE_MCP_PORT: String(config.mcpPort),
     BW_FORGE_MCP_PATH: config.mcpPath,
     BW_FORGE_WATCH_STABILITY_MS: String(config.stabilityMs),
-    BW_FORGE_WATCH_RECONCILE_SECONDS: String(config.reconcileSeconds)
+    BW_FORGE_WATCH_RECONCILE_SECONDS: String(config.reconcileSeconds),
+    BW_FORGE_WATCH_REGISTRATION_CONCURRENCY: String(config.registrationConcurrency)
   };
   return `${Object.entries(values).map(([key, value]) => `${key}=${environmentQuote(value)}`).join("\n")}\n`;
 }
@@ -90,6 +91,7 @@ function validateConfig(config) {
   if (!Number.isSafeInteger(config.mcpPort) || config.mcpPort < 1 || config.mcpPort > 65535) throw new Error("MCP port must be 1..65535");
   if (!Number.isSafeInteger(config.stabilityMs) || config.stabilityMs < 0) throw new Error("stability must be a non-negative integer");
   if (!Number.isSafeInteger(config.reconcileSeconds) || config.reconcileSeconds < 1) throw new Error("reconcile seconds must be a positive integer");
+  if (!Number.isSafeInteger(config.registrationConcurrency) || config.registrationConcurrency < 1) throw new Error("registration concurrency must be a positive integer");
 }
 
 function rejectUnsafeText(value, name) {
@@ -113,7 +115,8 @@ function parseArgs(argv) {
       user: required("user"), appRoot: required("app-root"), corpusRoot: required("corpus-root"), inbox: required("inbox"), db: required("db"),
       bun: required("bun"), node: required("node"), python: required("python"), environmentFile: values["environment-file"] ?? "/etc/bw-forge/bw-forge.env",
       mcpHost: values["mcp-host"] ?? "127.0.0.1", mcpPort: Number(values["mcp-port"] ?? "8089"), mcpPath: values["mcp-path"] ?? "/mcp",
-      stabilityMs: Number(values["stability-ms"] ?? "1500"), reconcileSeconds: Number(values["reconcile-seconds"] ?? "60")
+      stabilityMs: Number(values["stability-ms"] ?? "1500"), reconcileSeconds: Number(values["reconcile-seconds"] ?? "60"),
+      registrationConcurrency: Number(values["registration-concurrency"] ?? "4")
     }
   };
 }

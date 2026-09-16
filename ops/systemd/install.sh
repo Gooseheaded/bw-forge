@@ -15,6 +15,7 @@ MCP_PORT="8089"
 MCP_PATH="/mcp"
 STABILITY_MS="1500"
 RECONCILE_SECONDS="60"
+REGISTRATION_CONCURRENCY="4"
 DESTDIR=${DESTDIR:-}
 CREATE_INBOX=0
 START=0
@@ -34,6 +35,7 @@ Options:
   --mcp-path <path>           Default: /mcp
   --stability-ms <ms>         Default: 1500
   --reconcile-seconds <sec>   Default: 60
+  --registration-concurrency <n> Default: 4
   --create-inbox              Create the configured inbox when absent
   --start                     Restart/start bw-forge.target after installation
   --destdir <dir>             Stage files beneath a packaging/test root; skip systemctl
@@ -58,6 +60,7 @@ while [ "$#" -gt 0 ]; do
     --mcp-path) need_value "$@"; MCP_PATH=$2; shift 2 ;;
     --stability-ms) need_value "$@"; STABILITY_MS=$2; shift 2 ;;
     --reconcile-seconds) need_value "$@"; RECONCILE_SECONDS=$2; shift 2 ;;
+    --registration-concurrency) need_value "$@"; REGISTRATION_CONCURRENCY=$2; shift 2 ;;
     --destdir) need_value "$@"; DESTDIR=$2; shift 2 ;;
     --create-inbox) CREATE_INBOX=1; shift ;;
     --start) START=1; shift ;;
@@ -152,6 +155,8 @@ case "$MCP_PORT" in ''|*[!0-9]*) die "MCP port must be an integer" ;; esac
 case "$STABILITY_MS" in ''|*[!0-9]*) die "stability milliseconds must be a non-negative integer" ;; esac
 case "$RECONCILE_SECONDS" in ''|*[!0-9]*) die "reconcile seconds must be a positive integer" ;; esac
 [ "$RECONCILE_SECONDS" -ge 1 ] || die "reconcile seconds must be a positive integer"
+case "$REGISTRATION_CONCURRENCY" in ''|*[!0-9]*) die "registration concurrency must be a positive integer" ;; esac
+[ "$REGISTRATION_CONCURRENCY" -ge 1 ] || die "registration concurrency must be a positive integer"
 case "$MCP_PATH" in /*) ;; *) die "MCP path must start with /" ;; esac
 validate_text "MCP host" "$MCP_HOST"; validate_text "MCP path" "$MCP_PATH"
 [[ "$MCP_HOST" =~ ^[A-Za-z0-9_.:-]+$ ]] || die "MCP host contains unsupported characters"
@@ -165,7 +170,8 @@ trap 'rm -rf -- "$STAGING"' EXIT
   --app-root "$APP_ROOT" --corpus-root "$CORPUS_ROOT" --inbox "$INBOX" --db "$DB_PATH" \
   --bun "$BUN_PATH" --node "$NODE_PATH" --python "$PYTHON_PATH" \
   --mcp-host "$MCP_HOST" --mcp-port "$MCP_PORT" --mcp-path "$MCP_PATH" \
-  --stability-ms "$STABILITY_MS" --reconcile-seconds "$RECONCILE_SECONDS" >/dev/null
+  --stability-ms "$STABILITY_MS" --reconcile-seconds "$RECONCILE_SECONDS" \
+  --registration-concurrency "$REGISTRATION_CONCURRENCY" >/dev/null
 
 CONFIG_DIR="$DESTDIR/etc/bw-forge"
 UNIT_DIR="$DESTDIR/etc/systemd/system"

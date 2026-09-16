@@ -26,6 +26,7 @@ test("systemd renderer emits safe centralized configuration and independent serv
   const reports=first["bw-forge-reports-index.service"].toString(),timer=first["bw-forge-reports-index.timer"].toString();
   expect(env).toContain('BW_FORGE_APP_ROOT="/srv/BW Forge/app $stable%v7"');
   expect(env).toContain('BW_FORGE_MCP_HOST="127.0.0.1"');expect(env).toContain('BW_FORGE_MCP_PORT="8089"');expect(env).toContain('BW_FORGE_MCP_PATH="/mcp"');
+  expect(env).toContain('BW_FORGE_WATCH_REGISTRATION_CONCURRENCY="4"');
   for(const unit of [watch,worker,mcp]){
     expect(unit).toContain("User=replay-user");expect(unit).not.toContain("User=root");
     expect(unit).toContain('WorkingDirectory=/srv/BW\\x20Forge/app\\x20$stable%%v7');expect(unit).toContain('EnvironmentFile=/etc/bw-forge/bw-forge.env');
@@ -34,6 +35,7 @@ test("systemd renderer emits safe centralized configuration and independent serv
     expect(unit).toContain("StandardOutput=journal");expect(unit).toContain("PartOf=bw-forge.target");expect(unit).not.toContain("network-online.target");
   }
   expect(watch).toContain('"/usr/local/bin/bun" "/srv/BW Forge/app $$stable%%v7/apps/cli/src/main.ts" watch run --path ${BW_FORGE_INBOX}');
+  expect(watch).toContain("--registration-concurrency ${BW_FORGE_WATCH_REGISTRATION_CONCURRENCY}");
   expect(worker).toContain("worker run --corpus-root ${BW_FORGE_CORPUS_ROOT} --db ${BW_FORGE_DB}");expect(worker).toContain("TimeoutStopSec=15min");
   expect(mcp).toContain("mcp --db ${BW_FORGE_DB} --transport http --host ${BW_FORGE_MCP_HOST} --port ${BW_FORGE_MCP_PORT} --path ${BW_FORGE_MCP_PATH}");
   expect(reports).toContain("User=replay-user");expect(reports).toContain("Type=oneshot");expect(reports).toContain("UMask=0022");
@@ -45,7 +47,7 @@ test("systemd renderer emits safe centralized configuration and independent serv
 });
 
 test("renderer rejects unsafe configuration",async()=>{
-  for(const extra of [["--user","bad/user"],["--user","-root"],["--mcp-host","bad host"],["--mcp-port","0"],["--mcp-path","relative"],["--stability-ms","-1"],["--app-root","relative"]]){
+  for(const extra of [["--user","bad/user"],["--user","-root"],["--mcp-host","bad host"],["--mcp-port","0"],["--mcp-path","relative"],["--stability-ms","-1"],["--registration-concurrency","0"],["--registration-concurrency","1.5"],["--app-root","relative"]]){
     const output=await temp("bw-systemd-invalid-");const result=run(process.env.BW_FORGE_NODE??"node",rendererArgs(output,extra));expect(result.status).not.toBe(0);
   }
 });

@@ -5,7 +5,8 @@ import { enqueueReplay } from "./jobs.js";
 
 export const WATCH_DEFAULTS = {
   stabilityMs: 1_500,
-  reconcileMs: 60_000
+  reconcileMs: 60_000,
+  registrationConcurrency: 4
 } as const;
 
 export interface ReplayWatchOptions {
@@ -15,6 +16,7 @@ export interface ReplayWatchOptions {
   recursive?: boolean;
   stabilityMs?: number;
   reconcileMs?: number;
+  registrationConcurrency?: number;
 }
 
 export interface ReplayWatchError { path: string; message: string; }
@@ -32,6 +34,7 @@ type EnqueueResult = Awaited<ReturnType<typeof enqueueReplay>>;
 export interface ReplayWatcherDependencies {
   enqueue: typeof enqueueReplay;
   log: (message: string) => void;
+  watchDirectory?: typeof watchDirectory;
 }
 
 const defaults: ReplayWatcherDependencies = {
@@ -71,6 +74,7 @@ export function createReplayWatcher(dependencies: ReplayWatcherDependencies = de
     const summary = emptySummary(resolved.paths), watchers = new Map<string, FSWatcher>();
     const pending = new Map<string, Promise<void>>(), cache = new Map<string, string>(), seenCandidates = new Set<string>();
     const controller = new AbortController();
+    const registrationGate = createRegistrationGate(resolved.registrationConcurrency, controller.signal);
     let accepting = true, reconciling = false, reconcileAgain = false, activeReconciliation: Promise<void> | undefined;
     const stop = () => { accepting = false; controller.abort(); };
     options.signal?.addEventListener("abort", stop, { once: true });
@@ -92,7 +96,13 @@ export function createReplayWatcher(dependencies: ReplayWatcherDependencies = de
         }
         if (!accepting) return;
         const before = stable.snapshot.signature;
-        const registered = await register(path, resolved, summary, true);
+        const release = await registrationGate.acquire();
+        if (!release) return;
+        let registered: EnqueueResult | undefined;
+        try {
+          if (!accepting) return;
+          registered = await register(path, resolved, summary, true);
+        } finally { release(); }
         if (!registered) return;
         const after = await snapshot(path);
         if (after.status === "ready") {
@@ -124,7 +134,7 @@ export function createReplayWatcher(dependencies: ReplayWatcherDependencies = de
         if (!accepting) break;
         if (watchers.has(directory)) continue;
         try {
-          const watcher = watchDirectory(directory, { persistent: true }, (event, filename) => {
+          const watcher = (dependencies.watchDirectory ?? watchDirectory)(directory, { persistent: true }, (event, filename) => {
             if (!accepting) return;
             if (filename) void schedule(join(directory, filename.toString()), "event");
             else void reconcile("event");
@@ -168,7 +178,7 @@ export function createReplayWatcher(dependencies: ReplayWatcherDependencies = de
       return task;
     };
 
-    dependencies.log(`[watcher] started paths=${resolved.paths.join(",")}`);
+    dependencies.log(`[watcher] started paths=${resolved.paths.join(",")} registrationConcurrency=${resolved.registrationConcurrency}`);
     await refreshWatchers();
     await reconcile("startup");
     dependencies.log(`[watcher] startup scan complete discovered=${summary.discovered} queued=${summary.queued} alreadyActive=${summary.alreadyActive} alreadyIndexed=${summary.alreadyIndexed} errors=${summary.errors.length}`);
@@ -214,8 +224,10 @@ async function validateOptions(options: ReplayWatchOptions): Promise<ResolvedOpt
   if (!options.paths.length) throw new Error("At least one watched --path is required");
   const stabilityMs = options.stabilityMs ?? WATCH_DEFAULTS.stabilityMs;
   const reconcileMs = options.reconcileMs ?? WATCH_DEFAULTS.reconcileMs;
+  const registrationConcurrency = options.registrationConcurrency ?? WATCH_DEFAULTS.registrationConcurrency;
   if (!Number.isSafeInteger(stabilityMs) || stabilityMs < 0) throw new Error("stabilityMs must be a non-negative integer");
   if (!Number.isSafeInteger(reconcileMs) || reconcileMs < 100) throw new Error("reconcileMs must be at least 100");
+  if (!Number.isSafeInteger(registrationConcurrency) || registrationConcurrency < 1) throw new Error("registrationConcurrency must be an integer of at least 1");
   const corpusRoot = await resolvedExistingOrLexical(options.corpusRoot);
   const managed = ["replays", "analyses", "work", "db"].map(name => join(corpusRoot, name));
   const paths: string[] = [];
@@ -226,7 +238,39 @@ async function validateOptions(options: ReplayWatchOptions): Promise<ResolvedOpt
     if (path === corpusRoot || managed.some(item => overlaps(path, item))) throw new Error(`Watched path overlaps managed corpus storage: ${path}`);
     if (!paths.includes(path)) paths.push(path);
   }
-  return { paths, corpusRoot, dbPath: resolve(options.dbPath), recursive: options.recursive ?? false, stabilityMs, reconcileMs };
+  return { paths, corpusRoot, dbPath: resolve(options.dbPath), recursive: options.recursive ?? false, stabilityMs, reconcileMs, registrationConcurrency };
+}
+
+function createRegistrationGate(limit: number, signal: AbortSignal) {
+  type Waiter = (release: (() => void) | undefined) => void;
+  const waiting: Waiter[] = [];
+  let active = 0, closed = signal.aborted;
+  const admit = () => {
+    while (!closed && active < limit && waiting.length) {
+      active++;
+      waiting.shift()!(releaseSlot());
+    }
+  };
+  const releaseSlot = () => {
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      active--;
+      admit();
+    };
+  };
+  signal.addEventListener("abort", () => {
+    closed = true;
+    for (const resolve of waiting.splice(0)) resolve(undefined);
+  }, { once: true });
+  return {
+    acquire(): Promise<(() => void) | undefined> {
+      if (closed) return Promise.resolve(undefined);
+      if (active < limit) { active++; return Promise.resolve(releaseSlot()); }
+      return new Promise(resolve => waiting.push(resolve));
+    }
+  };
 }
 
 async function resolvedExistingOrLexical(path: string) {
