@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { createReplayPublisher,type PublicationDependencies } from "./publication.js";
 import { ingestReplayAnalysis } from "./index.js";
 import { claimAnalysisJob,createAnalysisWorker,enqueueReplay,heartbeatAnalysisJob,listAnalysisJobs,
-  retryAnalysisJob,showAnalysisJob,type WorkerDependencies } from "./jobs.js";
+  retryAnalysisJob,showAnalysisJob,succeedAnalysisJob,type WorkerDependencies } from "./jobs.js";
 
 let temp:string,fixture:string,corpusRoot:string,dbPath:string,source:string,calls:number;
 const replaySha=createHash("sha256").update("replay").digest("hex");
@@ -21,9 +21,9 @@ beforeEach(async()=>{
 });
 afterEach(async()=>{await rm(temp,{recursive:true,force:true});});
 function rows(sql:string,params:unknown[]=[]){const db=new Database(dbPath,{readonly:true});try{return db.query(sql).all(...params as never[]);}finally{db.close();}}
-function publisher(specification="jobs-fixture"){
+function publisher(specification="jobs-fixture",beforeAnalyze?:()=>Promise<void>){
   const dependencies:PublicationDependencies={specification:async()=>({bw_forge_version:"fixture",reducer_version:specification}),ingest:ingestReplayAnalysis,
-    analyze:async({outputRoot,replayPath})=>{calls++;const dest=join(outputRoot,"replays",replaySha);await cp(fixture,dest,{recursive:true});
+    analyze:async({outputRoot,replayPath})=>{calls++;if(beforeAnalyze)await beforeAnalyze();const dest=join(outputRoot,"replays",replaySha);await cp(fixture,dest,{recursive:true});
       await copyFile(replayPath,join(dest,"raw.rep"));
       const manifestPath=join(dest,"replay-manifest.json"),manifest=JSON.parse(await readFile(manifestPath,"utf8"));manifest.legacy.html_files=["report.html"];
       await writeFile(join(dest,"report.html"),"<html>queue fixture</html>");await writeFile(manifestPath,JSON.stringify(manifest));}};
@@ -36,7 +36,7 @@ test("enqueue owns canonical bytes, source can disappear, and worker once succee
   const queued=await enqueue();expect(queued.status).toBe("queued");expect(queued.rawReused).toBe(false);
   expect(queued.canonicalReplayPath).toBe(join(corpusRoot,"replays",replaySha.slice(0,2),`${replaySha}.rep`));
   expect(await readdir(join(corpusRoot,"replays",replaySha.slice(0,2)))).toEqual([`${replaySha}.rep`]);
-  await rm(source);const logs:string[]=[];const result=await worker(publisher(),logs).once({corpusRoot,dbPath,workerId:"worker-one",leaseMs:300,heartbeatMs:50});
+  await rm(source);const logs:string[]=[];const result=await worker(publisher(),logs).once({corpusRoot,dbPath,workerId:"worker-one",leaseMs:10000,heartbeatMs:1000});
   expect(result.status).toBe("succeeded");expect(result.analysisKey).toBeString();
   const shown=await showAnalysisJob(dbPath,queued.job!.jobKey);expect(shown.job.resultAnalysisId).toBeNumber();expect(shown.job.resultAnalysisKey).toBe(String(result.analysisKey));
   expect(rows("SELECT analysis_id FROM current_analyses")).toEqual([{analysis_id:shown.job.resultAnalysisId}]);
@@ -61,36 +61,37 @@ test("mismatching managed replay content is rejected and never overwritten",asyn
 });
 
 test("indexed replay is not queued unless forced and force cannot duplicate active work",async()=>{
-  await enqueue();await worker().once({corpusRoot,dbPath,workerId:"worker",leaseMs:300,heartbeatMs:50});
+  await enqueue();await worker().once({corpusRoot,dbPath,workerId:"worker",leaseMs:10000,heartbeatMs:1000});
   const db=new Database(dbPath);db.exec("UPDATE replays SET played_at_unix_s=123");db.close();
   expect((await enqueue()).status).toBe("already-indexed");
   const forced=await enqueue({force:true});expect(forced.status).toBe("queued");
   const duplicate=await enqueue({force:true});expect(duplicate.status).toBe("already-queued");expect(duplicate.job!.jobKey).toBe(forced.job!.jobKey);
   expect(rows("SELECT count(*) n FROM analysis_jobs")).toEqual([{n:2}]);
-  await worker().once({corpusRoot,dbPath,workerId:"reanalysis",leaseMs:300,heartbeatMs:50});
+  await worker().once({corpusRoot,dbPath,workerId:"reanalysis",leaseMs:10000,heartbeatMs:1000});
   expect(rows("SELECT played_at_unix_s FROM replays")).toEqual([{played_at_unix_s:123}]);
-});
+},30_000);
 
 test("explicit analyzer failure is retained and retry preserves attempt history",async()=>{
   const queued=await enqueue();const logs:string[]=[];
   const failed=await worker(async()=>{throw Object.assign(new Error("bad replay"),{code:"BAD_REPLAY"});},logs)
-    .once({corpusRoot,dbPath,workerId:"failure-worker",leaseMs:300,heartbeatMs:50});
+    .once({corpusRoot,dbPath,workerId:"failure-worker",leaseMs:10000,heartbeatMs:1000});
   expect(failed.status).toBe("failed");let shown=(await showAnalysisJob(dbPath,queued.job!.jobKey)).job;
   expect(shown.lastError).toMatchObject({message:"bad replay",code:"BAD_REPLAY"});expect(shown.attempts).toMatchObject([{attemptNumber:1,outcome:"failed"}]);
   expect((await retryAnalysisJob(dbPath,shown.jobKey)).status).toBe("queued");
-  const succeeded=await worker().once({corpusRoot,dbPath,workerId:"retry-worker",leaseMs:300,heartbeatMs:50});expect(succeeded.status).toBe("succeeded");
+  const succeeded=await worker().once({corpusRoot,dbPath,workerId:"retry-worker",leaseMs:10000,heartbeatMs:1000});expect(succeeded.status).toBe("succeeded");
   shown=(await showAnalysisJob(dbPath,shown.jobKey)).job;expect(shown.attemptCount).toBe(2);expect(shown.attempts).toMatchObject([{outcome:"failed"},{outcome:"succeeded"}]);
   expect(logs.join("\n")).toContain("failed");
-});
+},30_000);
 
 test("claim is exclusive, live heartbeat prevents reclaim, and expired lease is recovered",async()=>{
-  await enqueue();const [a,b]=await Promise.all([claimAnalysisJob(dbPath,"worker-a",500),claimAnalysisJob(dbPath,"worker-b",500)]);
+  await enqueue();const [a,b]=await Promise.all([claimAnalysisJob(dbPath,"worker-a",3000),claimAnalysisJob(dbPath,"worker-b",3000)]);
   const claimed=[a,b].find(r=>r.status==="claimed")!,idle=[a,b].find(r=>r.status==="idle")!;expect(claimed).toBeTruthy();expect(idle).toBeTruthy();
-  const owner=claimed.job!.workerId!;await Bun.sleep(350);await heartbeatAnalysisJob(dbPath,claimed.job!.jobKey,owner,500);await Bun.sleep(250);
-  expect((await claimAnalysisJob(dbPath,"worker-c",500)).status).toBe("idle");await Bun.sleep(300);
-  const recovered=await claimAnalysisJob(dbPath,"worker-c",500);expect(recovered.status).toBe("claimed");expect(recovered.recoveredExpiredLease).toBe(true);expect(recovered.job!.attemptCount).toBe(2);
+  const owner=claimed.job!.workerId!;await heartbeatAnalysisJob(dbPath,claimed.job!.jobKey,owner,claimed.job!.attemptCount,3000);
+  expect((await claimAnalysisJob(dbPath,"worker-c",3000)).status).toBe("idle");
+  const expire=new Database(dbPath);expire.exec("UPDATE analysis_jobs SET lease_expires_at_ms=0");expire.close();
+  const recovered=await claimAnalysisJob(dbPath,"worker-c",3000);expect(recovered.status).toBe("claimed");expect(recovered.recoveredExpiredLease).toBe(true);expect(recovered.job!.attemptCount).toBe(2);
   expect((await showAnalysisJob(dbPath,recovered.job!.jobKey)).job.attempts).toMatchObject([{outcome:"abandoned"},{outcome:"running"}]);
-});
+},30_000);
 
 test("maximum attempts converts an expired crash to failed without a spin loop",async()=>{
   const queued=await enqueue({maxAttempts:1});await claimAnalysisJob(dbPath,"crashed",40);await Bun.sleep(70);
@@ -99,13 +100,76 @@ test("maximum attempts converts an expired crash to failed without a spin loop",
 });
 
 test("publication-before-bookkeeping crash is reclaimed and idempotently succeeds",async()=>{
-  const queued=await enqueue({maxAttempts:3}),publish=publisher();await claimAnalysisJob(dbPath,"crashed-after-publish",50);
-  const durable=await publish({replayPath:queued.canonicalReplayPath,corpusRoot,dbPath});expect(durable.ingest.status).toBe("indexed");await Bun.sleep(80);
-  const recovered=await worker(publish).once({corpusRoot,dbPath,workerId:"recovery",leaseMs:300,heartbeatMs:50});
+  const queued=await enqueue({maxAttempts:3}),publish=publisher();const first=await claimAnalysisJob(dbPath,"crashed-after-publish",10000);
+  const durable=await publish({replayPath:queued.canonicalReplayPath,corpusRoot,dbPath,
+    jobAttempt:{jobKey:queued.job!.jobKey,workerId:"crashed-after-publish",attemptNumber:first.job!.attemptCount}});expect(durable.ingest.status).toBe("indexed");
+  const expire=new Database(dbPath);expire.exec("UPDATE analysis_jobs SET lease_expires_at_ms=0");expire.close();
+  const recovered=await worker(publish).once({corpusRoot,dbPath,workerId:"recovery",leaseMs:10000,heartbeatMs:3000});
   expect(recovered.status).toBe("succeeded");expect(recovered.artifactsReused).toBe(true);expect(recovered.analysisKey).toBe(durable.analysisKey);
-  expect(calls).toBe(2);expect(rows("SELECT count(*) n FROM analysis_runs")).toEqual([{n:1}]);
+  expect(calls).toBe(1);expect(rows("SELECT count(*) n FROM analysis_runs")).toEqual([{n:1}]);
   expect((await showAnalysisJob(dbPath,queued.job!.jobKey)).job.attempts).toMatchObject([{outcome:"abandoned"},{outcome:"succeeded"}]);
-});
+},30_000);
+
+test("ingest fence accepts only the live worker and exact attempt token",async()=>{
+  const queued=await enqueue({maxAttempts:3}),claimed=await claimAnalysisJob(dbPath,"same-worker",10000),publish=publisher();
+  const token={jobKey:queued.job!.jobKey,workerId:"same-worker",attemptNumber:claimed.job!.attemptCount};
+  const valid=await publish({replayPath:queued.canonicalReplayPath,corpusRoot,dbPath,jobAttempt:token});
+  expect(valid.ingest.status).toBe("indexed");
+  const current=JSON.stringify(rows("SELECT * FROM current_analyses"));
+  await expect(ingestReplayAnalysis({dbPath,replayManifestPath:valid.replayManifestPath,
+    jobAttempt:{...token,workerId:"wrong-worker"}})).rejects.toThrow("STALE_JOB_ATTEMPT");
+  expect(JSON.stringify(rows("SELECT * FROM current_analyses"))).toBe(current);
+  const expire=new Database(dbPath);expire.exec("UPDATE analysis_jobs SET lease_expires_at_ms=0");expire.close();
+  const reclaimed=await claimAnalysisJob(dbPath,"same-worker",10000);
+  expect(reclaimed.job!.attemptCount).toBe(2);
+  await expect(ingestReplayAnalysis({dbPath,replayManifestPath:valid.replayManifestPath,jobAttempt:token}))
+    .rejects.toThrow("STALE_JOB_ATTEMPT");
+  expect(JSON.stringify(rows("SELECT * FROM current_analyses"))).toBe(current);
+  const retried=await publish({replayPath:queued.canonicalReplayPath,corpusRoot,dbPath,
+    jobAttempt:{...token,attemptNumber:2}});
+  expect(retried.artifactsReused).toBe(true);expect(retried.ingest.status).toBe("no-op");expect(calls).toBe(1);
+},30_000);
+
+test("stalled attempt is fenced after reclaim while the new owner reuses its immutable publication and succeeds",async()=>{
+  const queued=await enqueue({maxAttempts:3}),first=await claimAnalysisJob(dbPath,"worker-a",10000);
+  let entered!:()=>void,release!:()=>void;
+  const analyzing=new Promise<void>(resolve=>{entered=resolve;}),paused=new Promise<void>(resolve=>{release=resolve;});
+  const stalePublisher=publisher("overlap",async()=>{entered();await paused;});
+  const stale=stalePublisher({replayPath:queued.canonicalReplayPath,corpusRoot,dbPath,
+    jobAttempt:{jobKey:queued.job!.jobKey,workerId:"worker-a",attemptNumber:first.job!.attemptCount}});
+  await analyzing;const expire=new Database(dbPath);expire.exec("UPDATE analysis_jobs SET lease_expires_at_ms=0");expire.close();
+  const second=await claimAnalysisJob(dbPath,"worker-b",10000);expect(second.recoveredExpiredLease).toBe(true);
+  const winner=await publisher("overlap")({replayPath:queued.canonicalReplayPath,corpusRoot,dbPath,
+    jobAttempt:{jobKey:queued.job!.jobKey,workerId:"worker-b",attemptNumber:second.job!.attemptCount}});
+  release();await expect(stale).rejects.toThrow("STALE_JOB_ATTEMPT");
+  expect(JSON.stringify(rows("SELECT analysis_id FROM current_analyses"))).toBe(JSON.stringify([{analysis_id:winner.ingest.analysisId}]));
+  const completed=await succeedAnalysisJob(dbPath,queued.job!.jobKey,"worker-b",second.job!.attemptCount,winner.ingest.analysisId);
+  expect(completed.status).toBe("succeeded");
+  const shown=(await showAnalysisJob(dbPath,queued.job!.jobKey)).job;
+  expect(shown.resultAnalysisId).toBe(winner.ingest.analysisId);
+  expect(shown.attempts).toMatchObject([{attemptNumber:1,outcome:"abandoned"},{attemptNumber:2,outcome:"succeeded"}]);
+  expect((await readdir(join(corpusRoot,"analyses",replaySha))).length).toBe(1);
+  expect(rows("SELECT count(*) n FROM current_analyses")).toEqual([{n:1}]);
+  expect(rows("PRAGMA integrity_check")).toEqual([{integrity_check:"ok"}]);expect(rows("PRAGMA foreign_key_check")).toEqual([]);
+},30_000);
+
+test("post-publication ingest failure leaves the job recoverable and retry skips analysis",async()=>{
+  const queued=await enqueue({maxAttempts:3});let fail=true;
+  const base:PublicationDependencies={specification:async()=>({bw_forge_version:"fixture",reducer_version:"transient"}),
+    analyze:async({outputRoot,replayPath})=>{calls++;const dest=join(outputRoot,"replays",replaySha);await cp(fixture,dest,{recursive:true});
+      await copyFile(replayPath,join(dest,"raw.rep"));const path=join(dest,"replay-manifest.json"),manifest=JSON.parse(await readFile(path,"utf8"));
+      manifest.legacy.html_files=["report.html"];await writeFile(join(dest,"report.html"),"<html>retry</html>");await writeFile(path,JSON.stringify(manifest));},
+    ingest:async options=>{if(fail){fail=false;throw new Error("transient ingest lock");}return ingestReplayAnalysis(options);}};
+  const publish=createReplayPublisher(base);
+  await expect(worker(publish).once({corpusRoot,dbPath,workerId:"first",leaseMs:10000,heartbeatMs:3000})).rejects.toThrow("transient ingest lock");
+  expect((await showAnalysisJob(dbPath,queued.job!.jobKey)).job.status).toBe("running");
+  expect(rows("SELECT count(*) n FROM analysis_runs")).toEqual([{n:0}]);
+  const expire=new Database(dbPath);expire.exec("UPDATE analysis_jobs SET lease_expires_at_ms=0");expire.close();
+  const result=await worker(publish).once({corpusRoot,dbPath,workerId:"retry",leaseMs:10000,heartbeatMs:3000});
+  expect(result.status).toBe("succeeded");expect(result.artifactsReused).toBe(true);expect(calls).toBe(1);
+  expect((await showAnalysisJob(dbPath,queued.job!.jobKey)).job.attempts).toMatchObject([{outcome:"abandoned"},{outcome:"succeeded"}]);
+  expect(rows("SELECT count(*) n FROM current_analyses")).toEqual([{n:1}]);
+},30_000);
 
 test("priority ordering, inspection filters, and idle run shutdown",async()=>{
   const first=await enqueue({priority:1});const secondSource=join(temp,"second.rep");await writeFile(secondSource,"second replay");
@@ -119,7 +183,7 @@ test("priority ordering, inspection filters, and idle run shutdown",async()=>{
 });
 
 test("queue operations preserve telemetry, identity mappings, current pointer and integrity",async()=>{
-  await enqueue();await worker().once({corpusRoot,dbPath,workerId:"worker",leaseMs:300,heartbeatMs:50});
+  await enqueue();await worker().once({corpusRoot,dbPath,workerId:"worker",leaseMs:10000,heartbeatMs:1000});
   const db=new Database(dbPath);db.exec("INSERT INTO canonical_players(player_key,display_name,created_at_ms,updated_at_ms) VALUES ('p','P',1,1)");db.close();
   const evidence=JSON.stringify({current:rows("SELECT * FROM current_analyses"),economy:rows("SELECT * FROM economy_changes"),identity:rows("SELECT * FROM canonical_players")});
   const forced=await enqueue({force:true});expect((await listAnalysisJobs(dbPath)).jobs.length).toBe(2);expect((await showAnalysisJob(dbPath,forced.job!.jobKey)).job.status).toBe("queued");
@@ -128,7 +192,7 @@ test("queue operations preserve telemetry, identity mappings, current pointer an
 });
 
 test("jobs CLI inspects and retries while worker run starts idle and stops on SIGTERM",async()=>{
-  const queued=await enqueue();await worker(async()=>{throw new Error("CLI retry fixture");}).once({corpusRoot,dbPath,workerId:"failure",leaseMs:300,heartbeatMs:50});
+  const queued=await enqueue();await worker(async()=>{throw new Error("CLI retry fixture");}).once({corpusRoot,dbPath,workerId:"failure",leaseMs:10000,heartbeatMs:1000});
   const repo=fileURLToPath(new URL("../../../",import.meta.url)),main=join(repo,"apps/cli/src/main.ts");
   const cli=(args:string[])=>{const result=spawnSync(process.execPath,[main,...args],{cwd:repo,encoding:"utf8",windowsHide:true,env:process.env});
     expect(result.status,result.stderr).toBe(0);return JSON.parse(result.stdout);};

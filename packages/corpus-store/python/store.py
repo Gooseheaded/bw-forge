@@ -221,7 +221,7 @@ def initialize(db):
     db.commit()
 
 
-def ingest_replay_analysis(db_path, replay_manifest_path, played_at_unix_s=None):
+def ingest_replay_analysis(db_path, replay_manifest_path, played_at_unix_s=None, job_attempt=None):
     manifest, raw, size, bundles, spec, fingerprint, inventory, key = prepare(replay_manifest_path)
     db_path = Path(db_path).resolve()
     require(not db_path.is_relative_to(Path(replay_manifest_path).resolve().parent),
@@ -233,6 +233,14 @@ def ingest_replay_analysis(db_path, replay_manifest_path, played_at_unix_s=None)
         db.execute('PRAGMA foreign_keys=ON')
         initialize(db)
         db.execute('BEGIN IMMEDIATE')
+        if job_attempt is not None:
+            now = int(time.time()*1000)
+            row = db.execute('''SELECT j.replay_id FROM analysis_jobs j JOIN replays r USING(replay_id)
+                WHERE j.job_key=? AND j.status='running' AND j.worker_id=? AND j.attempt_count=?
+                  AND j.lease_expires_at_ms>? AND r.sha256=?''',
+                (job_attempt['job_key'], job_attempt['worker_id'], job_attempt['attempt_number'],
+                 now, manifest['replay_id'])).fetchone()
+            require(row is not None, 'STALE_JOB_ATTEMPT: analysis job lease is no longer owned by this attempt')
         if played_at_unix_s is not None:
             require(type(played_at_unix_s) is int and 1 <= played_at_unix_s <= 0xffffffff, 'Invalid replay-declared timestamp')
         existing = db.execute('SELECT analysis_id,replay_id,status FROM analysis_runs WHERE analysis_key=?', (key,)).fetchone()
@@ -381,6 +389,9 @@ if __name__ == '__main__':
     parser.add_argument('--db')
     parser.add_argument('--prepare', action='store_true')
     parser.add_argument('--played-at-unix-s', type=int)
+    parser.add_argument('--job-key')
+    parser.add_argument('--worker-id')
+    parser.add_argument('--attempt-number', type=int)
     args = parser.parse_args()
     if args.prepare:
         manifest, _, _, _, _, fingerprint, inventory, key = prepare(args.replay_manifest_path)
@@ -389,4 +400,11 @@ if __name__ == '__main__':
     else:
         if not args.db:
             parser.error('--db is required for ingestion')
-        print(canonical(ingest_replay_analysis(args.db, args.replay_manifest_path, args.played_at_unix_s)))
+        fence_values = (args.job_key, args.worker_id, args.attempt_number)
+        if any(value is not None for value in fence_values) and not all(value is not None for value in fence_values):
+            parser.error('--job-key, --worker-id, and --attempt-number must be supplied together')
+        job_attempt = None if args.job_key is None else {
+            'job_key': args.job_key, 'worker_id': args.worker_id, 'attempt_number': args.attempt_number}
+        if job_attempt is not None and (not args.job_key or not args.worker_id or args.attempt_number < 1):
+            parser.error('invalid job attempt fence')
+        print(canonical(ingest_replay_analysis(args.db, args.replay_manifest_path, args.played_at_unix_s, job_attempt)))

@@ -116,9 +116,10 @@ def expire_exhausted(db, now):
 
 
 def claim(db, args):
-    now, lease_ms = now_ms(), args['lease_ms']
+    lease_ms = args['lease_ms']
     db.execute('BEGIN IMMEDIATE')
     try:
+        now = now_ms()
         expire_exhausted(db,now)
         row = db.execute(JOB_SELECT + ''' WHERE
           (j.status='queued' AND j.available_at_ms<=? AND j.attempt_count<j.max_attempts)
@@ -145,11 +146,11 @@ def claim(db, args):
 
 
 def heartbeat(db, args):
-    now = now_ms()
     db.execute('BEGIN IMMEDIATE')
     try:
-        cursor=db.execute("UPDATE analysis_jobs SET lease_expires_at_ms=?,last_heartbeat_at_ms=? WHERE job_key=? AND status='running' AND worker_id=?",
-                          (now+args['lease_ms'],now,args['job_key'],args['worker_id']))
+        now = now_ms()
+        cursor=db.execute("UPDATE analysis_jobs SET lease_expires_at_ms=?,last_heartbeat_at_ms=? WHERE job_key=? AND status='running' AND worker_id=? AND attempt_count=?",
+                          (now+args['lease_ms'],now,args['job_key'],args['worker_id'],args['attempt_number']))
         if cursor.rowcount != 1:
             raise ValueError('Job lease is no longer owned by this worker')
         db.commit(); return {'status':'renewed','leaseExpiresAtMs':now+args['lease_ms']}
@@ -161,8 +162,8 @@ def finish(db, args, succeeded):
     now=now_ms()
     db.execute('BEGIN IMMEDIATE')
     try:
-        row=db.execute("SELECT job_id,attempt_count,replay_id FROM analysis_jobs WHERE job_key=? AND status='running' AND worker_id=?",
-                       (args['job_key'],args['worker_id'])).fetchone()
+        row=db.execute("SELECT job_id,attempt_count,replay_id FROM analysis_jobs WHERE job_key=? AND status='running' AND worker_id=? AND attempt_count=?",
+                       (args['job_key'],args['worker_id'],args['attempt_number'])).fetchone()
         if not row: raise ValueError('Job lease is no longer owned by this worker')
         if succeeded:
             analysis=db.execute("SELECT analysis_id FROM analysis_runs WHERE analysis_id=? AND replay_id=? AND status='indexed'",

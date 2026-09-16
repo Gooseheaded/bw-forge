@@ -209,7 +209,9 @@ one execution slot per process; run independent processes for more slots.
 Claims use a short `BEGIN IMMEDIATE` transaction, increment the attempt count,
 assign the worker, and commit a lease before analysis starts. Heartbeats renew the
 lease in separate short transactions. Heavy bwsim/reducer work never holds a queue
-transaction. A current lease cannot be stolen. An expired lease is reclaimable
+transaction. Claim, reclaim, and heartbeat timestamps are sampled only after the
+SQLite writer lock is acquired, so lock waits do not shorten a newly committed
+lease. A current lease cannot be stolen. An expired lease is reclaimable
 until the finite attempt limit; exhausted jobs become `failed`. Each claim is kept
 in `analysis_job_attempts`, including abandoned expired leases and structured
 errors. Explicit analyzer failures fail immediately rather than spinning.
@@ -218,8 +220,20 @@ The worker calls `analyzeAndPublishReplay()` directly against the canonical repl
 It never shells out to `analyze-v2` or implements another artifact path. Execution
 is at least once: if publication commits and the worker disappears before success
 bookkeeping, the lease expires, another worker reruns, immutable publication is
-verified/reused, and the same job is marked succeeded. A heartbeat/bookkeeping
-loss deliberately leaves the job running for this recovery path.
+verified/reused without rerunning the analyzer, and the same job is marked
+succeeded. Publication rename losers verify the winning receipt, identity, and
+complete file inventory before reuse; mismatches remain hard failures. A
+heartbeat/bookkeeping loss deliberately leaves the job running for this recovery
+path.
+
+Worker publication carries the exact `(job_key, worker_id, attempt_number)` token
+into ingestion. After `BEGIN IMMEDIATE`, ingestion verifies that this token still
+owns an unexpired running lease for the replay. That fence and all analysis rows,
+publication registrations, and `current_analyses` changes share one transaction.
+A reclaimed/stale attempt may leave valid immutable files, but it cannot make them
+authoritative. If immutable publication succeeds and ingest fails, the worker does
+not mark an ordinary analyzer failure; lease recovery retries fenced ingest from
+the verified publication instead.
 
 ```sh
 bw-forge jobs show <job-key> --db /srv/bw-forge/corpus/db/corpus.sqlite

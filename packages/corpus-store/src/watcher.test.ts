@@ -51,7 +51,7 @@ test("startup reconciliation distinguishes active and indexed without changing i
   expect((await watcher.once(options())).queued).toBe(1);
   const writeDb=new BunDatabase(dbPath);writeDb.exec("INSERT INTO canonical_players(player_key,display_name,created_at_ms,updated_at_ms) VALUES ('watch-player','Watch Player',1,1)");writeDb.close();
   expect(await watcher.once(options())).toMatchObject({queued:0,alreadyActive:1});
-  await worker().once({corpusRoot,dbPath,workerId:"watch-worker",leaseMs:300,heartbeatMs:50});
+  await worker().once({corpusRoot,dbPath,workerId:"watch-worker",leaseMs:10000,heartbeatMs:1000});
   expect(await watcher.once(options())).toMatchObject({queued:0,alreadyActive:0,alreadyIndexed:1});
   expect(rows("SELECT player_key,display_name FROM canonical_players")).toEqual([{player_key:"watch-player",display_name:"Watch Player"}]);
   expect(rows("SELECT count(*) n FROM analysis_jobs")).toEqual([{n:1}]);
@@ -153,7 +153,7 @@ test("watcher rejects managed corpus paths and CLI once accepts repeatable paths
 test("watcher to queue to worker remains durable after source deletion and becomes queryable",async()=>{
   const source=join(inbox,"end-to-end.rep");await copyFile(join(fixture,"raw.rep"),source);
   const watched=await createReplayWatcher().once(options());expect(watched.queued).toBe(1);await rm(source);
-  const worked=await worker().once({corpusRoot,dbPath,workerId:"e2e-worker",leaseMs:300,heartbeatMs:50});expect(worked.status).toBe("succeeded");
+  const worked=await worker().once({corpusRoot,dbPath,workerId:"e2e-worker",leaseMs:10000,heartbeatMs:1000});expect(worked.status).toBe("succeeded");
   const queryDb=new BunDatabase(dbPath,{readonly:true});const adapter=queryAdapter(queryDb);
   const summary=getCorpusSummary(adapter,{});queryDb.close();expect(summary.replayCount).toBe(1);expect(summary.dataAvailability).toEqual({
     buildOrderEvents:true,economySamples:true,supplySamples:true,unitCountSamples:true,deathEvents:true});

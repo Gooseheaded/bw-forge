@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { createReadStream, constants } from "node:fs";
 import { copyFile, link, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, rmdir, unlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { ingestReplayAnalysis, prepareReplayAnalysis, type IngestReplayAnalysisOptions,
   type IngestReplayAnalysisResult } from "./index.js";
 import { existingAnalyzerSpecification, runExistingAnalyzer, type StagedAnalysisOptions } from "./analyzer.js";
@@ -13,6 +14,7 @@ export interface AnalyzeAndPublishReplayOptions {
   corpusRoot: string;
   dbPath?: string;
   keepFailedWork?: boolean;
+  jobAttempt?: { jobKey: string; workerId: string; attemptNumber: number };
 }
 
 export interface PublishedReplayAnalysisResult {
@@ -24,6 +26,14 @@ export interface PublishedReplayAnalysisResult {
   rawReused: boolean;
   artifactsReused: boolean;
   ingest: IngestReplayAnalysisResult;
+}
+
+export class PostPublicationIngestError extends Error {
+  readonly code = "POST_PUBLICATION_INGEST_FAILED";
+  constructor(readonly publication: Omit<PublishedReplayAnalysisResult, "ingest">, cause: unknown) {
+    super(`Immutable publication is durable but ingest failed: ${cause instanceof Error ? cause.message : String(cause)}`, { cause });
+    this.name = "PostPublicationIngestError";
+  }
 }
 
 interface FileChecksum { path: string; sha256: string; byteSize: number }
@@ -163,6 +173,33 @@ async function verifyPublished(path: string, replaySha256: string, analysisKey: 
   }
 }
 
+async function reusablePublication(parent: string, replaySha256: string, specification: Record<string, unknown>): Promise<string | undefined> {
+  const matches: string[] = [];
+  for (const name of await readdir(parent)) {
+    const candidate = join(parent, name);
+    let manifest: PublishedManifest;
+    try { manifest = JSON.parse(await readFile(join(candidate, "replay-manifest.json"), "utf8")) as PublishedManifest; }
+    catch { continue; }
+    if (!isDeepStrictEqual(manifest.analysis_spec, specification)) continue;
+    await verifyPublished(candidate, replaySha256, name);
+    matches.push(candidate);
+  }
+  if (matches.length > 1) throw new Error(`Multiple immutable publications match the active analysis specification: ${parent}`);
+  return matches[0];
+}
+
+async function ingestPublished(dependencies: PublicationDependencies, dbPath: string, replayManifestPath: string,
+  jobAttempt: AnalyzeAndPublishReplayOptions["jobAttempt"], publication: Omit<PublishedReplayAnalysisResult, "ingest">
+): Promise<PublishedReplayAnalysisResult> {
+  try {
+    const ingest = await dependencies.ingest({ dbPath, replayManifestPath, jobAttempt });
+    if (ingest.analysisKey !== publication.analysisKey) throw new Error("Ingest returned a different analysis identity");
+    return { ...publication, ingest };
+  } catch (error) {
+    throw new PostPublicationIngestError(publication, error);
+  }
+}
+
 /** Dependency injection keeps failure/recovery tests on the real publication and database code. */
 export function createReplayPublisher(dependencies: PublicationDependencies) {
   return async function publish(options: AnalyzeAndPublishReplayOptions): Promise<PublishedReplayAnalysisResult> {
@@ -201,6 +238,20 @@ export function createReplayPublisher(dependencies: PublicationDependencies) {
       await unlink(snapshot);
       const outputRoot = await directory(work, "output");
       const specification = await dependencies.specification();
+      const parent = await directory(root, `analyses/${replaySha256}`);
+      // Job retries carry an attempt fence and may reuse a durable publication
+      // left by an earlier attempt. Ad-hoc publication keeps its historical
+      // behavior of rerunning the analyzer before converging at the final path.
+      const reusable = options.jobAttempt ? await reusablePublication(parent, replaySha256, specification) : undefined;
+      if (reusable) {
+        const analysisKey = reusable.split(sep).at(-1)!;
+        const publication = { replaySha256, analysisKey, rawReplayPath,
+          replayManifestPath: join(reusable, "replay-manifest.json"), analysisDirectory: reusable,
+          rawReused, artifactsReused: true };
+        const result = await ingestPublished(dependencies, dbPath, publication.replayManifestPath, options.jobAttempt, publication);
+        succeeded = true;
+        return result;
+      }
       await dependencies.analyze({ replayPath: rawReplayPath, outputRoot, workDirectory: work });
       if (JSON.stringify(await dependencies.specification()) !== JSON.stringify(specification)) {
         throw new Error("Analyzer inputs changed during analysis");
@@ -222,7 +273,6 @@ export function createReplayPublisher(dependencies: PublicationDependencies) {
       await writeFile(stagedManifest, `${JSON.stringify(manifest, null, 2)}\n`);
       const prepared = await prepareReplayAnalysis(stagedManifest);
       const analysisKey = prepared.analysisKey;
-      const parent = await directory(root, `analyses/${replaySha256}`);
       const analysisDirectory = join(parent, analysisKey);
       const replayManifestPath = join(analysisDirectory, "replay-manifest.json");
       const stagedRaw = resolve(staged, manifest.source.copied_path);
@@ -241,14 +291,21 @@ export function createReplayPublisher(dependencies: PublicationDependencies) {
         await verifyPublished(analysisDirectory, replaySha256, analysisKey);
         artifactsReused = true;
       } else {
-        // Local/single-process contract: never replace any pre-existing directory, even an empty one.
-        await rename(staged, analysisDirectory);
+        // Rename is atomic but no-replace behavior differs by platform. A losing
+        // equivalent publisher must verify the winner before reusing it.
+        try { await rename(staged, analysisDirectory); }
+        catch (error) {
+          const code = (error as NodeJS.ErrnoException).code;
+          if (!(["EEXIST", "ENOTEMPTY", "EPERM"] as Array<string | undefined>).includes(code) || !await info(analysisDirectory)) throw error;
+          await verifyPublished(analysisDirectory, replaySha256, analysisKey);
+          artifactsReused = true;
+        }
         await verifyPublished(analysisDirectory, replaySha256, analysisKey);
       }
-      const ingest = await dependencies.ingest({ dbPath, replayManifestPath });
-      if (ingest.analysisKey !== analysisKey) throw new Error("Ingest returned a different analysis identity");
+      const publication = { replaySha256, analysisKey, rawReplayPath, replayManifestPath, analysisDirectory, rawReused, artifactsReused };
+      const result = await ingestPublished(dependencies, dbPath, replayManifestPath, options.jobAttempt, publication);
       succeeded = true;
-      return { replaySha256, analysisKey, rawReplayPath, replayManifestPath, analysisDirectory, rawReused, artifactsReused, ingest };
+      return result;
     } catch (error) {
       if (options.keepFailedWork) {
         throw new Error(`${error instanceof Error ? error.message : String(error)}; failed work retained at ${work}`, { cause: error });

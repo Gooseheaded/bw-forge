@@ -7,6 +7,11 @@ import { readReplayMetadata } from "./replay-metadata.js";
 export interface IngestReplayAnalysisOptions {
   dbPath: string;
   replayManifestPath: string;
+  jobAttempt?: {
+    jobKey: string;
+    workerId: string;
+    attemptNumber: number;
+  };
 }
 
 export interface IngestReplayAnalysisResult {
@@ -46,7 +51,13 @@ export async function ingestReplayAnalysis(options: IngestReplayAnalysisOptions)
   } catch {
     // Valid analytical artifacts may reference a replay whose chronology is unavailable.
   }
+  const attempt = options.jobAttempt;
+  if (attempt && (!attempt.jobKey || !attempt.workerId || !Number.isSafeInteger(attempt.attemptNumber) || attempt.attemptNumber < 1)) {
+    throw new Error("Invalid analysis job attempt fence");
+  }
   return runStore([manifestPath, "--db", resolve(options.dbPath),
+    ...(attempt ? ["--job-key", attempt.jobKey, "--worker-id", attempt.workerId,
+      "--attempt-number", String(attempt.attemptNumber)] : []),
     ...(playedAtUnixSeconds === null ? [] : ["--played-at-unix-s", String(playedAtUnixSeconds)])]);
 }
 

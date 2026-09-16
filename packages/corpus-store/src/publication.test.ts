@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createReplayPublisher, type PublicationDependencies } from "./publication.js";
 import { ingestReplayAnalysis } from "./index.js";
+import { listAnalysisJobs } from "./jobs.js";
 
 let temp: string;
 let fixture: string;
@@ -91,6 +92,32 @@ test("first publication ingests only final artifact paths; rerun reuses raw, dir
   expect(calls).toBe(2);
 }, 30_000);
 
+test("simultaneous equivalent publishers verify and reuse the winning immutable directory", async () => {
+  // Schema initialization is a deployment/bootstrap concern; this test isolates
+  // the two-publisher immutable-finalization race on an initialized Corpus.
+  await listAnalysisJobs(dbPath);
+  let waiting = 0;
+  let release!: () => void;
+  const barrier = new Promise<void>(resolve => { release = resolve; });
+  const analyze = dependencies.analyze;
+  const concurrent = createReplayPublisher({ ...dependencies, analyze: async options => {
+    waiting++;
+    if (waiting === 2) release();
+    await barrier;
+    await analyze(options);
+  } });
+  const [first, second] = await Promise.all([concurrent(options()), concurrent(options())]);
+  expect(first.analysisKey).toBe(second.analysisKey);
+  expect([first.artifactsReused, second.artifactsReused].sort()).toEqual([false, true]);
+  expect((await readdir(join(corpusRoot, "analyses", sha))).length).toBe(1);
+  expect(rows("SELECT count(*) AS n FROM analysis_runs")).toEqual([{ n: 1 }]);
+  expect(rows("SELECT count(*) AS n FROM current_analyses")).toEqual([{ n: 1 }]);
+  expect(rows("PRAGMA integrity_check")).toEqual([{ integrity_check: "ok" }]);
+  expect(rows("PRAGMA foreign_key_check")).toEqual([]);
+  expect(await readdir(join(corpusRoot, "work"))).toEqual([]);
+  expect(calls).toBe(2);
+}, 30_000);
+
 test("analyzer and output validation failures leave current untouched and clean staging", async () => {
   await createReplayPublisher(dependencies)(options());
   const before = await readFile(dbPath);
@@ -124,6 +151,7 @@ test("publication survives ingest failure; rerun verifies/reuses it and reconcil
   expect(result.replayManifestPath).toBe(publishedManifest);
   expect(result.ingest.status).toBe("indexed");
   expect(rows("SELECT count(*) AS n FROM analysis_runs")).toEqual([{ n: 1 }]);
+  expect(calls).toBe(2);
 });
 
 test("real DB rejection after publication is recoverable without replacing artifacts", async () => {

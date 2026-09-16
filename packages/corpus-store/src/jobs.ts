@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { resolve, join } from "node:path";
 import { stat } from "node:fs/promises";
-import { analyzeAndPublishReplay, registerCanonicalReplay, type PublishedReplayAnalysisResult } from "./publication.js";
+import { analyzeAndPublishReplay, PostPublicationIngestError, registerCanonicalReplay, type PublishedReplayAnalysisResult } from "./publication.js";
 import { runStore } from "./index.js";
 
 export const JOB_DEFAULTS = {
@@ -55,16 +55,16 @@ export const showAnalysisJob=(dbPath:string,jobKey:string)=>command<{job:Analysi
 export const retryAnalysisJob=(dbPath:string,jobKey:string)=>command<JobResult>(dbPath,"retry",{job_key:jobKey});
 export const claimAnalysisJob=(dbPath:string,workerId:string,leaseMs:number=JOB_DEFAULTS.leaseMs)=>
   command<JobResult>(dbPath,"claim",{worker_id:workerId,lease_ms:leaseMs});
-export const heartbeatAnalysisJob=(dbPath:string,jobKey:string,workerId:string,leaseMs:number=JOB_DEFAULTS.leaseMs)=>
-  command<JobResult>(dbPath,"heartbeat",{job_key:jobKey,worker_id:workerId,lease_ms:leaseMs});
-export const succeedAnalysisJob=(dbPath:string,jobKey:string,workerId:string,analysisId:number)=>
-  command<JobResult>(dbPath,"succeed",{job_key:jobKey,worker_id:workerId,analysis_id:analysisId});
-export const failAnalysisJob=(dbPath:string,jobKey:string,workerId:string,error:unknown)=>
-  command<JobResult>(dbPath,"fail",{job_key:jobKey,worker_id:workerId,error:errorSummary(error)});
+export const heartbeatAnalysisJob=(dbPath:string,jobKey:string,workerId:string,attemptNumber:number,leaseMs:number=JOB_DEFAULTS.leaseMs)=>
+  command<JobResult>(dbPath,"heartbeat",{job_key:jobKey,worker_id:workerId,attempt_number:attemptNumber,lease_ms:leaseMs});
+export const succeedAnalysisJob=(dbPath:string,jobKey:string,workerId:string,attemptNumber:number,analysisId:number)=>
+  command<JobResult>(dbPath,"succeed",{job_key:jobKey,worker_id:workerId,attempt_number:attemptNumber,analysis_id:analysisId});
+export const failAnalysisJob=(dbPath:string,jobKey:string,workerId:string,attemptNumber:number,error:unknown)=>
+  command<JobResult>(dbPath,"fail",{job_key:jobKey,worker_id:workerId,attempt_number:attemptNumber,error:errorSummary(error)});
 
 export function createWorkerId():string{return `${hostname()}:${process.pid}:${randomUUID().slice(0,8)}`;}
 export interface WorkerDependencies {
-  analyze:(options:{replayPath:string;corpusRoot:string;dbPath?:string})=>Promise<PublishedReplayAnalysisResult>;
+  analyze:(options:{replayPath:string;corpusRoot:string;dbPath?:string;jobAttempt?:{jobKey:string;workerId:string;attemptNumber:number}})=>Promise<PublishedReplayAnalysisResult>;
   log:(message:string)=>void;
 }
 const defaultDependencies:WorkerDependencies={analyze:analyzeAndPublishReplay,log:message=>process.stderr.write(`${message}\n`)};
@@ -80,28 +80,30 @@ export function createAnalysisWorker(dependencies:WorkerDependencies=defaultDepe
     const expected=resolve(options.corpusRoot,"replays",job.replaySha256.slice(0,2),`${job.replaySha256}.rep`);
     const recorded=resolve(options.corpusRoot,job.canonicalRelativePath);
     let heartbeatFailure:unknown, inFlight:Promise<void>|undefined;
-    const beat=()=>{if(inFlight)return;inFlight=heartbeatAnalysisJob(options.dbPath,job.jobKey,options.workerId,leaseMs)
+    const beat=()=>{if(inFlight)return;inFlight=heartbeatAnalysisJob(options.dbPath,job.jobKey,options.workerId,job.attemptCount,leaseMs)
       .then(()=>undefined).catch(error=>{heartbeatFailure=error;}).finally(()=>{inFlight=undefined;});};
     const timer=setInterval(beat,heartbeatMs);
     let publicationSucceeded=false;
     try{
       if(recorded!==expected||(await stat(expected)).isFile()!==true)throw new Error("Job canonical replay path does not match corpus root and SHA");
       dependencies.log(`[worker ${options.workerId}] analysis start ${job.jobKey}`);
-      const analysis=await dependencies.analyze({replayPath:expected,corpusRoot:options.corpusRoot,dbPath:options.dbPath});
+      const analysis=await dependencies.analyze({replayPath:expected,corpusRoot:options.corpusRoot,dbPath:options.dbPath,
+        jobAttempt:{jobKey:job.jobKey,workerId:options.workerId,attemptNumber:job.attemptCount}});
       publicationSucceeded=true;
       clearInterval(timer);if(inFlight)await inFlight;
       if(heartbeatFailure)throw heartbeatFailure;
-      const completed=await succeedAnalysisJob(options.dbPath,job.jobKey,options.workerId,analysis.ingest.analysisId);
+      const completed=await succeedAnalysisJob(options.dbPath,job.jobKey,options.workerId,job.attemptCount,analysis.ingest.analysisId);
       dependencies.log(`[worker ${options.workerId}] succeeded ${job.jobKey} analysis=${analysis.analysisKey}`);
       return {...completed,analysisKey:analysis.analysisKey,artifactsReused:analysis.artifactsReused};
     }catch(error){
       clearInterval(timer);if(inFlight)await inFlight;
+      if(error instanceof PostPublicationIngestError)publicationSucceeded=true;
       if(heartbeatFailure){dependencies.log(`[worker ${options.workerId}] lease heartbeat lost ${job.jobKey}: ${errorSummary(heartbeatFailure).message}`);throw heartbeatFailure;}
       // Publication may already be durable. Leave the lease to expire so an
       // at-least-once retry can reuse it and perform success bookkeeping.
       if(publicationSucceeded){dependencies.log(`[worker ${options.workerId}] success bookkeeping lost ${job.jobKey}: ${errorSummary(error).message}`);throw error;}
       try{
-        const failed=await failAnalysisJob(options.dbPath,job.jobKey,options.workerId,error);
+        const failed=await failAnalysisJob(options.dbPath,job.jobKey,options.workerId,job.attemptCount,error);
         dependencies.log(`[worker ${options.workerId}] failed ${job.jobKey}: ${errorSummary(error).message}`);
         return failed;
       }catch(bookkeeping){
