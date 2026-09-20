@@ -94,6 +94,7 @@ export interface RegisteredCanonicalReplay {
   canonicalRelativePath: string;
   reused: boolean;
   playedAtUnixSeconds: number | null;
+  mapName: string | null;
   metadataError: string | null;
 }
 
@@ -137,9 +138,9 @@ export async function registerCanonicalReplay(options: {
     canonicalRelativePath:relative(root,target).split(sep).join("/"),reused,...metadata};
 }
 
-async function replayMetadataOrUnknown(path:string):Promise<{playedAtUnixSeconds:number|null;metadataError:string|null}>{
+async function replayMetadataOrUnknown(path:string):Promise<{playedAtUnixSeconds:number|null;mapName:string|null;metadataError:string|null}>{
   try{return {...await readReplayMetadata(path),metadataError:null};}
-  catch(error){return {playedAtUnixSeconds:null,metadataError:error instanceof Error?error.message:String(error)};}
+  catch(error){return {playedAtUnixSeconds:null,mapName:null,metadataError:error instanceof Error?error.message:String(error)};}
 }
 
 async function fileInventory(root: string): Promise<FileChecksum[]> {

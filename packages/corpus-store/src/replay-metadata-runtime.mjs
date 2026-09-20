@@ -11,14 +11,20 @@ const HEADER_START_TIME_OFFSET = REPLAY_ID_BYTES + 0x08;
 const MINIMUM_DECODED_BYTES = HEADER_START_TIME_OFFSET + 4;
 const validReplayIds = new Set(["reRS", "seRS"]);
 
-export async function extractReplayMetadata(paths) {
+function availableMapName(value) {
+  return typeof value === "string" && value.trim() !== "" ? value : null;
+}
+
+export async function extractReplayMetadata(paths, dependencies = {}) {
   const root = fileURLToPath(new URL("../../../", import.meta.url));
+  const createSimulation = dependencies.createSimulation ?? (options => Bwsim.create(options));
+  const fileStat = dependencies.stat ?? stat;
   let simulation;
   const results = [];
   for (const path of paths) {
     try {
-      if ((await stat(path)).size < 32) throw new Error("replay is too short to contain a decoded header");
-      simulation ??= await Bwsim.create({
+      if ((await fileStat(path)).size < 32) throw new Error("replay is too short to contain a decoded header");
+      simulation ??= await createSimulation({
         wasmPath: resolve(root, "third_party/bwsim/bwsim_wasm.bwforge.wasm"),
         assetPackPath: resolve(root, "third_party/bwsim/sim.pack.gz")
       });
@@ -36,9 +42,11 @@ export async function extractReplayMetadata(paths) {
         throw new Error("decoded replay header frame count mismatch");
       }
       const declared = view.getUint32(HEADER_START_TIME_OFFSET, true);
-      results.push({ path, playedAtUnixSeconds: declared === 0 ? null : declared, error: null });
+      results.push({ path, playedAtUnixSeconds: declared === 0 ? null : declared,
+        mapName: availableMapName(header.mapName), error: null });
     } catch (error) {
-      results.push({ path, playedAtUnixSeconds: null, error: error instanceof Error ? error.message : String(error) });
+      results.push({ path, playedAtUnixSeconds: null, mapName: null,
+        error: error instanceof Error ? error.message : String(error) });
     }
   }
   return results;

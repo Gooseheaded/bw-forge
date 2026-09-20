@@ -371,3 +371,46 @@ replays. Repeating it is idempotent.
 This field is the clock value recorded by the replay and is not externally
 verified. It is distinct from source first-seen time, queue creation time,
 analysis time, and publication time.
+
+## Replay map names
+
+The primary map-name source is the SHA-verified canonical replay:
+
+```text
+corpus/replays/<sha-prefix>/<sha>.rep -> replayHeader().mapName
+```
+
+`replays.map_name` is a derived searchable index of that replay-declared text.
+Registration extracts it at frame zero through the same shared headless-bwsim
+metadata runtime as chronology; no simulation frames, telemetry, analysis job,
+or worker are involved. A null, empty, or whitespace-only decoded name remains
+unknown. Accepted text is stored exactly as returned by the current bwsim wrapper:
+it is not trimmed, normalized, case-folded, version-stripped, or canonicalized.
+
+Legacy analysis manifests are immutable historical artifacts and may continue to
+contain `"map": null`. Ingest uses a replay-header map when available, otherwise
+it may fill a missing database value from a useful manifest map. Neither ingest
+nor duplicate registration overwrites an established nonblank database value,
+and no manifest is rewritten to synchronize it.
+
+Existing canonical replays can be indexed without reanalysis:
+
+```sh
+bw-forge replays backfill-map-names \
+  --corpus-root /srv/bw-forge/corpus \
+  --db /srv/bw-forge/corpus/db/corpus.sqlite
+```
+
+The command derives every path from the replay SHA, rejects symlinks/non-files,
+recomputes SHA-256, batch-extracts header metadata, and transactionally fills only
+rows that are still null or blank. It never schedules work or changes analyses,
+publications, artifacts, provenance, telemetry, or replay bytes. Repeating the
+command is idempotent. Database-backed queries see updates immediately; regenerate
+the disposable aggregate report index separately with `bw-forge reports index`.
+
+The vendored wrapper currently decodes fixed-width map-name bytes as UTF-8, stops
+at NUL, removes its existing ASCII control characters, and can emit replacement
+characters for invalid legacy bytes. Exact Korean or other legacy code-page
+fidelity is therefore not proven. This milestone deliberately accepts and
+preserves the wrapper's decoded string; raw-byte storage and encoding heuristics
+are deferred.

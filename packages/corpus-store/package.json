@@ -9,6 +9,7 @@
     "./jobs": "./src/jobs.ts",
     "./watcher": "./src/watcher.ts",
     "./chronology": "./src/chronology.ts",
+    "./map-names": "./src/map-names.ts",
     "./replay-metadata": "./src/replay-metadata.ts"
   }
 }

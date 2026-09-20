@@ -24,11 +24,12 @@ import { listQueryExamples } from "../src/sql/queryExamples.js";
 import { validateReadonlySql } from "../src/sql/readonlySql.js";
 import { createReplayCorpusMcpServer } from "../src/mcp/tools.js";
 
-async function fixture(options:{unknownSecond?:boolean;preM8?:boolean}={}) {
+async function fixture(options:{unknownSecond?:boolean;unknownMap?:boolean;preM8?:boolean}={}) {
   const root=await mkdtemp(join(tmpdir(),"corpus-v2-query-"));
   const python=process.env.BW_FORGE_PYTHON??(process.platform==="win32"?"py":"python3");
   const result=spawnSync(python,[...(python==="py"?["-3"]:[]),fileURLToPath(new URL("./fixtures/v2.py",import.meta.url)),root,
-    ...(options.unknownSecond?["--unknown-second"]:[]),...(options.preM8?["--pre-m8"]:[])],{encoding:"utf8",windowsHide:true});
+    ...(options.unknownSecond?["--unknown-second"]:[]),...(options.unknownMap?["--unknown-map"]:[]),
+    ...(options.preM8?["--pre-m8"]:[])],{encoding:"utf8",windowsHide:true});
   if(result.error)throw result.error;
   assert.equal(result.status,0,result.stderr);
   const data=JSON.parse(result.stdout) as {dbPath:string;replayIds:string[]};
@@ -49,10 +50,12 @@ test("v2 discovery, occurrences and current-only observations",async()=>{
   const summary=discovery.getCorpusSummary(f.db,{});
   assert.equal(summary.replayCount,2);assert.equal(summary.playerCount,2);
   assert.deepEqual(summary.matchups,[{matchup:"ZvT",replayCount:2}]);
-  assert.equal(summary.maps.length,2);assert.ok(Object.values(summary.dataAvailability).every(Boolean));
+  assert.deepEqual(summary.maps,[{map:"Map0",replayCount:1},{map:"Map1",replayCount:1}]);assert.ok(Object.values(summary.dataAvailability).every(Boolean));
   assert.equal(discovery.listPlayers(f.db,{}).players.length,2);
   assert.equal(discovery.listMatchups(f.db,{}).matchups[0]?.playerRows,4);
   assert.equal(query.findReplays(f.db,{player:"player"}).length,2);
+  assert.deepEqual(query.findReplays(f.db,{map:"Map0"}).map(row=>row.replay_id),[f.replayIds[0]]);
+  assert.equal((getPlayerReplayCard(f.db,{player:"Player",replayId:f.replayIds[0]!}) as any).map,"Map0");
   assert.equal(query.findReplays(f.db,{replay_ids:[f.replayIds[0]! ]})[0]?.players.length,2);
   assert.equal(discovery.searchBuildItems(f.db,{query:"pool"}).matches[0]?.count,8);
   assert.equal(discovery.listBuildItems(f.db,{}).items.some(i=>i.name==="old_marker"),false);
@@ -64,6 +67,12 @@ test("v2 discovery, occurrences and current-only observations",async()=>{
   assert.equal(first.time_seconds,1);assert.equal(first.frame,null);assert.equal(first.frame_min,24);assert.equal(first.frame_max,47);
   assert.equal((query.findNthEvent(f.db,{...filters,n:2})[0]!.event as any).occurrence,1);
   assert.equal(query.findNthEvent(f.db,{...filters,n:3})[0]!.event,null);
+});
+test("map-aware discovery preserves exact observed names and unknown filtering",async()=>{
+  await using f=await fixture({unknownMap:true});
+  assert.deepEqual(discovery.getCorpusSummary(f.db,{}).maps,[{map:"Map0",replayCount:1},{map:"unknown",replayCount:1}]);
+  assert.deepEqual(query.findReplays(f.db,{map:"Map0"}).map(row=>row.replay_id),[f.replayIds[0]]);
+  assert.deepEqual(query.findReplays(f.db,{map:"unknown"}).map(row=>row.replay_id),[f.replayIds[1]]);
 });
 test("played-at chronology is UTC, half-open, shared across query layers, and indexed",async()=>{
   await using f=await fixture();

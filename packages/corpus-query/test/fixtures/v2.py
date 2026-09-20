@@ -71,6 +71,8 @@ with sqlite3.connect(database) as connection:
     connection.execute('UPDATE replays SET played_at_unix_s=? WHERE sha256=?', (1735689600, ids[0]))
     if '--unknown-second' not in sys.argv:
         connection.execute('UPDATE replays SET played_at_unix_s=? WHERE sha256=?', (1767225600, ids[1]))
+    if '--unknown-map' in sys.argv:
+        connection.execute('UPDATE replays SET map_name=NULL WHERE sha256=?', (ids[1],))
     if '--pre-m8' in sys.argv:
         connection.execute('DROP INDEX IF EXISTS replays_by_played_at')
         connection.execute('ALTER TABLE replays DROP COLUMN played_at_unix_s')

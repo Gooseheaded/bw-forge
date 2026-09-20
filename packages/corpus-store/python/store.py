@@ -39,6 +39,11 @@ def text(value, label):
     return value
 
 
+def optional_map_name(value, label):
+    require(value is None or isinstance(value, str), 'Invalid ' + label)
+    return value if isinstance(value, str) and value.strip() else None
+
+
 def local_path(root, value):
     path = (root / text(value, 'artifact path')).resolve()
     require(path.is_relative_to(root), 'Artifact path escapes replay directory')
@@ -221,8 +226,11 @@ def initialize(db):
     db.commit()
 
 
-def ingest_replay_analysis(db_path, replay_manifest_path, played_at_unix_s=None, job_attempt=None):
+def ingest_replay_analysis(db_path, replay_manifest_path, played_at_unix_s=None, job_attempt=None, map_name=None):
     manifest, raw, size, bundles, spec, fingerprint, inventory, key = prepare(replay_manifest_path)
+    header_map = optional_map_name(map_name, 'replay-declared map name')
+    manifest_map = optional_map_name(manifest['replay_analysis'].get('map'), 'manifest map name')
+    incoming_map = header_map if header_map is not None else manifest_map
     db_path = Path(db_path).resolve()
     require(not db_path.is_relative_to(Path(replay_manifest_path).resolve().parent),
             'Database must be outside the replay artifact directory')
@@ -246,11 +254,17 @@ def ingest_replay_analysis(db_path, replay_manifest_path, played_at_unix_s=None,
         existing = db.execute('SELECT analysis_id,replay_id,status FROM analysis_runs WHERE analysis_key=?', (key,)).fetchone()
         if existing:
             require(existing['status'] == 'indexed', 'Existing analysis is not indexed')
+            metadata_changed = False
             if played_at_unix_s is not None:
-                db.execute('UPDATE replays SET played_at_unix_s=? WHERE replay_id=? AND played_at_unix_s IS NULL',
-                           (played_at_unix_s, existing['replay_id']))
+                metadata_changed = db.execute('UPDATE replays SET played_at_unix_s=? WHERE replay_id=? AND played_at_unix_s IS NULL',
+                                              (played_at_unix_s, existing['replay_id'])).rowcount > 0
+            if incoming_map is not None:
+                metadata_changed = db.execute("UPDATE replays SET map_name=? WHERE replay_id=? AND (map_name IS NULL OR trim(map_name)='')",
+                                              (incoming_map, existing['replay_id'])).rowcount > 0 or metadata_changed
             if manifest.get('publication', {}).get('format') == 'bw-forge-publication-v1':
                 register_publication(db,existing['analysis_id'],replay_manifest_path,manifest,raw,inventory)
+                db.commit()
+            elif metadata_changed:
                 db.commit()
             else:
                 db.rollback()
@@ -258,10 +272,12 @@ def ingest_replay_analysis(db_path, replay_manifest_path, played_at_unix_s=None,
                     'replaySha256': manifest['replay_id']}
         now = int(time.time()*1000)
         db.execute('INSERT INTO replays(sha256,byte_size,raw_relative_path,first_seen_at_ms,map_name,played_at_unix_s) VALUES (?,?,?,?,?,?) ON CONFLICT(sha256) DO NOTHING',
-                   (manifest['replay_id'], size, manifest['source']['copied_path'], now, manifest['replay_analysis'].get('map'), played_at_unix_s))
+                   (manifest['replay_id'], size, manifest['source']['copied_path'], now, incoming_map, played_at_unix_s))
         rid = db.execute('SELECT replay_id FROM replays WHERE sha256=?', (manifest['replay_id'],)).fetchone()[0]
         if played_at_unix_s is not None:
             db.execute('UPDATE replays SET played_at_unix_s=? WHERE replay_id=? AND played_at_unix_s IS NULL', (played_at_unix_s,rid))
+        if incoming_map is not None:
+            db.execute("UPDATE replays SET map_name=? WHERE replay_id=? AND (map_name IS NULL OR trim(map_name)='')", (incoming_map,rid))
         p = spec['producer']
         db.execute('''INSERT INTO analysis_specs(fingerprint_sha256,bw_forge_version,bwsim_version,bwsim_wasm_sha256,
             asset_pack_sha256,reducer_version,artifact_format,telemetry_contract,settings_json,
@@ -389,6 +405,7 @@ if __name__ == '__main__':
     parser.add_argument('--db')
     parser.add_argument('--prepare', action='store_true')
     parser.add_argument('--played-at-unix-s', type=int)
+    parser.add_argument('--map-name')
     parser.add_argument('--job-key')
     parser.add_argument('--worker-id')
     parser.add_argument('--attempt-number', type=int)
@@ -407,4 +424,4 @@ if __name__ == '__main__':
             'job_key': args.job_key, 'worker_id': args.worker_id, 'attempt_number': args.attempt_number}
         if job_attempt is not None and (not args.job_key or not args.worker_id or args.attempt_number < 1):
             parser.error('invalid job attempt fence')
-        print(canonical(ingest_replay_analysis(args.db, args.replay_manifest_path, args.played_at_unix_s, job_attempt)))
+        print(canonical(ingest_replay_analysis(args.db, args.replay_manifest_path, args.played_at_unix_s, job_attempt, args.map_name)))

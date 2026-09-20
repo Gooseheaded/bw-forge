@@ -43,13 +43,16 @@ export async function prepareReplayAnalysis(replayManifestPath: string): Promise
 export async function ingestReplayAnalysis(options: IngestReplayAnalysisOptions): Promise<IngestReplayAnalysisResult> {
   const manifestPath = resolve(options.replayManifestPath);
   let playedAtUnixSeconds: number | null = null;
+  let mapName: string | null = null;
   try {
     const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as { source?: { copied_path?: unknown } };
     if (typeof manifest.source?.copied_path === "string") {
-      playedAtUnixSeconds = (await readReplayMetadata(resolve(dirname(manifestPath), manifest.source.copied_path))).playedAtUnixSeconds;
+      const metadata = await readReplayMetadata(resolve(dirname(manifestPath), manifest.source.copied_path));
+      playedAtUnixSeconds = metadata.playedAtUnixSeconds;
+      mapName = metadata.mapName;
     }
   } catch {
-    // Valid analytical artifacts may reference a replay whose chronology is unavailable.
+    // Valid analytical artifacts may reference a replay whose header metadata is unavailable.
   }
   const attempt = options.jobAttempt;
   if (attempt && (!attempt.jobKey || !attempt.workerId || !Number.isSafeInteger(attempt.attemptNumber) || attempt.attemptNumber < 1)) {
@@ -58,7 +61,8 @@ export async function ingestReplayAnalysis(options: IngestReplayAnalysisOptions)
   return runStore([manifestPath, "--db", resolve(options.dbPath),
     ...(attempt ? ["--job-key", attempt.jobKey, "--worker-id", attempt.workerId,
       "--attempt-number", String(attempt.attemptNumber)] : []),
-    ...(playedAtUnixSeconds === null ? [] : ["--played-at-unix-s", String(playedAtUnixSeconds)])]);
+    ...(playedAtUnixSeconds === null ? [] : ["--played-at-unix-s", String(playedAtUnixSeconds)]),
+    ...(mapName === null ? [] : [`--map-name=${mapName}`])]);
 }
 
 export async function runStore<T>(args: string[]): Promise<T> {

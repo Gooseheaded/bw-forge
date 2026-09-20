@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 
 export interface ReplayMetadata {
   playedAtUnixSeconds: number | null;
+  mapName: string | null;
 }
 
 export interface ReplayMetadataResult extends ReplayMetadata {
@@ -13,7 +14,7 @@ export interface ReplayMetadataResult extends ReplayMetadata {
 
 const metadataByPath = new Map<string, Promise<ReplayMetadata>>();
 
-/** Read replay-declared chronology through headless-bwsim's decoded DRPL header.
+/** Read replay-declared chronology and observed map name through headless-bwsim's decoded replay header.
  * No simulation frames are executed and no filesystem timestamp is consulted.
  */
 export async function readReplayMetadata(replayPath: string): Promise<ReplayMetadata> {
@@ -22,7 +23,7 @@ export async function readReplayMetadata(replayPath: string): Promise<ReplayMeta
   if (existing) return existing;
   const pending = readReplayMetadataBatch([path]).then(([result]) => {
     if (!result || result.error) throw new Error(`Replay metadata extraction failed for ${result?.path ?? path}: ${result?.error ?? "missing result"}`);
-    return { playedAtUnixSeconds: result.playedAtUnixSeconds };
+    return { playedAtUnixSeconds: result.playedAtUnixSeconds, mapName: result.mapName };
   });
   metadataByPath.set(path, pending);
   pending.catch(() => metadataByPath.delete(path));
@@ -47,6 +48,7 @@ export async function readReplayMetadataBatch(replayPaths: string[]): Promise<Re
         const result = JSON.parse(stdout) as ReplayMetadataResult[];
         if (!Array.isArray(result) || result.length !== paths.length || result.some((row, index) => row.path !== paths[index] ||
           (row.playedAtUnixSeconds !== null && (!Number.isSafeInteger(row.playedAtUnixSeconds) || row.playedAtUnixSeconds <= 0)) ||
+          (row.mapName !== null && (typeof row.mapName !== "string" || row.mapName.trim() === "")) ||
           (row.error !== null && typeof row.error !== "string"))) throw new Error("invalid metadata result shape");
         resolvePromise(result);
       } catch (error) { reject(new Error(`Invalid replay metadata response: ${error instanceof Error ? error.message : String(error)}`)); }

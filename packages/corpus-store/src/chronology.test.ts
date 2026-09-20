@@ -27,8 +27,9 @@ test("replay-declared timestamp is exact, deterministic, and independent of path
   const before=[firstStat,await stat(second)];expect(before[0]!.mtimeMs).not.toBe(before[1]!.mtimeMs);expect(before[0]!.ctimeMs).not.toBe(before[1]!.ctimeMs);
   const values=await readReplayMetadataBatch([fixture,renamed,second]);
   expect(values.map(value=>value.playedAtUnixSeconds)).toEqual([expected,expected,expected]);
+  expect(values.map(value=>value.mapName)).toEqual(["KnockOut 1.4","KnockOut 1.4","KnockOut 1.4"]);
   expect(values.every(value=>value.error===null)).toBe(true);
-  expect((await readReplayMetadata(fixture)).playedAtUnixSeconds).toBe(expected);
+  expect(await readReplayMetadata(fixture)).toEqual({playedAtUnixSeconds:expected,mapName:"KnockOut 1.4"});
   expect(new Date(expected*1000).toISOString().replace(".000Z","Z")).toBe(expectedIso);
 },{timeout:30000});
 
