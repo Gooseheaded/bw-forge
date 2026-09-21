@@ -63,6 +63,19 @@ async function main() {
     resolve(REPO_ROOT, "packages", "corpus-query", "package.json"),
     resolve(OUTPUT_ROOT, "packages", "corpus-query", "package.json")
   );
+  const runtimeEventCatalog = resolve(
+    OUTPUT_ROOT,
+    "packages",
+    "corpus-query",
+    "dist",
+    "domain",
+    "event-catalog.json"
+  );
+  await mkdir(dirname(runtimeEventCatalog), { recursive: true });
+  await copyFile(
+    resolve(REPO_ROOT, "packages", "corpus-query", "src", "domain", "event-catalog.json"),
+    runtimeEventCatalog
+  );
   await writeJson(
     resolve(OUTPUT_ROOT, "packages", "corpus-query", "dist", "build-info.json"),
     { build_timestamp: buildTimestamp }

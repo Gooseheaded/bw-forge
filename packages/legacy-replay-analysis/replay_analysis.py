@@ -22,6 +22,11 @@ from typing import Any, Callable, Iterable
 FRAME_DURATION_MS = 42
 DEFAULT_BUILD_ORDER_TEMPLATE = Path(__file__).with_name("build-order.html")
 DEFAULT_EMBEDDED_BUILD_ORDER_NAME = "build-order.embedded.html"
+EVENT_CATALOG_CANDIDATES = (
+    Path(__file__).parents[1] / "corpus-query" / "src" / "domain" / "event-catalog.json",
+    Path(__file__).parents[1] / "corpus-query" / "dist" / "domain" / "event-catalog.json",
+)
+EVENT_CATALOG_PATH = next((path for path in EVENT_CATALOG_CANDIDATES if path.is_file()), EVENT_CATALOG_CANDIDATES[0])
 
 TRANSIENT_UNIT_TYPES = {"egg", "cocoon", "lurker_egg"}
 IGNORED_CATEGORIES = {"resource", "subunit", "powerup"}
@@ -86,40 +91,36 @@ UNIT_NAMES = [
     "vespene_orb_2", "vespene_sac_1", "vespene_sac_2", "vespene_tank_1", "vespene_tank_2",
 ]
 
-UPGRADE_NAMES = {
-    0x00: "infantry_armor", 0x01: "vehicle_plating", 0x02: "ship_plating",
-    0x03: "carapace", 0x04: "flyer_carapace", 0x05: "protoss_armor",
-    0x06: "protoss_plating", 0x07: "infantry_weapons", 0x08: "vehicle_weapons",
-    0x09: "ship_weapons", 0x0A: "zerg_melee_attacks", 0x0B: "zerg_missile_attacks",
-    0x0C: "zerg_flyer_attacks", 0x0D: "protoss_ground_weapons",
-    0x0E: "protoss_air_weapons", 0x0F: "plasma_shields", 0x10: "u_238_shells",
-    0x11: "ion_thrusters", 0x12: "burst_lasers", 0x13: "titan_reactor",
-    0x14: "ocular_implants", 0x15: "moebius_reactor", 0x16: "apollo_reactor",
-    0x17: "colossus_reactor", 0x18: "ventral_sacs", 0x19: "antennae",
-    0x1A: "pneumatized_carapace", 0x1B: "metabolic_boost", 0x1C: "adrenal_glands",
-    0x1D: "muscular_augments", 0x1E: "grooved_spines", 0x1F: "gamete_meiosis",
-    0x20: "metasynaptic_node", 0x21: "singularity_charge", 0x22: "leg_enhancements",
-    0x23: "scarab_damage", 0x24: "reaver_capacity", 0x25: "gravitic_drive",
-    0x26: "sensor_array", 0x27: "gravitic_boosters", 0x28: "khaydarin_amulet",
-    0x29: "apial_sensors", 0x2A: "gravitic_thrusters", 0x2B: "carrier_capacity",
-    0x2C: "khaydarin_core", 0x2D: "upgrade_45", 0x2E: "upgrade_46",
-    0x2F: "argus_jewel", 0x30: "upgrade_48", 0x31: "argus_talisman",
-    0x32: "upgrade_50", 0x33: "caduceus_reactor", 0x34: "chitinous_plating",
-    0x35: "anabolic_synthesis", 0x36: "charon_boosters",
-}
+with EVENT_CATALOG_PATH.open(encoding="utf-8") as event_catalog_file:
+    EVENT_CATALOG = json.load(event_catalog_file)
 
+EVENT_CATALOG_BY_KEY = {
+    str(entry["key"]): entry
+    for entry in EVENT_CATALOG["events"]
+}
+RESEARCH_CATALOG = {
+    (str(entry["sourceNamespace"]), int(entry["sourceId"])): entry
+    for entry in EVENT_CATALOG["events"]
+    if entry["sourceNamespace"] in {"upgrade", "tech"}
+}
+UNIT_EVENT_CATALOG_BY_ID = {
+    int(entry["sourceId"]): entry
+    for entry in EVENT_CATALOG["events"]
+    if entry["sourceNamespace"] == "unit_type"
+}
+UNIT_EVENT_CATALOG_BY_KEY = {
+    str(entry["key"]): entry
+    for entry in UNIT_EVENT_CATALOG_BY_ID.values()
+}
+UPGRADE_NAMES = {
+    source_id: str(entry["key"])
+    for (namespace, source_id), entry in RESEARCH_CATALOG.items()
+    if namespace == "upgrade"
+}
 TECH_NAMES = {
-    0x00: "stim_packs", 0x01: "lockdown", 0x02: "emp_shockwave", 0x03: "spider_mines",
-    0x04: "scanner_sweep", 0x05: "siege_mode", 0x06: "defensive_matrix",
-    0x07: "irradiate", 0x08: "yamato_gun", 0x09: "cloaking_field",
-    0x0A: "personnel_cloaking", 0x0B: "burrowing", 0x0C: "infestation",
-    0x0D: "spawn_broodlings", 0x0E: "dark_swarm", 0x0F: "plague", 0x10: "consume",
-    0x11: "ensnare", 0x12: "parasite", 0x13: "psionic_storm",
-    0x14: "hallucination", 0x15: "recall", 0x16: "stasis_field", 0x17: "archon_warp",
-    0x18: "restoration", 0x19: "disruption_web", 0x1A: "tech_26",
-    0x1B: "mind_control", 0x1C: "dark_archon_meld", 0x1D: "feedback",
-    0x1E: "optical_flare", 0x1F: "maelstrom", 0x20: "lurker_aspect",
-    0x21: "tech_33", 0x22: "healing",
+    source_id: str(entry["key"])
+    for (namespace, source_id), entry in RESEARCH_CATALOG.items()
+    if namespace == "tech"
 }
 
 
@@ -287,7 +288,7 @@ class Analyzer:
             and is_new_or_changed
             and should_emit_appearance(unit_type, category, self.include_unit_appearances)
         ):
-            events.append(Event(frame, owner, display_name(unit_type)))
+            events.append(Event(frame, owner, event_display_name(unit_type)))
 
         current_queue = Counter(int(x) for x in unit.get("build_queue_unit_ids", []) if x is not None)
         previous_queue = self.queues_by_owner[owner].get(unit_id, Counter())
@@ -301,7 +302,7 @@ class Analyzer:
                     if event is not None:
                         events.append(event)
                 continue
-            events.extend(Event(frame, owner, display_name(target_name)) for _ in range(count))
+            events.extend(Event(frame, owner, event_display_name(target_name)) for _ in range(count))
         self.queues_by_owner[owner][unit_id] = current_queue
         return events
 
@@ -347,7 +348,7 @@ class Analyzer:
         if target_name in TRANSIENT_UNIT_TYPES:
             return None
         self.emitted_build_events[owner][unit_id] = target_type_id
-        return Event(backdated_frame(frame, unit), owner, display_name(target_name))
+        return Event(backdated_frame(frame, unit), owner, event_display_name(target_name))
 
     def _research_events(
         self,
@@ -357,12 +358,12 @@ class Analyzer:
         current_tech: set[int],
     ) -> list[Event]:
         events = [
-            Event(frame, owner, display_name(upgrade_name(upgrade_id)))
+            Event(frame, owner, research_display_name("upgrade", upgrade_id))
             for upgrade_id in sorted(current_upgrades - self.upgrades_by_owner[owner])
         ]
         if self.include_tech:
             events.extend(
-                Event(frame, owner, display_name(tech_name(tech_id)))
+                Event(frame, owner, research_display_name("tech", tech_id))
                 for tech_id in sorted(current_tech - self.tech_by_owner[owner])
             )
         return events
@@ -430,6 +431,19 @@ def tech_name(tech_id: int) -> str:
     return TECH_NAMES.get(tech_id, f"tech_{tech_id}")
 
 
+def research_display_name(namespace: str, source_id: int) -> str:
+    entry = RESEARCH_CATALOG.get((namespace, source_id))
+    if entry is not None:
+        return str(entry["displayName"])
+    key = upgrade_name(source_id) if namespace == "upgrade" else tech_name(source_id)
+    return display_name(key)
+
+
+def event_display_name(key: str) -> str:
+    entry = EVENT_CATALOG_BY_KEY.get(key)
+    return str(entry["displayName"]) if entry is not None else display_name(key)
+
+
 def display_name(value: str) -> str:
     special = {
         "scv": "SCV",
@@ -443,10 +457,14 @@ def display_name(value: str) -> str:
 
 def race_for_unit(unit: dict[str, Any]) -> str | None:
     unit_type = get_unit_type_name(unit)
+    unit_id = get_unit_type_id(unit)
+    catalog_entry = UNIT_EVENT_CATALOG_BY_ID.get(unit_id) or UNIT_EVENT_CATALOG_BY_KEY.get(unit_type)
+    if catalog_entry is not None:
+        race = catalog_entry.get("race")
+        return str(race) if race is not None else None
     if unit_type.startswith(("terran_", "zerg_", "protoss_")):
         return unit_type.split("_", 1)[0]
 
-    unit_id = get_unit_type_id(unit)
     if 0 <= unit_id <= 34 or 106 <= unit_id <= 130:
         return "terran"
     if 35 <= unit_id <= 58 or 97 <= unit_id <= 103 or 131 <= unit_id <= 152:

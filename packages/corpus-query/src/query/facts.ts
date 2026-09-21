@@ -1,12 +1,13 @@
 import type { Database } from "../db/sqlite.js";
 import { sqlRows } from "../db/backend.js";
+import { resolveReplayEventKey, type ReplayEventCatalogEntry } from "../domain/eventCatalog.js";
 import { supplyAtFrame, type Availability } from "./v2.js";
 
 export interface EventRequest {
   observationId: number;
-  /** Normalized unit_types.unit_key, matched case-insensitively. */
+  /** Stable lowercase snake_case key from the canonical replay event catalog. */
   unitKey: string;
-  /** One-based occurrence within this unit type. */
+  /** One-based observed occurrence of this event, not an upgrade level. */
   occurrence: number;
 }
 
@@ -21,6 +22,8 @@ export interface EventFact {
   occurrence: number;
   /** Corpus emission order, which is independent of per-unit occurrence. */
   sourceOccurrence: number;
+  /** Canonical semantic identity; unitType below preserves the persisted row. */
+  eventType: ReplayEventCatalogEntry;
   unitType: { id: number; key: string; displayName: string };
   timing: EventTiming;
   recordedTimeSeconds: number;
@@ -48,22 +51,23 @@ export type SupplyBeforeResult =
   | { kind: "unavailable"; availability: Availability[]; preEventFrames: { min: number; max: number } }
   | { kind: "event_not_present" };
 
-/** Locate a corpus-emitted event; starting units/buildings are never synthesized. */
+/** Locate a corpus-emitted event by canonical key; starting units/buildings are never synthesized. */
 export function event(db: Database, request: EventRequest): EventLookupResult {
   if (!Number.isInteger(request.observationId) || request.observationId < 0) {
     throw new Error("observationId must be a non-negative integer");
   }
-  if (!request.unitKey.trim()) throw new Error("unitKey must not be empty");
+  if (!request.unitKey) throw new Error("unitKey must not be empty");
   if (!Number.isInteger(request.occurrence) || request.occurrence < 1) {
     throw new Error("occurrence must be a positive integer");
   }
+  const eventType = resolveReplayEventKey(request.unitKey);
 
   const row = sqlRows(db, `SELECT b.occurrence AS source_occurrence,b.frame,b.time_seconds,b.frame_min,b.frame_max,
       b.timing_basis,b.raw_line,u.unit_type_id,u.unit_key,u.display_name
     FROM build_events b JOIN unit_types u ON u.unit_type_id=b.unit_type_id
-    WHERE b.observation_id=? AND u.unit_key=? COLLATE NOCASE
+    WHERE b.observation_id=? AND (u.unit_key=? COLLATE NOCASE OR u.unit_key=? COLLATE NOCASE)
     ORDER BY b.occurrence LIMIT 1 OFFSET ?`,
-    [request.observationId, request.unitKey, request.occurrence - 1])[0];
+    [request.observationId, eventType.key, eventType.displayName, request.occurrence - 1])[0];
   if (!row) return { kind: "event_not_present", request: { ...request } };
 
   const frameMin = Number(row.frame_min);
@@ -76,6 +80,7 @@ export function event(db: Database, request: EventRequest): EventLookupResult {
     observationId: request.observationId,
     occurrence: request.occurrence,
     sourceOccurrence: Number(row.source_occurrence),
+    eventType,
     unitType: { id: Number(row.unit_type_id), key: String(row.unit_key), displayName: String(row.display_name) },
     timing,
     recordedTimeSeconds: Number(row.time_seconds),

@@ -44,10 +44,31 @@ describe("runtime validation", () => {
     expect(validation.checks.some((check) => check.id === "python" && check.status === "pass")).toBe(true);
     expect(validation.checks.some((check) => check.id === "bwsim-wasm" && check.status === "pass")).toBe(true);
     expect(validation.checks.some((check) => check.id === "bwsim-assets" && check.status === "pass")).toBe(true);
+    expect(validation.checks.some((check) => check.id === "event-catalog" && check.status === "pass")).toBe(true);
     expect(validation.checks.some((check) => check.id === "screp" && check.status === "pass")).toBe(true);
     expect(validation.checks.some((check) => check.id === "bun")).toBe(false);
     expect(validation.checks.some((check) => check.id === "pnpm")).toBe(false);
     expect(validation.checks.some((check) => check.label === "Built-in app files")).toBe(true);
+  });
+
+  test("blocks replay analysis when the canonical event catalog is missing", async () => {
+    const runtimeRoot = await createPackagedRuntimeFixture();
+    await rm(join(runtimeRoot, "packages", "corpus-query", "dist", "domain", "event-catalog.json"));
+    const settings = {
+      ...await createDefaultSettings({ documentsPath: "C:\\Users\\tester\\Documents", runtimeRoot }),
+      runtimeRoot
+    };
+
+    const validation = await validateRuntime(settings, async (probe: ExecutableProbe) => {
+      if (probe.executable === process.execPath) return "bw-forge help";
+      if (probe.executable.endsWith("python.exe")) return "Python 3.14.6";
+      if (probe.executable.endsWith("screp.exe")) return "screp version: v1.13.4\nPlatform: windows amd64";
+      throw new Error(`unexpected probe: ${probe.executable}`);
+    });
+
+    expect(validation.canAnalyze).toBe(false);
+    expect(validation.canIngest).toBe(true);
+    expect(validation.checks.find((check) => check.id === "event-catalog")?.status).toBe("fail");
   });
 
   test("blocks replay analysis when the bundled bwsim engine is missing", async () => {
@@ -105,6 +126,7 @@ async function createPackagedRuntimeFixture(): Promise<string> {
   await writeRuntimeFile(root, "apps/cli/src/main.js", "console.log('bw-forge')\n");
   await writeRuntimeFile(root, "packages/corpus-query/dist/cli.cjs", "module.exports = {}\n");
   await writeRuntimeFile(root, "packages/corpus-query/dist/mcp/server.cjs", "module.exports = {}\n");
+  await writeRuntimeFile(root, "packages/corpus-query/dist/domain/event-catalog.json", "{\"schemaVersion\":1,\"events\":[]}\n");
   await writeRuntimeFile(root, "packages/legacy-replay-analysis/replay_analysis.py", "print('ok')\n");
   await writeRuntimeFile(root, "apps/sc-forge/dist/build-order.single-file.html", "<html></html>\n");
   await writeRuntimeFile(root, "python/cpython-3.14.6-embed-amd64/python.exe", "");

@@ -9,6 +9,7 @@ export interface RuntimeLayout {
   cliEntrypoint: string;
   corpusCliEntrypoint: string;
   corpusMcpEntrypoint: string;
+  eventCatalogPath: string;
   pythonExecutable: string;
   replayReducerScript: string;
   reportTemplate: string;
@@ -38,6 +39,14 @@ export function resolveRuntimeLayout(runtimeRoot: string): RuntimeLayout {
     corpusMcpEntrypoint: isPackaged
       ? join(resolvedRoot, "packages", "corpus-query", "dist", "mcp", "server.cjs")
       : join(resolvedRoot, "packages", "corpus-query", "src", "mcp", "server.ts"),
+    eventCatalogPath: join(
+      resolvedRoot,
+      "packages",
+      "corpus-query",
+      isPackaged ? "dist" : "src",
+      "domain",
+      "event-catalog.json"
+    ),
     pythonExecutable: isPackaged
       ? join(
           resolvedRoot,

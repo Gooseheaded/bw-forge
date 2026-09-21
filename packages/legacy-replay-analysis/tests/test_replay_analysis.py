@@ -59,6 +59,48 @@ def pack_msgpack(value):
 
 
 class ReplayAnalysisTest(unittest.TestCase):
+    def test_shared_event_catalog_drives_research_names(self):
+        self.assertEqual(replay_analysis.upgrade_name(0x1B), "metabolic_boost")
+        self.assertEqual(replay_analysis.research_display_name("upgrade", 0x1B), "Metabolic Boost")
+        self.assertEqual(replay_analysis.tech_name(0x05), "siege_mode")
+        self.assertEqual(replay_analysis.research_display_name("tech", 0x05), "Siege Mode")
+        self.assertEqual(replay_analysis.event_display_name("scv"), "SCV")
+        self.assertEqual(replay_analysis.race_for_unit({"unit_type_id": 58, "unit_type": "valkyrie"}), "terran")
+        self.assertEqual(replay_analysis.race_for_unit({"unit_type_id": 62, "unit_type": "devourer"}), "zerg")
+        self.assertEqual(replay_analysis.race_for_unit({"unit_type_id": 84, "unit_type": "observer"}), "protoss")
+
+    def test_tech_fixture_emits_research_start_when_production_inclusion_is_enabled(self):
+        snapshots = [
+            {
+                "frame": 0,
+                "owners": {"1": {"units": [{
+                    "id": 10, "unit_type": "machine_shop", "unit_type_id": 120,
+                    "category": "building", "build_queue_unit_ids": [],
+                    "upgrade_in_progress": None, "tech_in_progress": None,
+                }]}},
+                "deaths": [],
+            },
+            {
+                "frame": 24,
+                "owners": {"1": {"units": [{
+                    "id": 10, "unit_type": "machine_shop", "unit_type_id": 120,
+                    "category": "building", "build_queue_unit_ids": [],
+                    "upgrade_in_progress": None, "tech_in_progress": 0x05,
+                }]}},
+                "deaths": [],
+            },
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "tech.jsonl"
+            path.write_text("\n".join(json.dumps(x) for x in snapshots), encoding="utf-8")
+            events = replay_analysis.load_events(
+                path,
+                replay_analysis.Analyzer(None, False, True, False),
+            )
+
+        self.assertEqual(events, [replay_analysis.Event(24, 1, "Siege Mode")])
+        self.assertEqual(replay_analysis.render_events(events, include_owner=False), "00:01 Siege Mode\n")
+
     def test_accepts_bwsim_compatible_jsonl_with_omitted_gathered_resources(self):
         snapshots = [
             {

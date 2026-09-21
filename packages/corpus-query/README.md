@@ -115,6 +115,36 @@ comparisons require non-overlapping bounds for a definite ordering; overlapping
 cases are returned in `uncertainCount`/`uncertainExamples` and excluded from the
 definite-match percentage denominator. The same occurrence is never before itself.
 
+### Canonical replay event vocabulary
+
+The parser-independent fact layer in `src/query/facts.ts` addresses replay events
+with stable canonical keys from `src/domain/event-catalog.json`, not artifact
+display labels. Keys are lowercase snake_case; spaces become underscores and
+apostrophes are omitted. Examples include `hatchery`, `command_center`,
+`science_vessel`, `queens_nest`, `metabolic_boost`, `siege_mode`,
+`psionic_storm`, and `lurker_aspect`.
+
+Catalog metadata distinguishes `unit`, `building`, `upgrade`, and `tech` events
+and records race, display name, and the source namespace/ID. The resolver maps a
+canonical key to both its display name and key so existing Corpus v2 databases
+remain readable whether `unit_types.unit_key` contains a legacy display value or
+a normalized unit key. Display labels are not accepted as public identifiers;
+an unknown key is a deterministic programmer error, distinct from a known event
+that is absent from one observation.
+
+`event(key, n)` means the nth observed occurrence of that canonical event. For
+research, the event is the first observed transition into research-in-progress,
+not completion. An `upgrade` is a repeatable level-style improvement such as
+`infantry_weapons`; a `tech` is a researched ability or mode such as
+`siege_mode`. Repeated upgrade occurrences are observed starts only: cancellation,
+restart, and discarded level metadata mean occurrence 2 is not guaranteed to be
+upgrade level 2.
+
+Standard BW Forge analysis now includes supported tech starts in newly generated
+`build_order.txt` artifacts. Existing corpus observations are unchanged and will
+still lack tech events unless their original artifacts were generated with tech
+inclusion. No schema migration or replay reanalysis is performed by this change.
+
 Deaths remain individual observed events in inclusive frame/time intervals,
 including simultaneous deaths. Death results and summaries disclose
 `coverage_basis=observations_only`: no events is not proof of complete coverage.

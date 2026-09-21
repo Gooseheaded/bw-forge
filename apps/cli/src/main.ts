@@ -16,6 +16,7 @@ import { backfillReplayMapNames, MAP_NAME_BACKFILL_DEFAULTS } from "../../../pac
 import { assertSafeAnalyzeOutputRoot } from "./analyze-output-path.js";
 import { buildCommandSpawnOptions } from "./child-process.js";
 import { corpusQueryRuntimeArgs } from "./corpus-query-runtime.js";
+import { buildLegacyReplayAnalysisArgs } from "./legacy-analysis-command.js";
 import type {
   BwForgeCorpusManifest,
   BwForgeReplayManifest,
@@ -313,15 +314,13 @@ async function runLegacyReplayAnalysis(params: {
   embeddedReplayInput: string;
 }): Promise<void> {
   const templatePath = await ensureScForgeTemplate();
-  const args = [
-    PATHS.legacyReplayAnalysisScript,
-    params.analysisInput,
-    params.legacyDir,
-    "--build-order-template",
+  const args = buildLegacyReplayAnalysisArgs({
+    scriptPath: PATHS.legacyReplayAnalysisScript,
+    analysisInput: params.analysisInput,
+    legacyDir: params.legacyDir,
     templatePath,
-    "--embedded-replay-input",
-    params.embeddedReplayInput
-  ];
+    embeddedReplayInput: params.embeddedReplayInput
+  });
   await runCommandWithFallbacks(buildPythonCommandFallbacks(args));
 }
 

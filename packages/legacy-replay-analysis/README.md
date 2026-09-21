@@ -35,6 +35,13 @@ python .\replay_analysis.py timeline.jsonl .\out `
 
 Useful options include `--owner`, `--include-initial`, `--include-tech`,
 `--include-unit-appearances`, `--embedded-html-output`, and `--page-title`.
+The top-level `bw-forge analyze` production path always passes `--include-tech`;
+direct reducer invocations must still opt in explicitly for compatibility.
+
+Upgrade and tech names come from the shared canonical event catalog at
+`../corpus-query/src/domain/event-catalog.json`. Both are emitted when first
+observed in progress, never at completion. Existing artifacts and Corpus v2 rows
+are not rewritten, so historical analyses may lack tech events.
 
 Existing standalone reports and manifests can be refreshed without replay
 simulation:

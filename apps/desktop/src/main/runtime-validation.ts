@@ -97,6 +97,14 @@ export async function validateRuntime(
     );
     checks.push(
       await checkPath(
+        "event-catalog",
+        "Canonical replay event catalog",
+        layout.eventCatalogPath,
+        "The canonical replay event catalog is missing. Reinstall BW Forge."
+      )
+    );
+    checks.push(
+      await checkPath(
         "report-template",
         "Report template",
         layout.reportTemplate,
@@ -263,7 +271,7 @@ export async function validateRuntime(
     "output-path",
     "database-path",
     ...(layout.kind === "packaged"
-      ? ["runtime-manifest", "replay-reducer", "report-template", "bwsim-wasm", "bwsim-assets", "bwsim-exporter", "screp", "packaged-cli-self-check"]
+      ? ["runtime-manifest", "replay-reducer", "event-catalog", "report-template", "bwsim-wasm", "bwsim-assets", "bwsim-exporter", "screp", "packaged-cli-self-check"]
       : ["bwsim-wasm", "bwsim-assets", "bwsim-exporter", "screp", "bun", "node"])
   ]);
   const requiredIngestChecks = new Set([

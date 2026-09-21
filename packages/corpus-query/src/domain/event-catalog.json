@@ -1,0 +1,2021 @@
+{
+  "schemaVersion": 1,
+  "events": [
+    {
+      "key": "academy",
+      "displayName": "Academy",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 112,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "adrenal_glands",
+      "displayName": "Adrenal Glands",
+      "kind": "upgrade",
+      "race": "zerg",
+      "sourceId": 28,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "aldaris",
+      "displayName": "Aldaris",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 87,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "alan_schezar",
+      "displayName": "Alan Schezar",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 17,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "alexei_stukov",
+      "displayName": "Alexei Stukov",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 100,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "anabolic_synthesis",
+      "displayName": "Anabolic Synthesis",
+      "kind": "upgrade",
+      "race": "zerg",
+      "sourceId": 53,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "antennae",
+      "displayName": "Antennae",
+      "kind": "upgrade",
+      "race": "zerg",
+      "sourceId": 25,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "apial_sensors",
+      "displayName": "Apial Sensors",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 41,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "artanis",
+      "displayName": "Artanis",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 88,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "apollo_reactor",
+      "displayName": "Apollo Reactor",
+      "kind": "upgrade",
+      "race": "terran",
+      "sourceId": 22,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "arbiter",
+      "displayName": "Arbiter",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 71,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "arbiter_tribunal",
+      "displayName": "Arbiter Tribunal",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 170,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "archon",
+      "displayName": "Archon",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 68,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "archon_warp",
+      "displayName": "Archon Warp",
+      "kind": "tech",
+      "race": "protoss",
+      "sourceId": 23,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "arcturus_mengsk",
+      "displayName": "Arcturus Mengsk",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 27,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "argus_jewel",
+      "displayName": "Argus Jewel",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 47,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "argus_talisman",
+      "displayName": "Argus Talisman",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 49,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "armory",
+      "displayName": "Armory",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 123,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "assimilator",
+      "displayName": "Assimilator",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 157,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "barracks",
+      "displayName": "Barracks",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 111,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "battlecruiser",
+      "displayName": "Battlecruiser",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 12,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "broodling",
+      "displayName": "Broodling",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 40,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "bunker",
+      "displayName": "Bunker",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 125,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "burrowing",
+      "displayName": "Burrowing",
+      "kind": "tech",
+      "race": "zerg",
+      "sourceId": 11,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "burst_lasers",
+      "displayName": "Burst Lasers",
+      "kind": "upgrade",
+      "race": "terran",
+      "sourceId": 18,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "caduceus_reactor",
+      "displayName": "Caduceus Reactor",
+      "kind": "upgrade",
+      "race": "terran",
+      "sourceId": 51,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "carapace",
+      "displayName": "Carapace",
+      "kind": "upgrade",
+      "race": "zerg",
+      "sourceId": 3,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "carrier",
+      "displayName": "Carrier",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 72,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "carrier_capacity",
+      "displayName": "Carrier Capacity",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 43,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "cerebrate",
+      "displayName": "Cerebrate",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 151,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "cerebrate_daggoth",
+      "displayName": "Cerebrate Daggoth",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 152,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "charon_boosters",
+      "displayName": "Charon Boosters",
+      "kind": "upgrade",
+      "race": "terran",
+      "sourceId": 54,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "chitinous_plating",
+      "displayName": "Chitinous Plating",
+      "kind": "upgrade",
+      "race": "zerg",
+      "sourceId": 52,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "citadel_of_adun",
+      "displayName": "Citadel Of Adun",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 163,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "civilian",
+      "displayName": "Civilian",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 15,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "cloaking_field",
+      "displayName": "Cloaking Field",
+      "kind": "tech",
+      "race": "terran",
+      "sourceId": 9,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "colossus_reactor",
+      "displayName": "Colossus Reactor",
+      "kind": "upgrade",
+      "race": "terran",
+      "sourceId": 23,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "command_center",
+      "displayName": "Command Center",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 106,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "comsat_station",
+      "displayName": "Comsat Station",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 107,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "consume",
+      "displayName": "Consume",
+      "kind": "tech",
+      "race": "zerg",
+      "sourceId": 16,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "control_tower",
+      "displayName": "Control Tower",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 115,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "corsair",
+      "displayName": "Corsair",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 60,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "covert_ops",
+      "displayName": "Covert Ops",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 117,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "creep_colony",
+      "displayName": "Creep Colony",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 143,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "cybernetics_core",
+      "displayName": "Cybernetics Core",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 164,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "dark_archon",
+      "displayName": "Dark Archon",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 63,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "danimoth",
+      "displayName": "Danimoth",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 86,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "dark_archon_meld",
+      "displayName": "Dark Archon Meld",
+      "kind": "tech",
+      "race": "protoss",
+      "sourceId": 28,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "dark_swarm",
+      "displayName": "Dark Swarm",
+      "kind": "tech",
+      "race": "zerg",
+      "sourceId": 14,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "dark_templar",
+      "displayName": "Dark Templar",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 61,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "dark_templar_hero",
+      "displayName": "Dark Templar Hero",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 74,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "defensive_matrix",
+      "displayName": "Defensive Matrix",
+      "kind": "tech",
+      "race": "terran",
+      "sourceId": 6,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "defiler",
+      "displayName": "Defiler",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 46,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "defiler_mound",
+      "displayName": "Defiler Mound",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 136,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "devourer",
+      "displayName": "Devourer",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 62,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "devouring_one",
+      "displayName": "Devouring One",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 54,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "disruption_web",
+      "displayName": "Disruption Web",
+      "kind": "tech",
+      "race": "protoss",
+      "sourceId": 25,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "dragoon",
+      "displayName": "Dragoon",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 66,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "drone",
+      "displayName": "Drone",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 41,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "dropship",
+      "displayName": "Dropship",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 11,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "edmund_duke_siege",
+      "displayName": "Edmund Duke Siege",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 25,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "edmund_duke_tank",
+      "displayName": "Edmund Duke Tank",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 23,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "emp_shockwave",
+      "displayName": "EMP Shockwave",
+      "kind": "tech",
+      "race": "terran",
+      "sourceId": 2,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "engineering_bay",
+      "displayName": "Engineering Bay",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 122,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "ensnare",
+      "displayName": "Ensnare",
+      "kind": "tech",
+      "race": "zerg",
+      "sourceId": 17,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "evolution_chamber",
+      "displayName": "Evolution Chamber",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 139,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "extractor",
+      "displayName": "Extractor",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 149,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "factory",
+      "displayName": "Factory",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 113,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "feedback",
+      "displayName": "Feedback",
+      "kind": "tech",
+      "race": "protoss",
+      "sourceId": 29,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "fenix_dragoon",
+      "displayName": "Fenix Dragoon",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 78,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "fenix_zealot",
+      "displayName": "Fenix Zealot",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 77,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "firebat",
+      "displayName": "Firebat",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 32,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "fleet_beacon",
+      "displayName": "Fleet Beacon",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 169,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "flyer_carapace",
+      "displayName": "Flyer Carapace",
+      "kind": "upgrade",
+      "race": "zerg",
+      "sourceId": 4,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "forge",
+      "displayName": "Forge",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 166,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "gamete_meiosis",
+      "displayName": "Gamete Meiosis",
+      "kind": "upgrade",
+      "race": "zerg",
+      "sourceId": 31,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "gantrithor",
+      "displayName": "Gantrithor",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 82,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "gateway",
+      "displayName": "Gateway",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 160,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "gerard_dugalle",
+      "displayName": "Gerard Dugalle",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 102,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "ghost",
+      "displayName": "Ghost",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 1,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "goliath",
+      "displayName": "Goliath",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 3,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "gravitic_boosters",
+      "displayName": "Gravitic Boosters",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 39,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "gravitic_drive",
+      "displayName": "Gravitic Drive",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 37,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "gravitic_thrusters",
+      "displayName": "Gravitic Thrusters",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 42,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "greater_spire",
+      "displayName": "Greater Spire",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 137,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "grooved_spines",
+      "displayName": "Grooved Spines",
+      "kind": "upgrade",
+      "race": "zerg",
+      "sourceId": 30,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "guardian",
+      "displayName": "Guardian",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 44,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "gui_montag",
+      "displayName": "Gui Montag",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 10,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "hallucination",
+      "displayName": "Hallucination",
+      "kind": "tech",
+      "race": "protoss",
+      "sourceId": 20,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "hatchery",
+      "displayName": "Hatchery",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 131,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "healing",
+      "displayName": "Healing",
+      "kind": "tech",
+      "race": "terran",
+      "sourceId": 34,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "high_templar",
+      "displayName": "High Templar",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 67,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "hive",
+      "displayName": "Hive",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 133,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "hunter_killer",
+      "displayName": "Hunter Killer",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 53,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "hydralisk",
+      "displayName": "Hydralisk",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 38,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "hydralisk_den",
+      "displayName": "Hydralisk Den",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 135,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "hyperion",
+      "displayName": "Hyperion",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 28,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "infantry_armor",
+      "displayName": "Infantry Armor",
+      "kind": "upgrade",
+      "race": "terran",
+      "sourceId": 0,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "infantry_weapons",
+      "displayName": "Infantry Weapons",
+      "kind": "upgrade",
+      "race": "terran",
+      "sourceId": 7,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "infestation",
+      "displayName": "Infestation",
+      "kind": "tech",
+      "race": "zerg",
+      "sourceId": 12,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "infested_command_center",
+      "displayName": "Infested Command Center",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 130,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "infested_duran",
+      "displayName": "Infested Duran",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 104,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "infested_kerrigan",
+      "displayName": "Infested Kerrigan",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 51,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "infested_terran",
+      "displayName": "Infested Terran",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 50,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "interceptor",
+      "displayName": "Interceptor",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 73,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "ion_cannon",
+      "displayName": "Ion Cannon",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 127,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "ion_thrusters",
+      "displayName": "Ion Thrusters",
+      "kind": "upgrade",
+      "race": "terran",
+      "sourceId": 17,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "irradiate",
+      "displayName": "Irradiate",
+      "kind": "tech",
+      "race": "terran",
+      "sourceId": 7,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "jim_raynor_marine",
+      "displayName": "Jim Raynor Marine",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 20,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "jim_raynor_vulture",
+      "displayName": "Jim Raynor Vulture",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 19,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "khalis_crystal",
+      "displayName": "Khalis Crystal",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 129,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "khaydarin_amulet",
+      "displayName": "Khaydarin Amulet",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 40,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "khaydarin_core",
+      "displayName": "Khaydarin Core",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 44,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "kukulza_guardian",
+      "displayName": "Kukulza Guardian",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 56,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "kukulza_mutalisk",
+      "displayName": "Kukulza Mutalisk",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 55,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "lair",
+      "displayName": "Lair",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 132,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "larva",
+      "displayName": "Larva",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 35,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "leg_enhancements",
+      "displayName": "Leg Enhancements",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 34,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "lockdown",
+      "displayName": "Lockdown",
+      "kind": "tech",
+      "race": "terran",
+      "sourceId": 1,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "lurker",
+      "displayName": "Lurker",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 103,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "lurker_aspect",
+      "displayName": "Lurker Aspect",
+      "kind": "tech",
+      "race": "zerg",
+      "sourceId": 32,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "machine_shop",
+      "displayName": "Machine Shop",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 120,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "maelstrom",
+      "displayName": "Maelstrom",
+      "kind": "tech",
+      "race": "protoss",
+      "sourceId": 31,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "magellan",
+      "displayName": "Magellan",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 22,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "map_revealer",
+      "displayName": "Map Revealer",
+      "kind": "unit",
+      "race": null,
+      "sourceId": 101,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "marine",
+      "displayName": "Marine",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 0,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "matriarch",
+      "displayName": "Matriarch",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 49,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "mature_chrysalis",
+      "displayName": "Mature Chrysalis",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 150,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "medic",
+      "displayName": "Medic",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 34,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "metabolic_boost",
+      "displayName": "Metabolic Boost",
+      "kind": "upgrade",
+      "race": "zerg",
+      "sourceId": 27,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "metasynaptic_node",
+      "displayName": "Metasynaptic Node",
+      "kind": "upgrade",
+      "race": "zerg",
+      "sourceId": 32,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "mind_control",
+      "displayName": "Mind Control",
+      "kind": "tech",
+      "race": "protoss",
+      "sourceId": 27,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "missile_turret",
+      "displayName": "Missile Turret",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 124,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "moebius_reactor",
+      "displayName": "Moebius Reactor",
+      "kind": "upgrade",
+      "race": "terran",
+      "sourceId": 21,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "mojo",
+      "displayName": "Mojo",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 80,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "muscular_augments",
+      "displayName": "Muscular Augments",
+      "kind": "upgrade",
+      "race": "zerg",
+      "sourceId": 29,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "mutalisk",
+      "displayName": "Mutalisk",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 43,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "nexus",
+      "displayName": "Nexus",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 154,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "norad_ii",
+      "displayName": "Norad II",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 29,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "norad_ii_crashed",
+      "displayName": "Norad II Crashed",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 126,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "nuclear_missile",
+      "displayName": "Nuclear Missile",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 14,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "nuclear_silo",
+      "displayName": "Nuclear Silo",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 108,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "nydus_canal",
+      "displayName": "Nydus Canal",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 134,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "observer",
+      "displayName": "Observer",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 84,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "observatory",
+      "displayName": "Observatory",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 159,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "ocular_implants",
+      "displayName": "Ocular Implants",
+      "kind": "upgrade",
+      "race": "terran",
+      "sourceId": 20,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "optical_flare",
+      "displayName": "Optical Flare",
+      "kind": "tech",
+      "race": "terran",
+      "sourceId": 30,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "overlord",
+      "displayName": "Overlord",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 42,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "overmind",
+      "displayName": "Overmind",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 148,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "overmind_with_shell",
+      "displayName": "Overmind With Shell",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 147,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "parasite",
+      "displayName": "Parasite",
+      "kind": "tech",
+      "race": "zerg",
+      "sourceId": 18,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "personnel_cloaking",
+      "displayName": "Personnel Cloaking",
+      "kind": "tech",
+      "race": "terran",
+      "sourceId": 10,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "photon_cannon",
+      "displayName": "Photon Cannon",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 162,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "physics_lab",
+      "displayName": "Physics Lab",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 118,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "plague",
+      "displayName": "Plague",
+      "kind": "tech",
+      "race": "zerg",
+      "sourceId": 15,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "plasma_shields",
+      "displayName": "Plasma Shields",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 15,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "pneumatized_carapace",
+      "displayName": "Pneumatized Carapace",
+      "kind": "upgrade",
+      "race": "zerg",
+      "sourceId": 26,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "probe",
+      "displayName": "Probe",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 64,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "protoss_air_weapons",
+      "displayName": "Protoss Air Weapons",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 14,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "protoss_armor",
+      "displayName": "Protoss Armor",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 5,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "protoss_beacon",
+      "displayName": "Protoss Beacon",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 196,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "protoss_flag_beacon",
+      "displayName": "Protoss Flag Beacon",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 199,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "protoss_ground_weapons",
+      "displayName": "Protoss Ground Weapons",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 13,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "protoss_marker",
+      "displayName": "Protoss Marker",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 193,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "protoss_plating",
+      "displayName": "Protoss Plating",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 6,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "psionic_storm",
+      "displayName": "Psionic Storm",
+      "kind": "tech",
+      "race": "protoss",
+      "sourceId": 19,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "pylon",
+      "displayName": "Pylon",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 156,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "queen",
+      "displayName": "Queen",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 45,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "queens_nest",
+      "displayName": "Queens Nest",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 138,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "raszagal",
+      "displayName": "Raszagal",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 98,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "reaver",
+      "displayName": "Reaver",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 83,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "reaver_capacity",
+      "displayName": "Reaver Capacity",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 36,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "recall",
+      "displayName": "Recall",
+      "kind": "tech",
+      "race": "protoss",
+      "sourceId": 21,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "refinery",
+      "displayName": "Refinery",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 110,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "repair_bay",
+      "displayName": "Repair Bay",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 121,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "restoration",
+      "displayName": "Restoration",
+      "kind": "tech",
+      "race": "terran",
+      "sourceId": 24,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "robotics_facility",
+      "displayName": "Robotics Facility",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 155,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "robotics_support_bay",
+      "displayName": "Robotics Support Bay",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 171,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "samir_duran",
+      "displayName": "Samir Duran",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 99,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "sarah_kerrigan",
+      "displayName": "Sarah Kerrigan",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 16,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "scanner_sweep",
+      "displayName": "Scanner Sweep",
+      "kind": "tech",
+      "race": "terran",
+      "sourceId": 4,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "scarab",
+      "displayName": "Scarab",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 85,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "scarab_damage",
+      "displayName": "Scarab Damage",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 35,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "science_facility",
+      "displayName": "Science Facility",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 116,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "science_vessel",
+      "displayName": "Science Vessel",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 9,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "scourge",
+      "displayName": "Scourge",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 47,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "scout",
+      "displayName": "Scout",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 70,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "scv",
+      "displayName": "SCV",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 7,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "sensor_array",
+      "displayName": "Sensor Array",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 38,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "shield_battery",
+      "displayName": "Shield Battery",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 172,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "ship_plating",
+      "displayName": "Ship Plating",
+      "kind": "upgrade",
+      "race": "terran",
+      "sourceId": 2,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "ship_weapons",
+      "displayName": "Ship Weapons",
+      "kind": "upgrade",
+      "race": "terran",
+      "sourceId": 9,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "shuttle",
+      "displayName": "Shuttle",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 69,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "siege_mode",
+      "displayName": "Siege Mode",
+      "kind": "tech",
+      "race": "terran",
+      "sourceId": 5,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "siege_tank",
+      "displayName": "Siege Tank",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 5,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "siege_tank_siege",
+      "displayName": "Siege Tank Siege",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 30,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "singularity_charge",
+      "displayName": "Singularity Charge",
+      "kind": "upgrade",
+      "race": "protoss",
+      "sourceId": 33,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "spawn_broodlings",
+      "displayName": "Spawn Broodlings",
+      "kind": "tech",
+      "race": "zerg",
+      "sourceId": 13,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "spawning_pool",
+      "displayName": "Spawning Pool",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 142,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "spider_mine",
+      "displayName": "Spider Mine",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 13,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "spider_mines",
+      "displayName": "Spider Mines",
+      "kind": "tech",
+      "race": "terran",
+      "sourceId": 3,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "spire",
+      "displayName": "Spire",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 141,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "spore_colony",
+      "displayName": "Spore Colony",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 144,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "starbase",
+      "displayName": "Starbase",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 119,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "stargate",
+      "displayName": "Stargate",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 167,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "starport",
+      "displayName": "Starport",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 114,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "stasis_cell",
+      "displayName": "Stasis Cell",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 168,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "stasis_field",
+      "displayName": "Stasis Field",
+      "kind": "tech",
+      "race": "protoss",
+      "sourceId": 22,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "stim_packs",
+      "displayName": "Stim Packs",
+      "kind": "tech",
+      "race": "terran",
+      "sourceId": 0,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "sunken_colony",
+      "displayName": "Sunken Colony",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 146,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "supply_depot",
+      "displayName": "Supply Depot",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 109,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "tassadar",
+      "displayName": "Tassadar",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 79,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "tassadar_zeratul",
+      "displayName": "Tassadar Zeratul",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 76,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "tech_26",
+      "displayName": "Tech 26",
+      "kind": "tech",
+      "race": null,
+      "sourceId": 26,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "tech_33",
+      "displayName": "Tech 33",
+      "kind": "tech",
+      "race": null,
+      "sourceId": 33,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "templar_archives",
+      "displayName": "Templar Archives",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 165,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "terran_beacon",
+      "displayName": "Terran Beacon",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 195,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "terran_flag_beacon",
+      "displayName": "Terran Flag Beacon",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 198,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "terran_marker",
+      "displayName": "Terran Marker",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 192,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "titan_reactor",
+      "displayName": "Titan Reactor",
+      "kind": "upgrade",
+      "race": "terran",
+      "sourceId": 19,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "tom_kazansky",
+      "displayName": "Tom Kazansky",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 21,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "torrasque",
+      "displayName": "Torrasque",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 48,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "u_238_shells",
+      "displayName": "U-238 Shells",
+      "kind": "upgrade",
+      "race": "terran",
+      "sourceId": 16,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "ultralisk",
+      "displayName": "Ultralisk",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 39,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "ultralisk_cavern",
+      "displayName": "Ultralisk Cavern",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 140,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "unclean_one",
+      "displayName": "Unclean One",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 52,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "unused_protoss_building_1",
+      "displayName": "Unused Protoss Building 1",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 158,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "unused_protoss_building_2",
+      "displayName": "Unused Protoss Building 2",
+      "kind": "building",
+      "race": "protoss",
+      "sourceId": 161,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "unused_zerg_building_1",
+      "displayName": "Unused Zerg Building 1",
+      "kind": "building",
+      "race": "zerg",
+      "sourceId": 145,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "upgrade_45",
+      "displayName": "Upgrade 45",
+      "kind": "upgrade",
+      "race": null,
+      "sourceId": 45,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "upgrade_46",
+      "displayName": "Upgrade 46",
+      "kind": "upgrade",
+      "race": null,
+      "sourceId": 46,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "upgrade_48",
+      "displayName": "Upgrade 48",
+      "kind": "upgrade",
+      "race": null,
+      "sourceId": 48,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "upgrade_50",
+      "displayName": "Upgrade 50",
+      "kind": "upgrade",
+      "race": null,
+      "sourceId": 50,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "uraj_crystal",
+      "displayName": "Uraj Crystal",
+      "kind": "building",
+      "race": "terran",
+      "sourceId": 128,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "valkyrie",
+      "displayName": "Valkyrie",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 58,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "vehicle_plating",
+      "displayName": "Vehicle Plating",
+      "kind": "upgrade",
+      "race": "terran",
+      "sourceId": 1,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "vehicle_weapons",
+      "displayName": "Vehicle Weapons",
+      "kind": "upgrade",
+      "race": "terran",
+      "sourceId": 8,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "ventral_sacs",
+      "displayName": "Ventral Sacs",
+      "kind": "upgrade",
+      "race": "zerg",
+      "sourceId": 24,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "vulture",
+      "displayName": "Vulture",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 2,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "warbringer",
+      "displayName": "Warbringer",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 81,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "wraith",
+      "displayName": "Wraith",
+      "kind": "unit",
+      "race": "terran",
+      "sourceId": 8,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "yamato_gun",
+      "displayName": "Yamato Gun",
+      "kind": "tech",
+      "race": "terran",
+      "sourceId": 8,
+      "sourceNamespace": "tech"
+    },
+    {
+      "key": "yggdrasill",
+      "displayName": "Yggdrasill",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 57,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "zealot",
+      "displayName": "Zealot",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 65,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "zeratul",
+      "displayName": "Zeratul",
+      "kind": "unit",
+      "race": "protoss",
+      "sourceId": 75,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "zerg_beacon",
+      "displayName": "Zerg Beacon",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 194,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "zerg_flag_beacon",
+      "displayName": "Zerg Flag Beacon",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 197,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "zerg_flyer_attacks",
+      "displayName": "Zerg Flyer Attacks",
+      "kind": "upgrade",
+      "race": "zerg",
+      "sourceId": 12,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "zerg_marker",
+      "displayName": "Zerg Marker",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 191,
+      "sourceNamespace": "unit_type"
+    },
+    {
+      "key": "zerg_melee_attacks",
+      "displayName": "Zerg Melee Attacks",
+      "kind": "upgrade",
+      "race": "zerg",
+      "sourceId": 10,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "zerg_missile_attacks",
+      "displayName": "Zerg Missile Attacks",
+      "kind": "upgrade",
+      "race": "zerg",
+      "sourceId": 11,
+      "sourceNamespace": "upgrade"
+    },
+    {
+      "key": "zergling",
+      "displayName": "Zergling",
+      "kind": "unit",
+      "race": "zerg",
+      "sourceId": 37,
+      "sourceNamespace": "unit_type"
+    }
+  ]
+}
