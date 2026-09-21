@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { copyFile,mkdir,mkdtemp,readFile,rm,symlink,writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname,join } from "node:path";
+import { basename,dirname,join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ingestReplayAnalysis } from "./index.js";
 import { enqueueReplay } from "./jobs.js";
@@ -34,6 +34,16 @@ async function analysisFixture(root:string,replayPath?:string,mapName:string|nul
   const legacy=JSON.parse(await readFile(legacyPath,"utf8"));legacy.replay_id=sha;legacy.map=null;
   await writeFile(manifestPath,JSON.stringify(manifest));await writeFile(legacyPath,JSON.stringify(legacy));
   return {manifestPath,legacyPath,sha};
+}
+async function seedMissingReplays(corpusRoot:string,dbPath:string,count:number,prefix:string){
+  const seeded:Array<{sha:string;path:string}>=[];
+  for(let index=0;index<count;index++){
+    const bytes=`${prefix}-${index}`,sha=digest(bytes),path=join(corpusRoot,"replays",sha.slice(0,2),`${sha}.rep`);
+    await mkdir(dirname(path),{recursive:true});await writeFile(path,bytes);seeded.push({sha,path});
+  }
+  const db=new Database(dbPath),insert=db.query("INSERT INTO replays(sha256,byte_size,raw_relative_path,first_seen_at_ms,map_name,played_at_unix_s) VALUES (?,?,?,?,NULL,NULL)");
+  try{db.transaction(()=>{for(const item of seeded)insert.run(item.sha,0,"ignored/untrusted.rep",1);})();}finally{db.close();}
+  return seeded.sort((a,b)=>a.sha<b.sha?-1:a.sha>b.sha?1:0);
 }
 
 test("real replay metadata and registration expose the replay-declared map without disturbing chronology",async()=>{
@@ -65,6 +75,42 @@ test("direct manifest ingest fills a missing useful map and never overwrites an 
   expect(rows(dbPath,"SELECT map_name FROM replays")).toEqual([{map_name:"Manifest Map"}]);
 },{timeout:30000});
 
+test("100+ missing maps use bounded default batches and checkpoint each chunk before the next runtime",async()=>{
+  const root=await temp(),corpusRoot=join(root,"corpus"),dbPath=join(corpusRoot,"db/corpus.sqlite"),source=join(root,"source.rep");await copyFile(replayFixture,source);
+  await enqueueReplay({replayPath:source,corpusRoot,dbPath});const seeded=await seedMissingReplays(corpusRoot,dbPath,105,"bounded");
+  const calls:string[][]=[];
+  const result=await backfillReplayMapNames({corpusRoot,dbPath},{readMetadataBatch:async paths=>{
+    const index=calls.length,expected=seeded.slice(index*25,index*25+25).map(item=>item.path);
+    expect(paths).toEqual(expected);expect(paths.length).toBeLessThanOrEqual(25);
+    expect(rows(dbPath,"SELECT replay_id FROM replays WHERE map_name IS NOT NULL AND trim(map_name)<>''")).toHaveLength(1+index*25);
+    calls.push([...paths]);return paths.map(path=>({path,playedAtUnixSeconds:null,mapName:`Map ${basename(path,".rep")}`,error:null}));
+  }});
+  expect(calls.map(call=>call.length)).toEqual([25,25,25,25,5]);
+  expect(result).toMatchObject({examined:106,updated:105,alreadyPresent:1,unavailable:0,errors:[]});
+  expect(result.updated+result.alreadyPresent+result.unavailable).toBe(result.examined);
+  let rerunCalls=0;const second=await backfillReplayMapNames({corpusRoot,dbPath},{readMetadataBatch:async()=>{rerunCalls++;throw new Error("must not run");}});
+  expect(second).toMatchObject({examined:106,updated:0,alreadyPresent:106,unavailable:0,errors:[]});expect(rerunCalls).toBe(0);
+},{timeout:60000});
+
+test("whole-batch failure preserves earlier checkpoints, continues later batches, and rerun resumes only failures",async()=>{
+  const root=await temp(),corpusRoot=join(root,"corpus"),dbPath=join(corpusRoot,"db/corpus.sqlite"),source=join(root,"source.rep");await copyFile(replayFixture,source);
+  await enqueueReplay({replayPath:source,corpusRoot,dbPath});const seeded=await seedMissingReplays(corpusRoot,dbPath,60,"failure");let calls=0;
+  const first=await backfillReplayMapNames({corpusRoot,dbPath,batchSize:20},{readMetadataBatch:async paths=>{
+    const index=calls++;expect(paths).toEqual(seeded.slice(index*20,index*20+20).map(item=>item.path));
+    expect(rows(dbPath,"SELECT replay_id FROM replays WHERE map_name IS NOT NULL AND trim(map_name)<>''")).toHaveLength(index===0?1:21);
+    if(index===1)throw new Error("injected whole-batch failure");
+    return paths.map(path=>({path,playedAtUnixSeconds:null,mapName:`Map ${basename(path)}`,error:null}));
+  }});
+  expect(calls).toBe(3);expect(first).toMatchObject({examined:61,updated:40,alreadyPresent:1,unavailable:20});expect(first.errors).toHaveLength(20);
+  expect(first.updated+first.alreadyPresent+first.unavailable).toBe(first.examined);
+  const failed=seeded.slice(20,40);expect(rows(dbPath,"SELECT sha256 FROM replays WHERE map_name IS NULL ORDER BY sha256")).toEqual(failed.map(item=>({sha256:item.sha})));
+  const resumedCalls:string[][]=[];const resumed=await backfillReplayMapNames({corpusRoot,dbPath,batchSize:20},{readMetadataBatch:async paths=>{
+    resumedCalls.push([...paths]);return paths.map(path=>({path,playedAtUnixSeconds:null,mapName:"Recovered Map",error:null}));
+  }});
+  expect(resumedCalls).toEqual([failed.map(item=>item.path)]);expect(resumed).toMatchObject({examined:61,updated:20,alreadyPresent:41,unavailable:0,errors:[]});
+  const complete=await backfillReplayMapNames({corpusRoot,dbPath,batchSize:20});expect(complete).toMatchObject({examined:61,updated:0,alreadyPresent:61,unavailable:0,errors:[]});
+},{timeout:60000});
+
 test("map backfill verifies canonical bytes, isolates failures, changes only missing replay metadata, and is idempotent",async()=>{
   const root=await temp(),corpusRoot=join(root,"corpus"),dbPath=join(corpusRoot,"db/corpus.sqlite"),source=join(root,"source.rep");await copyFile(replayFixture,source);
   const registered=await enqueueReplay({replayPath:source,corpusRoot,dbPath}),artifacts=await analysisFixture(root,source,null);
@@ -89,7 +135,7 @@ test("map backfill verifies canonical bytes, isolates failures, changes only mis
   const result=await backfillReplayMapNames({corpusRoot,dbPath});
   expect(result.updated).toBe(1);expect(result.alreadyPresent).toBe(1);expect(result.unavailable).toBe(4+(linked?1:0));expect(result.errors).toHaveLength(result.unavailable);
   expect(rows(dbPath,"SELECT map_name FROM replays WHERE sha256='"+registered.replaySha256+"'")).toEqual([{map_name:expectedMap}]);
-  const cli=await Bun.$`${process.execPath} ${join(repo,"apps/cli/src/main.ts")} replays backfill-map-names --corpus-root ${corpusRoot} --db ${dbPath}`.quiet();
+  const cli=await Bun.$`${process.execPath} ${join(repo,"apps/cli/src/main.ts")} replays backfill-map-names --corpus-root ${corpusRoot} --db ${dbPath} --batch-size 2`.quiet();
   const second=JSON.parse(cli.stdout.toString());expect(second.updated).toBe(0);expect(second.alreadyPresent).toBe(2);
   for(const table of protectedTables)expect(tableState(dbPath,table)).toBe(before[table]);
   expect(await readFile(artifacts.manifestPath)).toEqual(manifestBefore);expect(await readFile(artifacts.legacyPath)).toEqual(legacyBefore);
@@ -105,4 +151,5 @@ test("map backfill rejects blank decoded names and a racing established value wi
   const raced=await backfillReplayMapNames({corpusRoot,dbPath},{beforeUpdate:async()=>execute(dbPath,"UPDATE replays SET map_name='Concurrent Map' WHERE sha256=?",[registered.replaySha256])});
   expect(raced.updated).toBe(0);expect(raced.alreadyPresent).toBe(1);expect(raced.unavailable).toBe(0);
   expect(rows(dbPath,"SELECT map_name FROM replays")).toEqual([{map_name:"Concurrent Map"}]);
+  await expect(backfillReplayMapNames({corpusRoot,dbPath,batchSize:0})).rejects.toThrow("positive integer");
 },{timeout:30000});

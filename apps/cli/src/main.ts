@@ -12,7 +12,7 @@ import { createAnalysisWorker, createWorkerId, enqueueReplay, listAnalysisJobs, 
   showAnalysisJob, type JobStatus } from "../../../packages/corpus-store/src/jobs.js";
 import { createReplayWatcher, WATCH_DEFAULTS } from "../../../packages/corpus-store/src/watcher.js";
 import { backfillReplayPlayedAt } from "../../../packages/corpus-store/src/chronology.js";
-import { backfillReplayMapNames } from "../../../packages/corpus-store/src/map-names.js";
+import { backfillReplayMapNames, MAP_NAME_BACKFILL_DEFAULTS } from "../../../packages/corpus-store/src/map-names.js";
 import { assertSafeAnalyzeOutputRoot } from "./analyze-output-path.js";
 import { buildCommandSpawnOptions } from "./child-process.js";
 import { corpusQueryRuntimeArgs } from "./corpus-query-runtime.js";
@@ -117,8 +117,9 @@ async function main(): Promise<void> {
       const operation=args[0],options={corpusRoot:resolveOptionPath(requireOption(args,"--corpus-root")),
         dbPath:resolveOptionPath(requireOption(args,"--db"))};
       if(operation==="backfill-played-at")console.log(JSON.stringify(await backfillReplayPlayedAt(options),null,2));
-      else if(operation==="backfill-map-names")console.log(JSON.stringify(await backfillReplayMapNames(options),null,2));
-      else throw new Error("Usage: bw-forge replays backfill-played-at|backfill-map-names --corpus-root <root> --db <path>");
+      else if(operation==="backfill-map-names")console.log(JSON.stringify(await backfillReplayMapNames({...options,
+        batchSize:integerOption(args,"--batch-size",MAP_NAME_BACKFILL_DEFAULTS.batchSize)}),null,2));
+      else throw new Error("Usage: bw-forge replays backfill-played-at|backfill-map-names --corpus-root <root> --db <path> [--batch-size <n>]");
       return;
     }
     case "reports": {
@@ -736,7 +737,7 @@ Commands:
   bw-forge identities export --db <path>
   bw-forge identities import <aliases.csv|json> --base <catalog.json> --output <catalog.json> [--format csv|json] [--dry-run]
   bw-forge replays backfill-played-at --corpus-root <root> --db <path>
-  bw-forge replays backfill-map-names --corpus-root <root> --db <path>
+  bw-forge replays backfill-map-names --corpus-root <root> --db <path> [--batch-size <n>]
   bw-forge reports index --db <path> --analyses-root <root>
   bw-forge jobs enqueue <replay.rep> --corpus-root <root> --db <path> [--priority <n>] [--force]
   bw-forge jobs list --db <path> [--status queued|running|succeeded|failed] [--limit <n>]

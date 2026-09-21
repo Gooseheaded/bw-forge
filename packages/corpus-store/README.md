@@ -398,12 +398,19 @@ Existing canonical replays can be indexed without reanalysis:
 ```sh
 bw-forge replays backfill-map-names \
   --corpus-root /srv/bw-forge/corpus \
-  --db /srv/bw-forge/corpus/db/corpus.sqlite
+  --db /srv/bw-forge/corpus/db/corpus.sqlite \
+  --batch-size 25
 ```
 
 The command derives every path from the replay SHA, rejects symlinks/non-files,
-recomputes SHA-256, batch-extracts header metadata, and transactionally fills only
-rows that are still null or blank. It never schedules work or changes analyses,
+recomputes SHA-256, and extracts header metadata in bounded batches of 25 by
+default. Every batch uses a fresh metadata-runtime process and transactionally
+fills only rows that are still null or blank before the next batch begins. Thus
+WASM memory is released between batches, completed progress survives interruption
+or a later batch failure, and a rerun naturally skips committed rows. `--batch-size`
+accepts any positive integer, though 25 is the production-safe default.
+
+The command never schedules work or changes analyses,
 publications, artifacts, provenance, telemetry, or replay bytes. Repeating the
 command is idempotent. Database-backed queries see updates immediately; regenerate
 the disposable aggregate report index separately with `bw-forge reports index`.
