@@ -103,16 +103,18 @@ export function frameAt(row: Scope, time: number): number {
   return Math.abs(value-nearest) < 1e-9 ? nearest : Math.floor(value);
 }
 export type Availability = "known" | "before_coverage" | "after_coverage" | "gap" | "unobserved";
-export function coverage(db: Database, row: Scope, stream: string, time: number) {
-  const frame = frameAt(row,time);
+export function coverageAtFrame(db: Database, observationId: number, stream: string, frame: number) {
   const segment = sqlRows(db, `SELECT start_frame,end_frame,basis FROM stream_coverage
-    WHERE observation_id=? AND stream=? AND start_frame<=? ORDER BY start_frame DESC LIMIT 1`, [row.observation_id,stream,frame])[0];
+    WHERE observation_id=? AND stream=? AND start_frame<=? ORDER BY start_frame DESC LIMIT 1`, [observationId,stream,frame])[0];
   let availability: Availability = "known";
   if (!segment) availability = "before_coverage";
   else if (frame > Number(segment.end_frame)) availability = sqlRows(db,
-    "SELECT 1 FROM stream_coverage WHERE observation_id=? AND stream=? AND start_frame>? LIMIT 1", [row.observation_id,stream,frame]).length ? "gap" : "after_coverage";
+    "SELECT 1 FROM stream_coverage WHERE observation_id=? AND stream=? AND start_frame>? LIMIT 1", [observationId,stream,frame]).length ? "gap" : "after_coverage";
   else if (segment.basis === "observations_only") availability = "unobserved";
   return { frame, segment, availability };
+}
+export function coverage(db: Database, row: Scope, stream: string, time: number) {
+  return coverageAtFrame(db,row.observation_id,stream,frameAt(row,time));
 }
 export function economy(db: Database, row: Scope, time: number) {
   const c = coverage(db,row,"economy",time);
@@ -140,11 +142,16 @@ export function unit(db: Database, row: Scope, name: string, time: number) {
     basis: s ? "explicit_change" : "complete_baseline_absence" } };
 }
 export function supply(db: Database,row: Scope,time: number) {
-  const c=coverage(db,row,"supply",time);
+  const result=supplyAtFrame(db,row.observation_id,frameAt(row,time));
+  return {availability:result.availability,sample:result.sample ? {...result.sample,time_seconds:seconds(row,result.sample.frame)} : null};
+}
+/** Exact-frame sparse supply lookup shared by higher-level Corpus v2 facts. */
+export function supplyAtFrame(db: Database,observationId:number,frame:number) {
+  const c=coverageAtFrame(db,observationId,"supply",frame);
   if(c.availability!=="known") return {availability:c.availability,sample:null};
   const s=sqlRows(db,"SELECT frame,current,max FROM supply_changes WHERE observation_id=? AND frame>=? AND frame<=? ORDER BY frame DESC LIMIT 1",
-    [row.observation_id,c.segment!.start_frame,c.frame])[0];
-  return {availability:s ? "known" : "unobserved",sample:s ? {...s,time_seconds:seconds(row,Number(s.frame))} : null};
+    [observationId,c.segment!.start_frame,c.frame])[0];
+  return {availability:s ? "known" as const : "unobserved" as const,sample:s ? {frame:Number(s.frame),current:Number(s.current),max:Number(s.max)} : null};
 }
 export function builds(db: Database,row: Scope,item?: string,from?: number,to?: number,n?: number) {
   const conditions=["b.observation_id=?"], args:unknown[]=[row.observation_id];

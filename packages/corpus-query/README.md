@@ -752,3 +752,25 @@ the current revision. Existing v2 stores migrate transactionally on identity app
 (or ingestion), without rebuilding. Before migration they still support raw-name
 queries and return an empty identity catalog. Identity SQL examples explicitly
 require revision 1; inspect `describe_schema` before using them on an older store.
+
+## Corpus v2 rule facts
+
+`src/query/facts.ts` is the parser-independent semantic layer for future build-rule
+features. Its `event(db, { observationId, unitKey, occurrence })` lookup counts
+one-based occurrences within a normalized `unit_types.unit_key`; it reports only
+persisted `build_events` and never invents starting buildings. A non-null source
+frame is represented as `timing.kind === "exact"`. A null source frame remains an
+explicit `"interval"` using `frame_min` and `frame_max`, even if those bounds happen
+to be equal.
+
+`before(left, right)` has three-valued ordering. It is definitely true only when
+the latest possible left frame is earlier than the earliest possible right frame,
+definitely false only when the earliest possible left frame is at or after the
+latest possible right frame, and otherwise ambiguous. Missing events are reported
+separately.
+
+`supplyBefore(db, eventResult)` implements conventional build-order supply as used
+supply at `event frame - 1`. For an interval it evaluates every possible pre-event
+frame: one value is known, multiple values are ambiguous, and any frame not
+established by `stream_coverage` is unavailable. It uses the existing sparse supply
+step lookup and applies no race-specific correction.
