@@ -22,6 +22,7 @@ import type {
   BwForgeReplayManifest,
   LegacyReplayAnalysisManifest
 } from "../../../packages/schemas/src/index.js";
+import { formatRuleDiagnostics, validateBuildRules } from "../../../packages/corpus-query/src/rules/index.js";
 
 const THIS_FILE = fileURLToPath(import.meta.url);
 const CLI_DIR = dirname(THIS_FILE);
@@ -127,6 +128,23 @@ async function main(): Promise<void> {
       if(args[0]!=="index")throw new Error("Usage: bw-forge reports index --db <path> --analyses-root <root>");
       await runCorpusQuerySubcommand({entrypointName:"corpus-query CLI",entrypoint:"cli",args:["reports","index",
         "--db",resolveOptionPath(requireOption(args,"--db")),"--analyses-root",resolveOptionPath(requireOption(args,"--analyses-root"))]});
+      return;
+    }
+    case "rules": {
+      if (args[0] !== "test" || !args[1] || args[1].startsWith("--")) {
+        throw new Error("Usage: bw-forge rules test <rule-file>");
+      }
+      const sourceName = args[1];
+      const source = await readFile(resolveOptionPath(sourceName), "utf8");
+      const result = validateBuildRules(source, sourceName);
+      if (!result.valid) {
+        console.error(formatRuleDiagnostics(result.diagnostics, source));
+        process.exitCode = 1;
+        return;
+      }
+      console.log(`bw-forge: rule file ${sourceName} syntax is ok`);
+      console.log(`bw-forge: rule file ${sourceName} validation is successful`);
+      console.log(`bw-forge: ${result.ruleCount ?? 0} rules validated`);
       return;
     }
     case "analyze":
@@ -738,6 +756,7 @@ Commands:
   bw-forge replays backfill-played-at --corpus-root <root> --db <path>
   bw-forge replays backfill-map-names --corpus-root <root> --db <path> [--batch-size <n>]
   bw-forge reports index --db <path> --analyses-root <root>
+  bw-forge rules test <rule-file>
   bw-forge jobs enqueue <replay.rep> --corpus-root <root> --db <path> [--priority <n>] [--force]
   bw-forge jobs list --db <path> [--status queued|running|succeeded|failed] [--limit <n>]
   bw-forge jobs show <job-key> --db <path>

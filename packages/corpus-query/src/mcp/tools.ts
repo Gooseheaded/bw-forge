@@ -67,6 +67,7 @@ import {
 } from "./textFormat.js";
 import * as z from "zod/v4";
 import { listCanonicalPlayers, getPlayerIdentity, listPlayerGroups, listScopes, type IdentityFilters } from "../identity/catalog.js";
+import { formatRuleDiagnostics, validateBuildRules } from "../rules/index.js";
 
 const nonEmptyString = z.string().trim().min(1);
 const optionalNonEmptyString = nonEmptyString.optional();
@@ -328,6 +329,11 @@ const executeReadonlySqlInputSchema = z.object({
   includeSchema: z.boolean().optional()
 });
 
+const validateBuildRulesInputSchema = z.object({
+  source: z.string(),
+  source_name: optionalNonEmptyString
+});
+
 type ToolPayload = {
   count: number;
   results: unknown[];
@@ -371,6 +377,7 @@ const SUPPORTED_TOOL_NAMES = [
   "list_player_groups",
   "list_scopes",
   "server_info",
+  "validate_build_rules",
   "ingest_corpus",
   "describe_schema",
   "get_schema_notes",
@@ -435,6 +442,27 @@ export function createReplayCorpusMcpServer(): McpServer {
           structuredContent: info as unknown as StructuredContentRecord
         };
       })
+  );
+
+  server.registerTool(
+    "validate_build_rules",
+    {
+      description: "Parse and semantically validate BW Build Rules source without evaluating it against replays.",
+      inputSchema: validateBuildRulesInputSchema.shape,
+      annotations: { readOnlyHint: true }
+    },
+    async (args) => {
+      const result = validateBuildRules(args.source, args.source_name);
+      const structuredContent: StructuredContentRecord = {
+        valid: result.valid,
+        ...(result.ruleCount !== undefined ? { rule_count: result.ruleCount } : {}),
+        diagnostics: result.diagnostics
+      };
+      const text = result.valid
+        ? `Rule source ${args.source_name ?? "<rules>"} syntax is ok; validation is successful (${result.ruleCount ?? 0} rules).`
+        : formatRuleDiagnostics(result.diagnostics, args.source);
+      return { content: [{ type: "text" as const, text }], structuredContent };
+    }
   );
 
   server.registerTool(

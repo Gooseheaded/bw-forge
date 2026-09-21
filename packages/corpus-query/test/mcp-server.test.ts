@@ -103,6 +103,7 @@ test("MCP server exposes generic tools and returns structured replay query resul
         "list_unit_types",
         "search_build_items",
         "server_info",
+        "validate_build_rules",
         "validate_readonly_sql"
       ]
     );
@@ -122,6 +123,7 @@ test("MCP server exposes generic tools and returns structured replay query resul
         "list_player_groups",
         "list_scopes",
         "server_info",
+        "validate_build_rules",
         "ingest_corpus",
         "describe_schema",
         "get_schema_notes",
@@ -1971,6 +1973,44 @@ async function readZipEntries(zipPath: string): Promise<Map<string, string>> {
 
   return entries;
 }
+
+test("MCP validate_build_rules returns valid source metadata", async () => {
+  const server = createReplayCorpusMcpServer();
+  const client = new Client({ name: "test-client", version: "1.0.0" }, { capabilities: {} });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  try {
+    const result = await client.callTool({
+      name: "validate_build_rules",
+      arguments: { source: 'rule "Valid" { siege_mode[1] before factory[2] }', source_name: "terran.bwbuild" }
+    });
+    assert.equal(result.isError, undefined);
+    assert.deepEqual(result.structuredContent, { valid: true, rule_count: 1, diagnostics: [] });
+  } finally {
+    await Promise.all([client.close(), server.close()]);
+  }
+});
+
+test("MCP validate_build_rules returns structured invalid-source diagnostics", async () => {
+  const server = createReplayCorpusMcpServer();
+  const client = new Client({ name: "test-client", version: "1.0.0" }, { capabilities: {} });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  try {
+    const result = await client.callTool({
+      name: "validate_build_rules",
+      arguments: { source: 'rule "Invalid" { siege_modes[1] before 2:75 }', source_name: "bad.bwbuild" }
+    });
+    assert.equal(result.isError, undefined);
+    const content = result.structuredContent as { valid: boolean; rule_count: number; diagnostics: Array<{ code: string; sourceName: string }> };
+    assert.equal(content.valid, false);
+    assert.equal(content.rule_count, 1);
+    assert.deepEqual(content.diagnostics.map((diagnostic) => diagnostic.code), ["UNKNOWN_EVENT_KEY", "INVALID_TIME"]);
+    assert.equal(content.diagnostics[0]?.sourceName, "bad.bwbuild");
+  } finally {
+    await Promise.all([client.close(), server.close()]);
+  }
+});
 
 function parseJsonResource(result: Awaited<ReturnType<Client["readResource"]>>): unknown {
   const textContent = result.contents.find(
