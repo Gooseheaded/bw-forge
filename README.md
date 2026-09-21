@@ -16,7 +16,9 @@ read-only SQL work.
     |
     +-- optional filesystem watcher -> persistent analysis queue
     |
-    +-- bundled headless-bwsim replay engine
+    +-- pinned screp parser -> static header/map metadata
+    |
+    +-- bundled headless-bwsim replay engine -> simulation telemetry
     |
     | per-frame JSONL telemetry
     v
@@ -102,6 +104,18 @@ Electron runtime, an injected DLL, or a separate headless-bwsim checkout.
 Cumulative gathered mineral/gas fields and Scanner Sweep are intentionally
 absent. Standard competitive Melee and Top-vs-Bottom replays are the supported
 baseline; Use Map Settings compatibility is not guaranteed.
+
+### screp static replay metadata
+
+`third_party/screp` contains official, checksum-pinned screp v1.13.4 Linux and
+Windows amd64 executables plus its Apache-2.0 license. BW Forge invokes this
+application-owned runtime directly for replay chronology and map names; it does
+not use `PATH`, a global installation, a Go toolchain, or a network connection.
+The executable is integrity-checked before first use in each process.
+
+screp is the static replay-file parser. headless-bwsim remains the simulation
+and frame-telemetry engine. Future static metadata should not initialize bwsim
+when it is directly available from the replay file.
 
 ### Python replay reduction
 
@@ -240,6 +254,7 @@ packages/legacy-replay-analysis  Python timeline reducer and artifact writer
 packages/replay-analysis-summarizer
 packages/schemas                 Canonical wrapper manifest types
 third_party/bwsim                Pinned headless replay-simulation runtime
+third_party/screp                Pinned static replay-metadata runtime
 fixtures                         Golden replay and expected-output fixtures
 docs                             Artifact and migration documentation
 openspec                         Spec-driven change proposals and tasks
@@ -312,8 +327,8 @@ override its location.
 
 ## Runtime Requirements and Boundaries
 
-- The bundled bwsim backend is self-contained apart from Node 24.5+ and Python 3; its
-  runtime is included in packaged/offline layouts.
+- The bundled bwsim simulation backend and screp static parser are included in
+  packaged/offline layouts. The appliance requires neither StarCraft nor Go.
 - The root package uses Bun 1.3.x.
 - The desktop shell uses Electron, React, TypeScript, Vite, and
   electron-builder. Its Windows distributable bundles the complete BW Forge

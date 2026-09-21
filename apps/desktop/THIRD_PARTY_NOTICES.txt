@@ -26,12 +26,21 @@ Bundled components
    - Provenance, commit, and artifact hashes are recorded in the source tree at:
      - third_party\bwsim\VENDORED.md
 
-4. Corpus query runtime
+4. screp static replay parser
+   - Source project: icza/screp
+   - Version: 1.13.4
+   - License: Apache-2.0
+   - License and pinned release provenance are bundled under:
+     - third_party\screp\LICENSE
+     - third_party\screp\VENDORED.md
+     - third_party\screp\provenance.json
+
+5. Corpus query runtime
    - Source package: bw-replay-corpus-query
    - Version: 0.2.0
    - License: MIT
 
-5. BW Forge desktop shell
+6. BW Forge desktop shell
    - Source package: @bw-forge/desktop
    - Version: 0.2.0
 
@@ -40,6 +49,7 @@ Source-tree references
 
 The corresponding source imports in this repository are located at:
   - third_party\bwsim
+  - third_party\screp
   - packages\corpus-query
   - apps\desktop
 

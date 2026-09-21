@@ -32,6 +32,9 @@ describe("runtime validation", () => {
       if (probe.executable.endsWith("python.exe")) {
         return "Python 3.14.6";
       }
+      if (probe.executable.endsWith("screp.exe")) {
+        return "screp version: v1.13.4\nPlatform: windows amd64";
+      }
       throw new Error(`unexpected probe: ${probe.executable}`);
     });
 
@@ -41,6 +44,7 @@ describe("runtime validation", () => {
     expect(validation.checks.some((check) => check.id === "python" && check.status === "pass")).toBe(true);
     expect(validation.checks.some((check) => check.id === "bwsim-wasm" && check.status === "pass")).toBe(true);
     expect(validation.checks.some((check) => check.id === "bwsim-assets" && check.status === "pass")).toBe(true);
+    expect(validation.checks.some((check) => check.id === "screp" && check.status === "pass")).toBe(true);
     expect(validation.checks.some((check) => check.id === "bun")).toBe(false);
     expect(validation.checks.some((check) => check.id === "pnpm")).toBe(false);
     expect(validation.checks.some((check) => check.label === "Built-in app files")).toBe(true);
@@ -64,12 +68,32 @@ describe("runtime validation", () => {
       if (probe.executable.endsWith("python.exe")) {
         return "Python 3.14.6";
       }
+      if (probe.executable.endsWith("screp.exe")) {
+        return "screp version: v1.13.4\nPlatform: windows amd64";
+      }
       throw new Error(`unexpected probe: ${probe.executable}`);
     });
 
     expect(validation.canAnalyze).toBe(false);
     expect(validation.canIngest).toBe(true);
     expect(validation.checks.find((check) => check.id === "bwsim-wasm")?.status).toBe("fail");
+  });
+
+  test("blocks metadata-dependent workflows when pinned screp cannot execute", async () => {
+    const runtimeRoot = await createPackagedRuntimeFixture();
+    const settings = {
+      ...await createDefaultSettings({ documentsPath: "C:\\Users\\tester\\Documents", runtimeRoot }),
+      runtimeRoot
+    };
+    const validation = await validateRuntime(settings, async (probe: ExecutableProbe) => {
+      if (probe.executable === process.execPath) return "bw-forge help";
+      if (probe.executable.endsWith("python.exe")) return "Python 3.14.6";
+      if (probe.executable.endsWith("screp.exe")) throw new Error("bad executable");
+      throw new Error(`unexpected probe: ${probe.executable}`);
+    });
+    expect(validation.canAnalyze).toBe(false);
+    expect(validation.canIngest).toBe(false);
+    expect(validation.checks.find((check) => check.id === "screp")?.status).toBe("fail");
   });
 });
 
@@ -87,6 +111,7 @@ async function createPackagedRuntimeFixture(): Promise<string> {
   await writeRuntimeFile(root, "apps/cli/src/bwsim-exporter.js", "console.log('bwsim')\n");
   await writeRuntimeFile(root, "third_party/bwsim/bwsim_wasm.bwforge.wasm", "wasm");
   await writeRuntimeFile(root, "third_party/bwsim/sim.pack.gz", "assets");
+  await writeRuntimeFile(root, "third_party/screp/windows-amd64/screp.exe", "screp");
   return root;
 }
 

@@ -56,6 +56,14 @@ does not recursively `chmod` or `chown` existing trees. Fix reported ownership o
 errors deliberately, for example with narrowly scoped administrator commands suited
 to the appliance's ownership policy.
 
+Static replay metadata is parsed by the application-owned, Apache-2.0 licensed
+`screp` v1.13.4 executable at
+`/srv/bw-forge/app/third_party/screp/linux-amd64/screp`. Deploy the complete
+application tree from the connected packaging machine; the appliance does not
+download screp and needs no Go toolchain or global installation. The installer
+rejects a missing, symlinked, non-executable, wrong-version, wrong-platform, or
+checksum-mismatched runtime before changing systemd configuration.
+
 `--start` enables and restarts the target after installation. Without it, the target
 is enabled for future boots but remains stopped until explicitly started. Rerunning
 the installer replaces only the environment/unit definitions, runs
@@ -166,8 +174,8 @@ jobs reclaimable. An unexpected MCP exit is restarted and recreates the HTTP end
 No systemd-specific rows or schema revision are added to Corpus v2.
 
 The watcher defaults to four concurrent replay registrations across startup scans,
-periodic reconciliation, and filesystem events. Large existing inboxes therefore feed
-the queue steadily without creating one metadata runtime per replay.
+periodic reconciliation, and filesystem events. Static metadata uses short-lived
+screp processes rather than bwsim/WASM; registration concurrency remains bounded.
 
 ## Application upgrades
 

@@ -352,10 +352,11 @@ watcher / downloader
 
 Additive Corpus v2 revision 3 adds nullable `replays.played_at_unix_s` and the
 `replays_by_played_at` range index while preserving both major version markers
-at 2. The value is UTC Unix seconds declared at offset `0x08` of the replay
-Header section. BW Forge reads it from bwsim's decoded replay data and never
-uses the replay filename, mtime, or ctime. Zero or an unreadable header remains
-`NULL`. Once populated, registration and reanalysis do not change it.
+at 2. The value is UTC Unix seconds declared by the replay Header start time.
+BW Forge reads it with the pinned screp v1.13.4 static parser and never uses the
+replay filename, mtime, ctime, or a timezone reinterpretation. Zero or an
+unreadable header remains `NULL`. Once populated, registration and reanalysis
+do not change it.
 
 New registrations extract chronology automatically. Existing managed replays
 can be filled explicitly, without analysis, using:
@@ -377,15 +378,19 @@ analysis time, and publication time.
 The primary map-name source is the SHA-verified canonical replay:
 
 ```text
-corpus/replays/<sha-prefix>/<sha>.rep -> replayHeader().mapName
+corpus/replays/<sha-prefix>/<sha>.rep -> screp JSON
+  -> nonblank MapData.Name, else Header.Map
 ```
 
 `replays.map_name` is a derived searchable index of that replay-declared text.
-Registration extracts it at frame zero through the same shared headless-bwsim
-metadata runtime as chronology; no simulation frames, telemetry, analysis job,
-or worker are involved. A null, empty, or whitespace-only decoded name remains
-unknown. Accepted text is stored exactly as returned by the current bwsim wrapper:
-it is not trimmed, normalized, case-folded, version-stripped, or canonicalized.
+Registration extracts it through the same shared screp-backed metadata API as
+chronology; bwsim/WASM, simulation frames, telemetry, analysis jobs, and workers
+are not involved. screp's basic map-data name is preferred because fixed-width
+header names are sometimes truncated; the header name is the fallback. A null,
+empty, or whitespace-only decoded name remains unknown. In-band nonprinting
+StarCraft formatting controls are removed to retain the established visible-name
+contract. Accepted text is otherwise not trimmed, normalized, case-folded,
+version-stripped, or canonicalized.
 
 Legacy analysis manifests are immutable historical artifacts and may continue to
 contain `"map": null`. Ingest uses a replay-header map when available, otherwise
@@ -403,21 +408,20 @@ bw-forge replays backfill-map-names \
 ```
 
 The command derives every path from the replay SHA, rejects symlinks/non-files,
-recomputes SHA-256, and extracts header metadata in bounded batches of 25 by
-default. Every batch uses a fresh metadata-runtime process and transactionally
-fills only rows that are still null or blank before the next batch begins. Thus
-WASM memory is released between batches, completed progress survives interruption
-or a later batch failure, and a rerun naturally skips committed rows. `--batch-size`
-accepts any positive integer, though 25 is the production-safe default.
+recomputes SHA-256, and extracts metadata in bounded checkpoint batches of 25 by
+default. Within each batch the shared API invokes one short-lived screp process
+per replay, sequentially and in input order; no bwsim instance or WASM memory is
+created. Each batch transactionally fills only rows that are still null or blank
+before the next begins, so completed progress survives interruption or a later
+batch failure and a rerun naturally skips committed rows. `--batch-size` accepts
+any positive integer; it controls checkpoint size, not parser reuse.
 
 The command never schedules work or changes analyses,
 publications, artifacts, provenance, telemetry, or replay bytes. Repeating the
 command is idempotent. Database-backed queries see updates immediately; regenerate
 the disposable aggregate report index separately with `bw-forge reports index`.
 
-The vendored wrapper currently decodes fixed-width map-name bytes as UTF-8, stops
-at NUL, removes its existing ASCII control characters, and can emit replacement
-characters for invalid legacy bytes. Exact Korean or other legacy code-page
-fidelity is therefore not proven. This milestone deliberately accepts and
-preserves the wrapper's decoded string; raw-byte storage and encoding heuristics
-are deferred.
+screp performs legacy replay string decoding and the JSON interface supplies the
+decoded string rather than raw map-name bytes. Exact byte-for-byte fidelity for
+every Korean or other legacy code page is not claimed. Raw-byte storage and BW
+Forge encoding heuristics remain deliberately deferred.

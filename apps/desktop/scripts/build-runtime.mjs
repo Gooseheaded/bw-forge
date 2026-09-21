@@ -18,6 +18,8 @@ const PYTHON_EMBED_ARCHIVE_NAME = `python-${PYTHON_EMBED_VERSION}-embed-amd64.zi
 const PYTHON_EMBED_URL = `https://www.python.org/ftp/python/${PYTHON_EMBED_VERSION}/${PYTHON_EMBED_ARCHIVE_NAME}`;
 const PYTHON_EMBED_SHA256 =
   "df901e84a896ff1ee720ad03377e0c8d8c2244fda79808aeeaff6316df1cb75c";
+const SCREP_WINDOWS_AMD64_SHA256 =
+  "9195a82e7cc39de750a97dbeb387d8b53d3ab6b00b5ef2dbcbaedaeb7f73f6e4";
 
 async function main() {
   await rm(OUTPUT_ROOT, { recursive: true, force: true });
@@ -30,17 +32,11 @@ async function main() {
   await packageEmbeddedPython(embeddedPythonArchive);
   await packageScForgeTemplate();
   await packageBwsimRuntime();
+  await packageScrepRuntime();
 
   await bundleEntrypoint(esbuildExecutable, {
     entrypoint: resolve(REPO_ROOT, "apps", "cli", "src", "main.ts"),
     outfile: resolve(OUTPUT_ROOT, "apps", "cli", "src", "main.js"),
-    format: "esm"
-  });
-  // corpus-store's replay chronology decoder runs in Node because bwsim uses
-  // WebAssembly memory64; keep the spawned helper beside the bundled CLI.
-  await bundleEntrypoint(esbuildExecutable, {
-    entrypoint: resolve(REPO_ROOT, "packages", "corpus-store", "src", "replay-metadata-runtime.mjs"),
-    outfile: resolve(OUTPUT_ROOT, "apps", "cli", "src", "replay-metadata-runtime.mjs"),
     format: "esm"
   });
   await bundleEntrypoint(esbuildExecutable, {
@@ -263,6 +259,21 @@ async function packageBwsimRuntime() {
     "bwsim_wasm.bwforge.wasm",
     "sim.pack.gz"
   ]) {
+    await copyFile(resolve(sourceRoot, filename), resolve(targetRoot, filename));
+  }
+}
+
+async function packageScrepRuntime() {
+  const sourceRoot = resolve(REPO_ROOT, "third_party", "screp");
+  const sourceExecutable = resolve(sourceRoot, "windows-amd64", "screp.exe");
+  const actualSha256 = await sha256File(sourceExecutable);
+  if (actualSha256 !== SCREP_WINDOWS_AMD64_SHA256) {
+    throw new Error(`screp runtime checksum mismatch. Expected ${SCREP_WINDOWS_AMD64_SHA256}, got ${actualSha256}.`);
+  }
+  const targetRoot = resolve(OUTPUT_ROOT, "third_party", "screp");
+  await mkdir(resolve(targetRoot, "windows-amd64"), { recursive: true });
+  await copyFile(sourceExecutable, resolve(targetRoot, "windows-amd64", "screp.exe"));
+  for (const filename of ["LICENSE", "VENDORED.md", "provenance.json"]) {
     await copyFile(resolve(sourceRoot, filename), resolve(targetRoot, filename));
   }
 }

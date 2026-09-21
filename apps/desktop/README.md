@@ -9,12 +9,13 @@ The Windows installer includes everything needed for replay analysis:
 
 - the pinned headless-bwsim WebAssembly replay engine and asset pack;
 - the bwsim JSONL exporter;
+- the pinned screp v1.13.4 static replay parser;
 - embedded Python and the replay reducer;
 - the standalone report template; and
 - the corpus-query CLI and MCP server.
 
-Users do not need StarCraft, ShieldBattery, Node, Bun, pnpm, Python, or a
-separate headless-bwsim checkout. Standard competitive Melee and Top-vs-Bottom
+Users do not need StarCraft, ShieldBattery, Node, Bun, pnpm, Go, Python, or a
+separate headless-bwsim/screp checkout. Standard competitive Melee and Top-vs-Bottom
 replays are the supported baseline. Use Map Settings compatibility is not
 guaranteed.
 
@@ -40,7 +41,7 @@ pnpm build
 cd ..\..
 ```
 
-The vendored `third_party/bwsim` runtime must be present. No backend-specific
+The vendored `third_party/bwsim` and `third_party/screp` runtimes must be present. No backend-specific
 package installation is required.
 
 Useful commands:
@@ -72,6 +73,10 @@ resources\runtime\
   third_party\bwsim\
     bwsim_wasm.bwforge.wasm
     sim.pack.gz
+  third_party\screp\
+    LICENSE
+    provenance.json
+    windows-amd64\screp.exe
 ```
 
 The desktop uses its own Electron executable in Node mode for the bundled CLI
@@ -96,8 +101,9 @@ For a clean-machine smoke test:
 
 1. Ensure no StarCraft path or installation is available.
 2. Build the unpacked application or installer.
-3. Confirm the installed runtime contains the two bwsim engine assets above and
-   contains no replay-engine Electron distribution.
+3. Confirm the installed runtime contains the two bwsim engine assets and the
+   checksum-pinned screp executable above, and contains no replay-engine
+   Electron distribution.
 4. Analyze a representative `.rep`, ingest the output, open the report, and
    start the MCP server.
 5. Run the repository test and typecheck gates before publishing.

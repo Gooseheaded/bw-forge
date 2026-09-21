@@ -55,6 +55,15 @@ export async function validateRuntime(
       )
     );
     checks.push(
+      await checkScrep(
+        "screp",
+        "Built-in static replay parser",
+        { executable: layout.screpExecutable, args: ["-version"], cwd: runtimeRoot },
+        probeExecutable,
+        "The pinned screp runtime is missing or cannot execute. Reinstall BW Forge."
+      )
+    );
+    checks.push(
       await checkPath(
         "cli-entrypoint",
         "Main analysis program",
@@ -158,6 +167,15 @@ export async function validateRuntime(
       )
     );
     checks.push(
+      await checkScrep(
+        "screp",
+        "Static replay parser",
+        { executable: layout.screpExecutable, args: ["-version"], cwd: runtimeRoot },
+        probeExecutable,
+        "Restore the vendored third_party/screp runtime."
+      )
+    );
+    checks.push(
       await checkPath(
         "bwsim-wasm",
         "Replay engine",
@@ -245,8 +263,8 @@ export async function validateRuntime(
     "output-path",
     "database-path",
     ...(layout.kind === "packaged"
-      ? ["runtime-manifest", "replay-reducer", "report-template", "bwsim-wasm", "bwsim-assets", "bwsim-exporter", "packaged-cli-self-check"]
-      : ["bwsim-wasm", "bwsim-assets", "bwsim-exporter", "bun", "node"])
+      ? ["runtime-manifest", "replay-reducer", "report-template", "bwsim-wasm", "bwsim-assets", "bwsim-exporter", "screp", "packaged-cli-self-check"]
+      : ["bwsim-wasm", "bwsim-assets", "bwsim-exporter", "screp", "bun", "node"])
   ]);
   const requiredIngestChecks = new Set([
     "runtime-root",
@@ -255,8 +273,8 @@ export async function validateRuntime(
     "output-path",
     "database-path",
     ...(layout.kind === "packaged"
-      ? ["runtime-manifest", "packaged-cli-self-check"]
-      : ["bun", "node"])
+      ? ["runtime-manifest", "screp", "packaged-cli-self-check"]
+      : ["screp", "bun", "node"])
   ]);
   return {
     checkedAt: new Date().toISOString(),
@@ -300,6 +318,24 @@ async function checkExecutable(
       `${probe.executable} could not be executed: ${formatError(error)}`,
       remediation
     );
+  }
+}
+
+async function checkScrep(
+  id: string,
+  label: string,
+  probe: ExecutableProbe,
+  probeExecutable: ProbeExecutable,
+  remediation: string
+): Promise<RuntimeCheck> {
+  try {
+    const version = await probeExecutable(probe);
+    if (!version.includes("screp version: v1.13.4") || !version.includes("Platform: windows amd64")) {
+      throw new Error("expected screp v1.13.4 for windows amd64");
+    }
+    return pass(id, label, version);
+  } catch (error) {
+    return fail(id, label, `${probe.executable} could not be validated: ${formatError(error)}`, remediation);
   }
 }
 

@@ -20,8 +20,8 @@ async function sha256(path:string):Promise<string>{
   const digest=createHash("sha256");for await(const chunk of createReadStream(path))digest.update(chunk);return digest.digest("hex");
 }
 
-/** Fill only missing map names from SHA-verified canonical replay headers. Each
- * bounded chunk gets a fresh metadata subprocess and commits before the next. */
+/** Fill only missing map names from SHA-verified canonical replays. Each bounded
+ * checkpoint calls the shared parser and commits before advancing. */
 export async function backfillReplayMapNames(options:{corpusRoot:string;dbPath:string;batchSize?:number},
   dependencies:MapNameBackfillDependencies={}):Promise<BackfillMapNamesResult>{
   const batchSize=options.batchSize??MAP_NAME_BACKFILL_DEFAULTS.batchSize;

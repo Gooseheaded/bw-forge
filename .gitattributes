@@ -1,1 +1,3 @@
 *.sh text eol=lf
+third_party/screp/linux-amd64/screp binary
+third_party/screp/windows-amd64/screp.exe binary

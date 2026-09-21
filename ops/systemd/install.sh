@@ -105,6 +105,13 @@ PYTHON_PATH=$(resolve_executable Python "$PYTHON_PATH" python3)
 
 [ -d "$APP_ROOT" ] || die "app root is not a directory: $APP_ROOT"
 [ -r "$APP_ROOT/apps/cli/src/main.ts" ] || die "BW Forge CLI is missing or unreadable: $APP_ROOT/apps/cli/src/main.ts"
+SCREP_PATH="$APP_ROOT/third_party/screp/linux-amd64/screp"
+SCREP_SHA256="53027490e86a672237464fb4fa903528d17f9e449303b0de3f922be2bc4b7da9"
+[ -f "$SCREP_PATH" ] && [ ! -L "$SCREP_PATH" ] || die "pinned screp runtime is missing or not a regular file: $SCREP_PATH"
+[ -x "$SCREP_PATH" ] || die "pinned screp runtime is not executable: $SCREP_PATH"
+command -v sha256sum >/dev/null 2>&1 || die "sha256sum is required to validate the pinned screp runtime"
+SCREP_ACTUAL_SHA256=$(sha256sum -- "$SCREP_PATH" | awk '{print $1}')
+[ "$SCREP_ACTUAL_SHA256" = "$SCREP_SHA256" ] || die "pinned screp runtime checksum mismatch: $SCREP_PATH"
 [ -d "$CORPUS_ROOT" ] || die "corpus root is not a directory: $CORPUS_ROOT"
 [ -d "$CORPUS_ROOT/analyses" ] || die "analyses root is not a directory: $CORPUS_ROOT/analyses"
 [ -f "$DB_PATH" ] || die "Corpus database does not exist; refusing to initialize it: $DB_PATH"
@@ -148,7 +155,10 @@ for path in "$CORPUS_ROOT" "$CORPUS_ROOT/analyses" "$INBOX" "$DB_DIR"; do
   check_access -r "read" "$path"; check_access -w "write" "$path"; check_access -x "traverse" "$path"
 done
 check_access -r "read" "$DB_PATH"; check_access -w "write" "$DB_PATH"
-for path in "$BUN_PATH" "$NODE_PATH" "$PYTHON_PATH"; do check_access -x "execute" "$path"; done
+for path in "$BUN_PATH" "$NODE_PATH" "$PYTHON_PATH" "$SCREP_PATH"; do check_access -x "execute" "$path"; done
+SCREP_VERSION_OUTPUT=$(as_service_user "$SCREP_PATH" -version 2>&1) || die "pinned screp runtime could not execute: $SCREP_PATH"
+case "$SCREP_VERSION_OUTPUT" in *"screp version: v1.13.4"*) ;; *) die "unexpected screp version; expected v1.13.4" ;; esac
+case "$SCREP_VERSION_OUTPUT" in *"Platform: linux amd64"*) ;; *) die "unexpected screp platform; expected linux amd64" ;; esac
 
 case "$MCP_PORT" in ''|*[!0-9]*) die "MCP port must be an integer" ;; esac
 [ "$MCP_PORT" -ge 1 ] && [ "$MCP_PORT" -le 65535 ] || die "MCP port must be 1..65535"

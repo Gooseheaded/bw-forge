@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "package": {
+    "name": "github.com/icza/screp/cmd/screp",
+    "version": "v1.13.4",
+    "upstreamCommit": "43654a45e6d1704a105f5f1ab54935e35454a58c",
+    "license": "Apache-2.0",
+    "releaseUrl": "https://github.com/icza/screp/releases/tag/v1.13.4"
+  },
+  "artifacts": {
+    "linuxAmd64": {
+      "archive": "screp-v1.13.4-linux-amd64.tar.gz",
+      "archiveSha256": "5b6ca0f0b91faccc658b3114a6ac3923c4ec3d579a774bca5698955fa2fa5006",
+      "path": "linux-amd64/screp",
+      "sha256": "53027490e86a672237464fb4fa903528d17f9e449303b0de3f922be2bc4b7da9"
+    },
+    "windowsAmd64": {
+      "archive": "screp-v1.13.4-windows-amd64.zip",
+      "archiveSha256": "26db40ef55bdb919470b17d4dde48a87fd5279d1a462be7227bd721b60ea0892",
+      "path": "windows-amd64/screp.exe",
+      "sha256": "9195a82e7cc39de750a97dbeb387d8b53d3ab6b00b5ef2dbcbaedaeb7f73f6e4"
+    }
+  }
+}

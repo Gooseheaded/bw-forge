@@ -14,6 +14,7 @@ export interface RuntimeLayout {
   reportTemplate: string;
   bwsimRuntimeDirectory: string;
   bwsimExporter: string;
+  screpExecutable: string;
   manifestPath: string;
 }
 
@@ -65,6 +66,13 @@ export function resolveRuntimeLayout(runtimeRoot: string): RuntimeLayout {
       "cli",
       "src",
       isPackaged ? "bwsim-exporter.js" : "bwsim-exporter.ts"
+    ),
+    screpExecutable: join(
+      resolvedRoot,
+      "third_party",
+      "screp",
+      "windows-amd64",
+      "screp.exe"
     ),
     manifestPath: packagedManifest
   };

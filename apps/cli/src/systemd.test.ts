@@ -1,13 +1,15 @@
 import { afterEach, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
 import { spawnSync } from "node:child_process";
-import { chmod, chown, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { chmod, chown, copyFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repo=fileURLToPath(new URL("../../../",import.meta.url));
 const renderer=join(repo,"ops/systemd/render.mjs"),installer=join(repo,"ops/systemd/install.sh");
+const bash=process.platform==="win32"&&existsSync("C:\\Program Files\\Git\\bin\\bash.exe")?"C:\\Program Files\\Git\\bin\\bash.exe":"bash";
 const temporary:string[]=[];
 afterEach(async()=>{for(const path of temporary.splice(0))await rm(path,{recursive:true,force:true});});
 
@@ -53,16 +55,18 @@ test("renderer rejects unsafe configuration",async()=>{
 });
 
 test("installer shell is syntactically valid",()=>{
-  const result=run("bash",["-n","ops/systemd/install.sh"]);
+  const result=run(bash,["-n","ops/systemd/install.sh"]);
   if(result.error&&(result.error as NodeJS.ErrnoException).code==="ENOENT")return;
   expect(result.status,result.stderr).toBe(0);
-  const missing=run("bash",["ops/systemd/install.sh"]);expect(missing.status).not.toBe(0);expect(missing.stderr).toContain("--user is required");
+  const missing=run(bash,["ops/systemd/install.sh"]);expect(missing.status).not.toBe(0);expect(missing.stderr).toContain("--user is required");
 },15000);
 
 test("Linux staged installer validates inputs and is idempotent without touching Corpus",async()=>{
   if(process.platform!=="linux")return;
   const root=await temp("bw-systemd-install-"),app=join(root,"app root"),corpus=join(root,"corpus"),inbox=join(root,"inbox"),db=join(corpus,"db","corpus.sqlite"),dest=join(root,"stage");
   await mkdir(join(app,"apps/cli/src"),{recursive:true});await writeFile(join(app,"apps/cli/src/main.ts"),"// fixture\n");await mkdir(dirname(db),{recursive:true});await mkdir(join(corpus,"analyses"));await mkdir(inbox);
+  const screp=join(app,"third_party/screp/linux-amd64/screp");await mkdir(dirname(screp),{recursive:true});
+  await copyFile(join(repo,"third_party/screp/linux-amd64/screp"),screp);await chmod(screp,0o755);
   const corpusDb=new Database(db);corpusDb.exec("CREATE TABLE analysis_jobs(job_key TEXT);INSERT INTO analysis_jobs VALUES ('queued');CREATE TABLE canonical_players(player_key TEXT);INSERT INTO canonical_players VALUES ('goose');CREATE TABLE analysis_runs(analysis_key TEXT);INSERT INTO analysis_runs VALUES ('analysis');CREATE TABLE economy_changes(frame INTEGER);INSERT INTO economy_changes VALUES (42)");corpusDb.close();
   let user=run("id",["-un"]).stdout.trim();if(user==="root")user="nobody";
   if(run("id",[user]).status!==0)return;
@@ -76,17 +80,17 @@ test("Linux staged installer validates inputs and is idempotent without touching
   }
   const which=(name:string)=>run("sh",["-c",`command -v ${name}`]).stdout.trim(),bun=which("bun"),node=which("node"),python=which("python3");if(!bun||!node||!python)return;
   const base=[installer,"--destdir",dest,"--user",user,"--app-root",app,"--corpus-root",corpus,"--inbox",inbox,"--db",db,"--bun",bun,"--node",node,"--python",python];
-  expect(run("bash",[installer,"--destdir",dest,"--user","definitely-no-such-user","--app-root",app,"--corpus-root",corpus,"--inbox",inbox,"--db",db,"--bun",bun,"--node",node,"--python",python]).status).not.toBe(0);
-  expect(run("bash",base.map(value=>value===user?"root":value)).status).not.toBe(0);
-  expect(run("bash",base.map(value=>value===app?join(root,"missing-app"):value)).status).not.toBe(0);
-  expect(run("bash",base.map(value=>value===corpus?join(root,"missing-corpus"):value)).status).not.toBe(0);
-  expect(run("bash",base.map(value=>value===db?join(root,"missing.sqlite"):value)).status).not.toBe(0);
-  expect(run("bash",base.map(value=>value===bun?join(root,"missing-bun"):value)).status).not.toBe(0);
-  const before=await readFile(db),success=run("bash",base);expect(success.status,success.stderr).toBe(0);const installed=await unitFiles(join(dest,"etc/systemd/system"));const environment=await readFile(join(dest,"etc/bw-forge/bw-forge.env"));
+  expect(run(bash,[installer,"--destdir",dest,"--user","definitely-no-such-user","--app-root",app,"--corpus-root",corpus,"--inbox",inbox,"--db",db,"--bun",bun,"--node",node,"--python",python]).status).not.toBe(0);
+  expect(run(bash,base.map(value=>value===user?"root":value)).status).not.toBe(0);
+  expect(run(bash,base.map(value=>value===app?join(root,"missing-app"):value)).status).not.toBe(0);
+  expect(run(bash,base.map(value=>value===corpus?join(root,"missing-corpus"):value)).status).not.toBe(0);
+  expect(run(bash,base.map(value=>value===db?join(root,"missing.sqlite"):value)).status).not.toBe(0);
+  expect(run(bash,base.map(value=>value===bun?join(root,"missing-bun"):value)).status).not.toBe(0);
+  const before=await readFile(db),success=run(bash,base);expect(success.status,success.stderr).toBe(0);const installed=await unitFiles(join(dest,"etc/systemd/system"));const environment=await readFile(join(dest,"etc/bw-forge/bw-forge.env"));
   expect(await readFile(db)).toEqual(before);expect((await stat(join(dest,"etc/bw-forge/bw-forge.env"))).isFile()).toBe(true);
-  const again=run("bash",base);expect(again.status,again.stderr).toBe(0);expect(await unitFiles(join(dest,"etc/systemd/system"))).toEqual(installed);expect(await readFile(join(dest,"etc/bw-forge/bw-forge.env"))).toEqual(environment);expect(await readFile(db)).toEqual(before);
+  const again=run(bash,base);expect(again.status,again.stderr).toBe(0);expect(await unitFiles(join(dest,"etc/systemd/system"))).toEqual(installed);expect(await readFile(join(dest,"etc/bw-forge/bw-forge.env"))).toEqual(environment);expect(await readFile(db)).toEqual(before);
   const createdInbox=join(root,"created-inbox"),createArgs=base.map(value=>value===inbox?createdInbox:value);
-  expect(run("bash",createArgs).status).not.toBe(0);const created=run("bash",[...createArgs,"--create-inbox"]);expect(created.status,created.stderr).toBe(0);expect((await stat(createdInbox)).isDirectory()).toBe(true);
+  expect(run(bash,createArgs).status).not.toBe(0);const created=run(bash,[...createArgs,"--create-inbox"]);expect(created.status,created.stderr).toBe(0);expect((await stat(createdInbox)).isDirectory()).toBe(true);
 });
 
 test("systemd-analyze accepts rendered units when available",async()=>{
