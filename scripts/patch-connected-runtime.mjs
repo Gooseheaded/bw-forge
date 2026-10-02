@@ -5,8 +5,8 @@ const inputPath = "third_party/bwsim/bwsim_wasm.wasm";
 const outputPath = process.argv[2] ?? "tmp/bwsim_wasm.with-instance.wasm";
 const source = new Uint8Array(await readFile(inputPath));
 const sourceSha256 = createHash("sha256").update(source).digest("hex");
-const EXPECTED_SOURCE_SHA256 = "fa32729abbef46853f89c2ed60b4b22130c6e9cb40471ba446c3f8193404b760";
-const EXPECTED_PATCHED_SHA256 = "3f41196ff3f15cbadcb5afedca5ebdeae8905c018bc1a696f3d008963280bf5e";
+const EXPECTED_SOURCE_SHA256 = "0cb046492d0f41356d9be87212a1aa32f21f76ce484725dcc696e7ecf4789696";
+const EXPECTED_PATCHED_SHA256 = "ed68153f9b79857db83f80a888d7cb5bea4dce3d4038fab0dda17c59c7109733";
 if (sourceSha256 !== EXPECTED_SOURCE_SHA256) throw new Error(`unexpected source SHA-256 ${sourceSha256}`);
 
 const cat = (...parts) => {

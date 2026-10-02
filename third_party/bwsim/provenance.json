@@ -8,12 +8,12 @@
   "artifacts": {
     "originalWasm": {
       "path": "bwsim_wasm.wasm",
-      "sha256": "fa32729abbef46853f89c2ed60b4b22130c6e9cb40471ba446c3f8193404b760",
+      "sha256": "0cb046492d0f41356d9be87212a1aa32f21f76ce484725dcc696e7ecf4789696",
       "includedInNpmPackage": false
     },
     "patchedWasm": {
       "path": "bwsim_wasm.bwforge.wasm",
-      "sha256": "3f41196ff3f15cbadcb5afedca5ebdeae8905c018bc1a696f3d008963280bf5e",
+      "sha256": "ed68153f9b79857db83f80a888d7cb5bea4dce3d4038fab0dda17c59c7109733",
       "includedInNpmPackage": false
     },
     "simulationAssetPack": {
