@@ -19,6 +19,8 @@ export declare class Bwsim {
     players(): readonly BwsimPlayer[];
     /** Return the engine's generation-bearing UnitId for a current live HUD slot. */
     unitInstanceId(index: number): number | null;
+    /** Return the generation-bearing UnitId connected to a live HUD unit index. */
+    connectedUnitId(unitIndex: number): number | null;
     /** Return the current five-slot production queue for a live HUD unit. */
     unitBuildQueue(index: number): readonly number[];
     /** Advance by a requested number of frames. The returned current frame is authoritative. */

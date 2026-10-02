@@ -33,10 +33,10 @@ const replayPath = resolve(
 describe("vendored headless-bwsim", () => {
   test("pins the known release artifact hashes", async () => {
     expect(await sha256(resolve(runtimeRoot, "bwsim_wasm.wasm"))).toBe(
-      "b321eb4f274d2602be1ccdf3cefa72b0ba934e2025d76d7c25379a18af4d1226"
+      "fa32729abbef46853f89c2ed60b4b22130c6e9cb40471ba446c3f8193404b760"
     );
     expect(await sha256(resolve(runtimeRoot, "bwsim_wasm.bwforge.wasm"))).toBe(
-      "aec4109937e4d1efefa921cf4fef8bfd2febc772809a026510ff1a6e88ca9a7d"
+      "3f41196ff3f15cbadcb5afedca5ebdeae8905c018bc1a696f3d008963280bf5e"
     );
     expect(await sha256(resolve(runtimeRoot, "sim.pack.gz"))).toBe(
       "32f8cc3561e11d2756a579dc54675e0758e94c15b9f767a66a1ba533a9856a44"

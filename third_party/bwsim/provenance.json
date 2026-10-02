@@ -8,12 +8,12 @@
   "artifacts": {
     "originalWasm": {
       "path": "bwsim_wasm.wasm",
-      "sha256": "b321eb4f274d2602be1ccdf3cefa72b0ba934e2025d76d7c25379a18af4d1226",
+      "sha256": "fa32729abbef46853f89c2ed60b4b22130c6e9cb40471ba446c3f8193404b760",
       "includedInNpmPackage": false
     },
     "patchedWasm": {
       "path": "bwsim_wasm.bwforge.wasm",
-      "sha256": "aec4109937e4d1efefa921cf4fef8bfd2febc772809a026510ff1a6e88ca9a7d",
+      "sha256": "3f41196ff3f15cbadcb5afedca5ebdeae8905c018bc1a696f3d008963280bf5e",
       "includedInNpmPackage": false
     },
     "simulationAssetPack": {
@@ -54,7 +54,7 @@
     }
   },
   "patch": {
-    "script": "scripts/patch-unit-instance-id.mjs",
+    "script": "scripts/patch-connected-runtime.mjs",
     "addedExport": "bw_unit_instance_id",
     "signature": "(i32) -> i32"
   }

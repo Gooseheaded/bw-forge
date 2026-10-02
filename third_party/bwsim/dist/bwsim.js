@@ -43,6 +43,7 @@ function validateExports(exports) {
         "bw_hud_players",
         "bw_hud_units",
         "bw_unit_instance_id",
+        "bw_unit_connected_unit_id",
         "bw_unit_build_queue",
     ]) {
         if (typeof exports[name] !== "function") {
@@ -207,6 +208,12 @@ export class Bwsim {
     unitInstanceId(index) {
         validateUnitIndex(index);
         const id = this.#wasm.bw_unit_instance_id(index) >>> 0;
+        return id === 0 ? null : id;
+    }
+    /** Return the generation-bearing UnitId connected to a live HUD unit index. */
+    connectedUnitId(unitIndex) {
+        validateUnitIndex(unitIndex);
+        const id = this.#wasm.bw_unit_connected_unit_id(unitIndex) >>> 0;
         return id === 0 ? null : id;
     }
     /** Return the current five-slot production queue for a live HUD unit. */
