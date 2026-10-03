@@ -5,8 +5,8 @@ const inputPath = "third_party/bwsim/bwsim_wasm.wasm";
 const outputPath = process.argv[2] ?? "tmp/bwsim_wasm.with-instance.wasm";
 const source = new Uint8Array(await readFile(inputPath));
 const sourceSha256 = createHash("sha256").update(source).digest("hex");
-const EXPECTED_SOURCE_SHA256 = "0cb046492d0f41356d9be87212a1aa32f21f76ce484725dcc696e7ecf4789696";
-const EXPECTED_PATCHED_SHA256 = "ed68153f9b79857db83f80a888d7cb5bea4dce3d4038fab0dda17c59c7109733";
+const EXPECTED_SOURCE_SHA256 = "6b391fdbbbf4cad6e075ccd47e68a9ef0cf8392354a6f6aa885ee13071a0e0b0";
+const EXPECTED_PATCHED_SHA256 = "f2bad72acbcd5d3c1d97506f05cbd370fde94a70a853cd3f59340a648db626ac";
 if (sourceSha256 !== EXPECTED_SOURCE_SHA256) throw new Error(`unexpected source SHA-256 ${sourceSha256}`);
 
 const cat = (...parts) => {
@@ -55,7 +55,7 @@ let clonedBody;
 for (const section of sections) {
   if (section.id !== 10) continue;
   const count = readUleb(section.payload, 0);
-  if (count.value !== 1284) throw new Error(`unexpected function count ${count.value}`);
+  if (count.value !== 1298) throw new Error(`unexpected function count ${count.value}`);
   let p = count.next;
   const bodies = [];
   for (let index = 0; index < count.value; index += 1) {
@@ -79,11 +79,11 @@ for (const section of sections) {
 if (!clonedBody) throw new Error("missing code section");
 
 for (const section of sections) {
-  if (section.id === 3) section.payload = appendVector(section.payload, encodeUleb(61), 1284);
+  if (section.id === 3) section.payload = appendVector(section.payload, encodeUleb(61), 1298);
   if (section.id !== 7) continue;
   const count = readUleb(section.payload, 0);
   const name = new TextEncoder().encode("bw_unit_instance_id");
-  const entry = cat(encodeUleb(name.length), name, bytes(0), encodeUleb(1284));
+  const entry = cat(encodeUleb(name.length), name, bytes(0), encodeUleb(1298));
   section.payload = cat(encodeUleb(count.value + 1), section.payload.subarray(count.next), entry);
 }
 
