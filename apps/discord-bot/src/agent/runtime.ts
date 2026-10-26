@@ -37,7 +37,8 @@ function withAgentToolGuidance(toolName: string, result: unknown): unknown {
 const RACE_NAMES = { z: "zerg", t: "terran", p: "protoss" } as const;
 const DIAGNOSTIC_ARGUMENT_KEYS = new Set([
   "corpus_id", "replay_number", "at_seconds", "timeSeconds", "race", "opponentRace", "matchup",
-  "player", "opponent", "map", "limit", "limitExamples", "n", "firstN", "secondN",
+  "player", "opponent", "map", "player_group", "opponent_group", "scope", "played_from", "played_before",
+  "limit", "limitExamples", "n", "firstN", "secondN",
 ]);
 
 /** Recognize only explicit, ordered race-pair wording; this is not a query parser. */
@@ -73,6 +74,14 @@ function sortJson(value: unknown): unknown {
 function argumentDiagnostic(stage: "provider_adapter" | "gateway_dispatch", name: string, args: unknown): Record<string, unknown> {
   const record = args && typeof args === "object" && !Array.isArray(args) ? args as Record<string, unknown> : {};
   const keys = Object.keys(record).map((key) => DIAGNOSTIC_ARGUMENT_KEYS.has(key) ? key : "<other>");
+  const argumentValueKinds: Record<string, string> = {};
+  for (const [key, value] of Object.entries(record)) {
+    const safeKey = DIAGNOSTIC_ARGUMENT_KEYS.has(key) ? key : "<other>";
+    const kind = value === null ? "null" : typeof value === "string" ? (value.length === 0 ? "empty_string" : "string")
+      : typeof value === "number" ? (Number.isFinite(value) ? "number" : "non_finite_number")
+        : typeof value === "boolean" ? "boolean" : Array.isArray(value) ? "array" : "object";
+    argumentValueKinds[safeKey] = kind;
+  }
   const filters: Record<string, unknown> = {};
   for (const key of ["race", "opponentRace", "matchup", "timeSeconds", "at_seconds", "map", "player", "opponent"]) {
     if (!(key in record)) continue;
@@ -86,7 +95,7 @@ function argumentDiagnostic(stage: "provider_adapter" | "gateway_dispatch", name
     : record.replay_number === null ? "null"
       : Number.isInteger(record.replay_number) && Number(record.replay_number) > 0 ? "positive_integer" : "invalid";
   return { stage, tool: name === "get_economy_distribution" ? name : "<other>", argumentKeys: [...new Set(keys)].sort(), filters,
-    ...(replayNumberKind ? { replayNumberKind } : {}) };
+    argumentValueKinds, ...(replayNumberKind ? { replayNumberKind } : {}) };
 }
 
 function validateExplicitAggregateFilters(name: string, args: Record<string, unknown>, text: string): string | undefined {
@@ -639,9 +648,14 @@ export class TurnRuntime {
           if (resultBytes > agent.maxToolResultBytes) throw new Error("result too large");
           toolResultCache.set(cacheKey, content);
           const mcpFailed = !!result && typeof result === "object" && (result as { isError?: unknown }).isError === true;
+          const structuredContent = mcpFailed ? (result as { structuredContent?: unknown }).structuredContent : undefined;
+          const rawMcpErrorCode = structuredContent && typeof structuredContent === "object"
+            ? ((structuredContent as { error?: { code?: unknown } }).error?.code)
+            : undefined;
+          const mcpErrorCode = typeof rawMcpErrorCode === "string" && /^[a-z0-9_]{1,64}$/.test(rawMcpErrorCode) ? rawMcpErrorCode : undefined;
           this.options.log?.(mcpFailed ? "analytical tool call failed" : "analytical tool call completed", { turnId: turn.id, sessionId: turn.message.sessionId,
-            toolCallId: call.id, tool: call.name, corpusId, replayNumber: args.replay_number ?? null,
-            ...(mcpFailed ? { code: "mcp_tool_error" } : { resultBytes }) });
+            toolCallId: call.id, tool: call.name, corpusId,
+            ...(mcpFailed ? { code: "mcp_tool_error", ...(typeof mcpErrorCode === "string" ? { mcpErrorCode } : {}) } : { resultBytes }) });
         } catch (error) {
           if (error instanceof AgentAuthorizationRevokedError) throw error;
           this.options.log?.("analytical tool call rejected", { turnId: turn.id, sessionId: turn.message.sessionId,

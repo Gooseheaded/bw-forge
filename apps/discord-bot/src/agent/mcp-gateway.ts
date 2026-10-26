@@ -177,7 +177,11 @@ export class McpGateway {
       transport = await this.connection(endpoint);
       result = await transport.request("tools/call", { name: input.name, arguments: args }, this.limits.requestTimeoutMs, input.signal);
     }
-    if (result?.isError) return { isError: true, content: [{ type: "text", text: "The analytical query failed." }] };
+    if (result?.isError) return {
+      isError: true,
+      content: [{ type: "text", text: "The analytical query failed." }],
+      structuredContent: { error: { code: classifyMcpToolError(result) } },
+    };
     const safeResult = stripInternalPaths(result ?? null);
     if (Buffer.byteLength(JSON.stringify(safeResult), "utf8") > this.limits.maxResultBytes) throw new Error("MCP tool result exceeds configured size limit");
     return safeResult as McpCallResult;
@@ -296,6 +300,32 @@ function stripInternalPaths(value: unknown): unknown {
     output[key] = stripInternalPaths(item);
   }
   return output;
+}
+
+function classifyMcpToolError(result: McpCallResult): string {
+  const structured = result.structuredContent && typeof result.structuredContent === "object"
+    ? result.structuredContent as Record<string, unknown> : {};
+  const error = structured.error && typeof structured.error === "object" ? structured.error as Record<string, unknown> : {};
+  const allowedCodes = new Set([
+    "NOT_SUPPORTED_FOR_CORPUS_V1", "NOT_SUPPORTED_FOR_CORPUS_V2", "AMBIGUOUS_PLAYER_SELECTOR",
+    "SQLITE_BUSY", "SQLITE_CORRUPT", "SQLITE_NOTADB", "SQLITE_CANTOPEN", "SQLITE_IOERR", "SQLITE_ERROR", "SQLITE_CONSTRAINT",
+  ]);
+  if (typeof error.code === "string" && allowedCodes.has(error.code)) return error.code.toLowerCase();
+  const text = [error.message, ...(Array.isArray(result.content) ? result.content.map((item) => item && typeof item === "object" ? (item as Record<string, unknown>).text : undefined) : [])]
+    .filter((value): value is string => typeof value === "string").join("\n");
+  const categories: Array<[RegExp, string]> = [
+    [/Covered economy segment has no baseline/i, "economy_coverage_invariant"],
+    [/Unknown player group:/i, "unknown_player_group"],
+    [/Unknown query scope:/i, "unknown_query_scope"],
+    [/Invalid played_(?:from|before)|played_from must be earlier than played_before/i, "invalid_chronology_filter"],
+    [/unable to open database|SQLITE_CANTOPEN|no such file/i, "corpus_database_open_error"],
+    [/database is locked|SQLITE_BUSY/i, "corpus_database_busy"],
+    [/malformed|not a database|SQLITE_CORRUPT|SQLITE_NOTADB/i, "corpus_database_error"],
+    [/no such table|no such column|schema mismatch/i, "corpus_schema_error"],
+    [/disk i\/o|SQLITE_IOERR/i, "corpus_database_io_error"],
+  ];
+  for (const [pattern, code] of categories) if (pattern.test(text)) return code;
+  return "mcp_tool_error";
 }
 
 function mcpProcessEnvironment(): Record<string, string> {

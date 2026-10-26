@@ -194,6 +194,42 @@ describe("TurnRuntime", () => {
     expect(store.completed).toEqual(["irrelevant-replay-number"]);
   });
 
+  it("logs safe MCP failure categories and optional argument kinds without values", async () => {
+    const store = new FakeStore();
+    const requests: any[] = [];
+    const logs: Array<{ message: string; details?: Record<string, unknown> }> = [];
+    const provider: LlmProvider = { generate: async (request) => {
+      requests.push(request);
+      if (requests.length === 1) return { text: "", provider: "fake", model: "m", toolCalls: [{ id: "group-filter", name: "get_economy_distribution",
+        arguments: JSON.stringify({ corpus_id: "pro", race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300,
+          player_group: "SecretGroup", opponent_group: null, map: "" }) }] };
+      return { text: "The query failed because an optional identity filter was not recognized.", provider: "fake", model: "m" };
+    } };
+    const gateway = {
+      listTools: async () => [{ name: "get_economy_distribution", description: "aggregate", corpusRequired: true as const, corpusId: "pro",
+        inputSchema: { type: "object", properties: { race: { type: "string" }, opponentRace: { type: "string" }, matchup: { type: "string" },
+          timeSeconds: { type: "number" }, player_group: { type: "string", minLength: 1 }, opponent_group: { type: "string" }, map: { type: "string" }, corpus_id: { type: "string" } } } }],
+      resetTurnBudget: () => {},
+      call: async () => ({ isError: true, content: [{ type: "text", text: "The analytical query failed." }], structuredContent: { error: { code: "unknown_player_group" } } }),
+    };
+    const rt = new TurnRuntime({ store, provider, maxConcurrent: 1, requestTimeoutMs: 1000,
+      authorization: { authorize: async () => true }, delivery: { send: async () => {}, failure: async () => {} },
+      log: (message, details) => logs.push({ message, details }),
+      agent: { gateway, maxRounds: 3, maxToolCalls: 3, maxParallelCalls: 1, turnTimeoutMs: 1000, maxToolResultBytes: 2000, diagnosticToolArguments: true },
+    });
+    await rt.enqueue({ ...msg("safe-mcp-error"), content: "Compare Zerg versus Protoss at 5:00." }); await Bun.sleep(40);
+    const diagnostics = logs.filter((entry) => entry.message === "tool argument diagnostic").map((entry) => entry.details);
+    expect(diagnostics[0]).toMatchObject({ argumentValueKinds: { player_group: "string", opponent_group: "null", map: "empty_string" } });
+    expect(JSON.stringify(diagnostics)).not.toContain("SecretGroup");
+    const failureLog = logs.find((entry) => entry.message === "analytical tool call failed")?.details;
+    expect(failureLog).toMatchObject({ code: "mcp_tool_error", mcpErrorCode: "unknown_player_group" });
+    expect(failureLog).not.toHaveProperty("replayNumber");
+    const feedback = requests[1].messages.find((message: any) => message.role === "tool")?.content ?? "";
+    expect(feedback).toContain("unknown_player_group");
+    expect(feedback).not.toContain("SecretGroup");
+    expect(store.completed).toEqual(["safe-mcp-error"]);
+  });
+
   it("reuses a repeated identical unfiltered aggregate result across model rounds", async () => {
     const store = new FakeStore();
     let gatewayCalls = 0;

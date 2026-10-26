@@ -4,6 +4,7 @@ import { McpGateway, type McpTransport } from "../src/agent/mcp-gateway.ts";
 class FakeTransport implements McpTransport {
   readonly calls: { method: string; params: any }[] = [];
   connected = false;
+  toolCallResult?: any;
   async connect() { this.connected = true; }
   async request(method: string, params?: unknown) {
     this.calls.push({ method, params });
@@ -13,7 +14,7 @@ class FakeTransport implements McpTransport {
       { name: "get_player_replay_card", description: "replay card", inputSchema: { type: "object", properties: { replayId: { type: "string" }, player: { type: "string" } }, required: ["replayId", "player"] } },
       { name: "execute_query_plan", description: "mutating", inputSchema: { type: "object", properties: {} } }
     ] };
-    return { content: [{ type: "text", text: "31 workers" }], structuredContent: { workers: 31 } };
+    return this.toolCallResult ?? { content: [{ type: "text", text: "31 workers" }], structuredContent: { workers: 31 } };
   }
   async close() { this.connected = false; }
 }
@@ -58,6 +59,20 @@ describe("MCP analytical gateway", () => {
     } };
     await expect(gateway.call(filters)).rejects.toThrow("get_economy_distribution does not accept replay_number; this is a corpus-wide query. Omit replay_number.");
     expect(transport.calls.some((call) => call.method === "tools/call")).toBe(false);
+  });
+
+  test("returns only a safe error category for an MCP tool failure", async () => {
+    const transport = new FakeTransport();
+    transport.toolCallResult = { isError: true, content: [{ type: "text", text: "Unknown player group: PrivateGroup at C:/private/corpus.sqlite" }],
+      structuredContent: { error: { message: "Unknown player group: PrivateGroup at C:/private/corpus.sqlite" } } };
+    const gateway = new McpGateway([{ id: "pro", transport }]);
+    const result = await gateway.call({ corpusId: "pro", name: "get_economy_distribution", arguments: {
+      race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300,
+    } });
+    expect(result.isError).toBe(true);
+    expect((result.structuredContent as any).error.code).toBe("unknown_player_group");
+    expect(JSON.stringify(result)).not.toContain("PrivateGroup");
+    expect(JSON.stringify(result)).not.toContain("private/corpus.sqlite");
   });
 
   test("rejects unknown corpus, mutating tools, and cross-session replay refs", async () => {
