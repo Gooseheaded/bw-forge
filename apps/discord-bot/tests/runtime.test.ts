@@ -89,7 +89,7 @@ describe("TurnRuntime", () => {
       request: async (method, params) => {
         mcpCalls.push({ method, params });
         if (method === "tools/list") { return { tools: [{ name: "get_economy_distribution",
-          description: "timeSeconds is required. Every other argument is optional; omit unused filters entirely.",
+          description: "Aggregate economy distribution with optional player, map, group, scope, and chronology filters.",
           inputSchema: { type: "object", properties: {
             db_path: { type: "string" }, player: { type: "string" }, opponent: { type: "string" }, race: { type: "string" },
             opponentRace: { type: "string" }, matchup: { type: "string" }, map: { type: "string" },
@@ -111,10 +111,14 @@ describe("TurnRuntime", () => {
       if (requests.length === 1) {
         const parameters = body.tools[0].parameters;
         expect(body.tools[0]).toMatchObject({ type: "function", name: "get_economy_distribution" });
+        expect(body.tools[0].description).toMatch(/only the requested optional filters: race, opponentRace, and matchup/i);
+        expect(body.tools[0].description).toMatch(/not this Discord agent tool/i);
         expect(parameters.required).toEqual(["timeSeconds", "corpus_id"]);
         expect(parameters.additionalProperties).toBe(false);
+        expect(Object.keys(parameters.properties).sort()).toEqual(["corpus_id", "matchup", "opponentRace", "race", "timeSeconds"]);
         expect(parameters.properties.race.type).toBe("string");
-        expect(parameters.properties.player.type).toBe("string");
+        expect(parameters.properties.player).toBeUndefined();
+        expect(parameters.properties.played_from).toBeUndefined();
         expect(body.tools[0].strict).toBeUndefined();
         return new Response(JSON.stringify({ status: "completed", output: [{ type: "function_call", call_id: "minimal-benchmark",
           name: "get_economy_distribution", arguments: JSON.stringify({ corpus_id: "pro", race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300 }) }] }));
@@ -149,13 +153,12 @@ describe("TurnRuntime", () => {
       expect(body.tools[0].strict).toBeUndefined();
       expect(body.tool_choice).toBe("auto");
       return new Response(JSON.stringify({ status: "completed", output: [{ type: "function_call", call_id: "provider-call", name: "get_economy_distribution",
-        arguments: '{"corpus_id":"pro","race":"zerg","opponentRace":"protoss","matchup":"ZvP","timeSeconds":300,"map":"SecretMap","player":"SecretPlayer"}' }] }));
+        arguments: '{"corpus_id":"pro","race":"zerg","opponentRace":"protoss","matchup":"ZvP","timeSeconds":300}' }] }));
     }) as unknown as typeof fetch);
     const gateway = {
       listTools: async () => [{ name: "get_economy_distribution", description: "aggregate", corpusRequired: true as const,
         corpusId: "pro", corpusIds: ["pro"], inputSchema: { type: "object", properties: {
-          race: { type: "string" }, opponentRace: { type: "string" }, matchup: { type: "string" }, timeSeconds: { type: "number" },
-          map: { type: "string" }, player: { type: "string" }, corpus_id: { type: "string" },
+          race: { type: "string" }, opponentRace: { type: "string" }, matchup: { type: "string" }, timeSeconds: { type: "number" }, corpus_id: { type: "string" },
         } } }],
       resetTurnBudget: () => {},
       call: async (input: any) => { gatewayInputs.push(input); return { sampleSize: 4 }; },
@@ -167,14 +170,12 @@ describe("TurnRuntime", () => {
     });
     await rt.enqueue({ ...msg("provider-gateway-boundary"), content: "Compare Zerg versus Protoss in the professional corpus." }); await Bun.sleep(40);
     expect(gatewayInputs).toHaveLength(1);
-    expect(gatewayInputs[0]).toMatchObject({ corpusId: "pro", name: "get_economy_distribution", arguments: { race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300, map: "SecretMap", player: "SecretPlayer" } });
+    expect(gatewayInputs[0]).toMatchObject({ corpusId: "pro", name: "get_economy_distribution", arguments: { race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300 } });
     const diagnostics = logs.filter((entry) => entry.message === "tool argument diagnostic").map((entry) => entry.details);
     expect(diagnostics).toHaveLength(2);
-    expect(diagnostics[0]).toMatchObject({ stage: "provider_adapter", argumentKeys: ["corpus_id", "map", "matchup", "opponentRace", "player", "race", "timeSeconds"], filters: { race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300, map: "[redacted]", player: "[redacted]" } });
-    expect(diagnostics[1]).toMatchObject({ stage: "gateway_dispatch", argumentKeys: ["map", "matchup", "opponentRace", "player", "race", "timeSeconds"], filters: { race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300, map: "[redacted]", player: "[redacted]" } });
+    expect(diagnostics[0]).toMatchObject({ stage: "provider_adapter", argumentKeys: ["corpus_id", "matchup", "opponentRace", "race", "timeSeconds"], filters: { race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300 } });
+    expect(diagnostics[1]).toMatchObject({ stage: "gateway_dispatch", argumentKeys: ["matchup", "opponentRace", "race", "timeSeconds"], filters: { race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300 } });
     expect(JSON.stringify(diagnostics)).not.toContain("test-key");
-    expect(JSON.stringify(diagnostics)).not.toContain("SecretMap");
-    expect(JSON.stringify(diagnostics)).not.toContain("SecretPlayer");
     expect(store.completed).toEqual(["provider-gateway-boundary"]);
   });
 

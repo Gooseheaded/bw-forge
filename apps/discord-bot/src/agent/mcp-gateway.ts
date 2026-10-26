@@ -108,6 +108,9 @@ export const ALLOWED_TOOLS = new Set([
   "get_composition_snapshot", "get_corpus_summary", "list_players", "list_matchups", "list_build_items",
   "count_replays_with_event_before_event", "get_death_summary", "get_player_replay_card", "get_economy_distribution"
 ]);
+
+const MODEL_ECONOMY_DISTRIBUTION_KEYS = new Set(["timeSeconds", "race", "opponentRace", "matchup"]);
+const MODEL_ECONOMY_DISTRIBUTION_DESCRIPTION = "Ordinary corpus-wide economy benchmark. Supply timeSeconds and only the requested optional filters: race, opponentRace, and matchup. Omit all other arguments. Advanced player, map, identity-group, scope, chronology, replay, and example-limit filters remain available through the direct MCP interface, not this Discord agent tool.";
 const MUTATING_NAMES = /(?:ingest|enqueue|write|delete|remove|execute_query_plan|export_query_plan|sql|validate_build_rules|admin)/i;
 const REPLAY_SCOPED_TOOLS = new Set(["get_economy", "get_unit_count", "get_deaths", "list_build_events", "get_player_replay_card"]);
 
@@ -212,13 +215,17 @@ export class McpGateway {
       return true;
     }).map((tool: McpTool) => {
       this.schemas.set(`${endpoint.id}:${tool.name}`, tool.inputSchema!);
-      return { ...tool, inputSchema: this.modelSchema(tool.name, tool.inputSchema!, REPLAY_SCOPED_TOOLS.has(tool.name), [endpoint.id]), corpusRequired: true as const, corpusId: endpoint.id };
+      return { ...tool, ...(tool.name === "get_economy_distribution" ? { description: MODEL_ECONOMY_DISTRIBUTION_DESCRIPTION } : {}), inputSchema: this.modelSchema(tool.name, tool.inputSchema!, REPLAY_SCOPED_TOOLS.has(tool.name), [endpoint.id]), corpusRequired: true as const, corpusId: endpoint.id };
     });
     this.discovered.set(endpoint.id, result); return result;
   }
   private validateArguments(name: string, raw: Record<string, unknown>, refs: CorpusReplayRef[], endpoint: CorpusEndpoint): Record<string, unknown> {
     const args = { ...raw }; delete args.db_path; delete args.corpus_id; if (endpoint.dbPath) args.db_path = endpoint.dbPath;
     if ("replay_number" in raw && !REPLAY_SCOPED_TOOLS.has(name)) throw new Error(`${name} does not accept replay_number; this is a corpus-wide query. Omit replay_number.`);
+    if (name === "get_economy_distribution") {
+      const unexpected = Object.keys(raw).filter((key) => key !== "corpus_id" && !MODEL_ECONOMY_DISTRIBUTION_KEYS.has(key));
+      if (unexpected.length) throw new Error("get_economy_distribution in the Discord agent only accepts corpus_id, timeSeconds, race, opponentRace, and matchup. Omit additional arguments; advanced filters remain available through the direct MCP interface.");
+    }
     if (REPLAY_SCOPED_TOOLS.has(name) && !("replay_number" in args)) throw new Error(`${name} requires a replay_number from this session`);
     const schema = this.schemas.get(`${endpoint.id}:${name}`);
     const schemaProperties = (schema?.properties && typeof schema.properties === "object" ? schema.properties : {}) as Record<string, unknown>;
@@ -246,11 +253,22 @@ export class McpGateway {
   private modelSchema(name: string, schema: Record<string, unknown>, replaySpecific: boolean, corpusIds: string[]): Record<string, unknown> {
     const copy = JSON.parse(JSON.stringify(schema)) as Record<string, any>;
     const properties = copy.properties ?? {};
+    if (name === "get_economy_distribution") {
+      const exposed = Object.fromEntries(["timeSeconds", "race", "opponentRace", "matchup"].filter((key) => properties[key]).map((key) => [key, properties[key]]));
+      if (!exposed.timeSeconds) exposed.timeSeconds = { type: "number", description: "Timestamp in seconds; required." };
+      exposed.race = { ...(exposed.race ?? { type: "string" }), description: "Optional current-player race filter." };
+      exposed.opponentRace = { ...(exposed.opponentRace ?? { type: "string" }), description: "Optional opponent race filter." };
+      exposed.matchup = { ...(exposed.matchup ?? { type: "string" }), description: "Optional stored matchup label such as ZvP." };
+      copy.properties = exposed;
+      copy.required = ["timeSeconds"];
+      copy.description = MODEL_ECONOMY_DISTRIBUTION_DESCRIPTION;
+    }
     for (const key of ["replay_id", "replay_ids", "replaySha256", "replayId"]) delete properties[key];
     if (replaySpecific) properties.replay_number = { type: "integer", minimum: 1, maximum: 10000, description: "Session-local replay number" };
     if (name === "get_player_replay_card") delete properties.filenameContains;
     properties.corpus_id = { type: "string", enum: corpusIds };
-    copy.properties = properties;
+    if (name === "get_economy_distribution") (copy.properties as Record<string, unknown>).corpus_id = properties.corpus_id;
+    if (name !== "get_economy_distribution") copy.properties = properties;
     if (Array.isArray(copy.required)) copy.required = copy.required.filter((key: string) => !["replay_id", "replay_ids", "replaySha256", "replayId"].includes(key));
     if (REPLAY_SCOPED_TOOLS.has(name)) copy.required = [...new Set([...(Array.isArray(copy.required) ? copy.required : []), "replay_number"])];
     copy.additionalProperties = false;

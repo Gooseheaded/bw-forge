@@ -28,6 +28,11 @@ describe("MCP analytical gateway", () => {
     const tools = await gateway.listTools("community");
     expect(tools.map((tool) => tool.name)).toEqual(["get_economy", "get_economy_distribution", "get_player_replay_card"]);
     const aggregateSchema = tools.find((tool) => tool.name === "get_economy_distribution")!.inputSchema as any;
+    expect(tools.find((tool) => tool.name === "get_economy_distribution")!.description).toMatch(/only the requested optional filters/i);
+    expect(Object.keys(aggregateSchema.properties).sort()).toEqual(["corpus_id", "matchup", "opponentRace", "race", "timeSeconds"]);
+    expect(aggregateSchema.required).toEqual(["timeSeconds"]);
+    expect(aggregateSchema.additionalProperties).toBe(false);
+    expect(aggregateSchema.description).toMatch(/only the requested optional filters/i);
     expect(aggregateSchema.properties.replay_number).toBeUndefined();
     expect(aggregateSchema.required ?? []).not.toContain("replay_number");
     expect(aggregateSchema.properties.replay_ids).toBeUndefined();
@@ -58,6 +63,25 @@ describe("MCP analytical gateway", () => {
       race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300, replay_number: 7,
     } };
     await expect(gateway.call(filters)).rejects.toThrow("get_economy_distribution does not accept replay_number; this is a corpus-wide query. Omit replay_number.");
+    expect(transport.calls.some((call) => call.method === "tools/call")).toBe(false);
+  });
+
+  test("rejects advanced aggregate filters before MCP execution", async () => {
+    const transport = new FakeTransport();
+    const gateway = new McpGateway([{ id: "pro", transport }]);
+    await expect(gateway.call({ corpusId: "pro", name: "get_economy_distribution", arguments: {
+      race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300,
+      played_from: "2024-01-01T00:00:00Z",
+    } })).rejects.toThrow(/only accepts corpus_id, timeSeconds, race, opponentRace, and matchup/i);
+    expect(transport.calls.some((call) => call.method === "tools/call")).toBe(false);
+  });
+
+  test("rejects model-supplied database paths for aggregate tools instead of silently dropping them", async () => {
+    const transport = new FakeTransport();
+    const gateway = new McpGateway([{ id: "pro", transport, dbPath: "trusted-pro.sqlite" }]);
+    await expect(gateway.call({ corpusId: "pro", name: "get_economy_distribution", arguments: {
+      race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300, db_path: "untrusted.sqlite",
+    } })).rejects.toThrow(/only accepts corpus_id, timeSeconds, race, opponentRace, and matchup/i);
     expect(transport.calls.some((call) => call.method === "tools/call")).toBe(false);
   });
 
