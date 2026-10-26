@@ -9,6 +9,8 @@ param(
     [string]$RemoteCorpusRoot = "/srv/bw-forge/corpus",
     [string]$RemoteInbox = "/srv/bw-forge/inbox",
     [string]$RemoteCorpusDb = "/srv/bw-forge/corpus/db/corpus.sqlite",
+    [string]$RemoteCommunityRoot = "/srv/bw-forge/community",
+    [string]$RemoteCommunityDb = "/srv/bw-forge/community/db/corpus.sqlite",
     [string]$RemoteDiscordEnv = "/etc/bw-forge/discord-bot.env",
     [string]$RemoteDiscordStateRoot = "/srv/bw-forge/discord-bot-state",
 
@@ -17,9 +19,10 @@ param(
     [string]$IdentityFile = "",
 
     [switch]$UpdateSystemd,
-    [ValidateSet("None", "Watcher", "DiscordBot", "All")]
+    [ValidateSet("None", "Watcher", "DiscordBot", "CommunityWorker", "All")]
     [string]$Restart = "None",
     [switch]$DeployDiscordBot,
+    [switch]$DeployCommunityWorker,
     [switch]$RegisterDiscordCommands,
     [switch]$ForceDependencyUpload,
     [switch]$FullIntegrityCheck
@@ -88,16 +91,20 @@ function Write-Utf8NoBom([string]$Path, [string]$Text) {
 }
 
 if ($BackupCount -lt 0) { throw "BackupCount must be >= 0" }
+if ($DeployCommunityWorker) { $UpdateSystemd = $true }
 if ($RegisterDiscordCommands -and -not $DeployDiscordBot) {
     throw "-RegisterDiscordCommands requires -DeployDiscordBot"
 }
-foreach ($RemotePath in @($RemoteAppRoot, $RemoteCorpusRoot, $RemoteInbox, $RemoteCorpusDb, $RemoteDiscordEnv, $RemoteDiscordStateRoot)) {
+foreach ($RemotePath in @($RemoteAppRoot, $RemoteCorpusRoot, $RemoteInbox, $RemoteCorpusDb, $RemoteCommunityRoot, $RemoteCommunityDb, $RemoteDiscordEnv, $RemoteDiscordStateRoot)) {
     if ($RemotePath -notmatch '^/[A-Za-z0-9_./-]+$' -or $RemotePath -match '(^|/)\.\.?(/|$)|//') { throw "Remote paths must be normalized absolute paths using letters, numbers, '/', '.', '_', or '-'." }
 }
 if ($DebianUser -notmatch '^[A-Za-z_][A-Za-z0-9_-]*$') { throw "DebianUser must be a simple Unix account name" }
 if ($RemoteAppRoot -eq '/' -or $RemoteDiscordStateRoot -eq '/' -or $RemoteDiscordStateRoot -eq $RemoteAppRoot) { throw "RemoteAppRoot and Discord state must be separate non-root paths" }
-foreach ($PersistentPath in @($RemoteDiscordEnv, $RemoteDiscordStateRoot)) {
+foreach ($PersistentPath in @($RemoteDiscordEnv, $RemoteDiscordStateRoot, $RemoteCorpusRoot, $RemoteCorpusDb, $RemoteCommunityRoot, $RemoteCommunityDb, $RemoteInbox)) {
     if ($PersistentPath -eq "$RemoteAppRoot/app" -or $PersistentPath.StartsWith("$RemoteAppRoot/app/") -or $PersistentPath.StartsWith("$RemoteAppRoot/app-backup-")) { throw "Discord configuration and state must be outside the replaceable application and backups." }
+}
+foreach ($PersistentRoot in @($RemoteCorpusRoot, $RemoteCommunityRoot, $RemoteDiscordStateRoot, $RemoteInbox)) {
+    if ("$RemoteAppRoot/app".StartsWith("$PersistentRoot/")) { throw "Persistent storage roots must not contain the replaceable application directory." }
 }
 
 Require-Command git
@@ -290,6 +297,7 @@ fi
     $FullIntegrityFlag = if ($FullIntegrityCheck) { "1" } else { "0" }
 $DeployDiscordFlag = if ($DeployDiscordBot) { "1" } else { "0" }
 $RegisterDiscordFlag = if ($RegisterDiscordCommands) { "1" } else { "0" }
+$DeployCommunityFlag = if ($DeployCommunityWorker) { "1" } else { "0" }
 
     $remoteScript = @'
 #!/bin/bash
@@ -303,6 +311,8 @@ APP_ROOT="__APPROOT__"
 CORPUS_ROOT="__CORPUSROOT__"
 INBOX="__INBOX__"
 CORPUS_DB="__CORPUSDB__"
+COMMUNITY_ROOT="__COMMUNITYROOT__"
+COMMUNITY_DB="__COMMUNITYDB__"
 BACKUP_COUNT="__BACKUPCOUNT__"
 PNPM_VERSION="__PNPMVERSION__"
 PNPM_SHA="__PNPMSHA__"
@@ -311,6 +321,7 @@ UPDATE_SYSTEMD="__UPDATESYSTEMD__"
 RESTART_MODE="__RESTARTMODE__"
 FULL_INTEGRITY="__FULLINTEGRITY__"
 DEPLOY_DISCORD="__DEPLOYDISCORD__"
+DEPLOY_COMMUNITY="__DEPLOYCOMMUNITY__"
 REGISTER_DISCORD="__REGISTERDISCORD__"
 DISCORD_ENV="__DISCORDENV__"
 DISCORD_STATE="__DISCORDSTATE__"
@@ -433,12 +444,14 @@ fi
 
 if [ "$UPDATE_SYSTEMD" = "1" ]; then
   echo "==> Updating installed systemd appliance configuration"
+  COMMUNITY_ARGS=()
+  if [ "$DEPLOY_COMMUNITY" = "1" ]; then COMMUNITY_ARGS=(--community-corpus-root "$COMMUNITY_ROOT" --community-db "$COMMUNITY_DB"); fi
   sudo bash "$APP_ROOT/app/ops/systemd/install.sh" \
     --user "$USER_NAME" \
     --app-root "$APP_ROOT/app" \
     --corpus-root "$CORPUS_ROOT" \
     --inbox "$INBOX" \
-    --db "$CORPUS_DB"
+    --db "$CORPUS_DB" "${COMMUNITY_ARGS[@]}"
 fi
 
 if [ "$DEPLOY_DISCORD" = "1" ]; then
@@ -450,6 +463,7 @@ if [ "$DEPLOY_DISCORD" = "1" ]; then
   if [ ! -f "$DISCORD_ENV" ]; then
     sudo install -o "$USER_NAME" -g "$USER_NAME" -m 600 "$APP_ROOT/app/apps/discord-bot/.env.example" "$DISCORD_ENV"
     sudo sed -i "s#^DISCORD_BOT_DATABASE_PATH=.*#DISCORD_BOT_DATABASE_PATH=$DISCORD_STATE/bot.sqlite#" "$DISCORD_ENV"
+    sudo sed -i "s#^BW_FORGE_REPO_ROOT=.*#BW_FORGE_REPO_ROOT=$APP_ROOT/app#" "$DISCORD_ENV"
     echo "Created $DISCORD_ENV from the bot example. Fill in its Discord and LLM secrets, then rerun with -DeployDiscordBot."
     DISCORD_CONFIGURED=0
   else
@@ -469,7 +483,7 @@ if [ "$DEPLOY_DISCORD" = "1" ]; then
   sed -e "s#^User=.*#User=$USER_NAME#" \
       -e "s#^WorkingDirectory=.*#WorkingDirectory=$APP_ROOT/app/apps/discord-bot#" \
       -e "s#^EnvironmentFile=.*#EnvironmentFile=$DISCORD_ENV#" \
-      -e "s#^ExecStart=.*#ExecStart=/usr/bin/env DISCORD_BOT_DATABASE_PATH=$DISCORD_STATE/bot.sqlite $BUN_BIN $APP_ROOT/app/apps/discord-bot/dist/main.js#" \
+      -e "s#^ExecStart=.*#ExecStart=/usr/bin/env BW_FORGE_REPO_ROOT=$APP_ROOT/app DISCORD_BOT_DATABASE_PATH=$DISCORD_STATE/bot.sqlite $BUN_BIN $APP_ROOT/app/apps/discord-bot/dist/main.js#" \
       "$APP_ROOT/app/apps/discord-bot/bw-forge-discord-bot.service" > "$SERVICE_TMP"
   sudo install -o root -g root -m 644 "$SERVICE_TMP" /etc/systemd/system/bw-forge-discord-bot.service
   sudo systemctl daemon-reload
@@ -511,10 +525,14 @@ case "$RESTART_MODE" in
   All)
     echo "==> Restarting BW Forge appliance services"
     sudo systemctl restart bw-forge-watch.service bw-forge-worker.service bw-forge-mcp.service bw-forge-reports-index.timer
+    if sudo systemctl cat bw-forge-community-worker.service >/dev/null 2>&1; then sudo systemctl restart bw-forge-community-worker.service; fi
     if [ "${DISCORD_CONFIGURED:-1}" = "1" ] && sudo systemctl is-enabled --quiet bw-forge-discord-bot.service 2>/dev/null; then sudo systemctl restart bw-forge-discord-bot.service; fi
     ;;
   DiscordBot)
     if [ "${DISCORD_CONFIGURED:-1}" = "1" ]; then sudo systemctl restart bw-forge-discord-bot.service; else echo "Discord bot environment is not configured; bot was not restarted."; fi
+    ;;
+  CommunityWorker)
+    if sudo systemctl cat bw-forge-community-worker.service >/dev/null 2>&1; then sudo systemctl restart bw-forge-community-worker.service; else echo "Community worker is not installed; use -DeployCommunityWorker first."; fi
     ;;
   *)
     echo "Invalid restart mode: $RESTART_MODE" >&2
@@ -562,6 +580,8 @@ fi
         "__CORPUSROOT__"   = $RemoteCorpusRoot
         "__INBOX__"        = $RemoteInbox
         "__CORPUSDB__"     = $RemoteCorpusDb
+        "__COMMUNITYROOT__"= $RemoteCommunityRoot
+        "__COMMUNITYDB__"  = $RemoteCommunityDb
         "__BACKUPCOUNT__"  = $BackupCount.ToString()
         "__PNPMVERSION__"  = $PnpmVersion
         "__PNPMSHA__"      = $PnpmLinuxSha256
@@ -570,6 +590,7 @@ fi
         "__RESTARTMODE__"  = $Restart
         "__FULLINTEGRITY__"= $FullIntegrityFlag
         "__DEPLOYDISCORD__"= $DeployDiscordFlag
+        "__DEPLOYCOMMUNITY__"= $DeployCommunityFlag
         "__REGISTERDISCORD__"= $RegisterDiscordFlag
         "__DISCORDENV__"= $RemoteDiscordEnv
         "__DISCORDSTATE__"= $RemoteDiscordStateRoot

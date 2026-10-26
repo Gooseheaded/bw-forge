@@ -1,6 +1,7 @@
 import {
   ChannelType,
   Client,
+  AttachmentBuilder,
   GatewayIntentBits,
   Partials,
   type ChatInputCommandInteraction,
@@ -17,6 +18,30 @@ import type {
   TurnRuntime,
 } from "../agent/runtime.ts";
 import { createHash } from "node:crypto";
+import { realpath, lstat } from "node:fs/promises";
+import { isAbsolute, relative, resolve, sep } from "node:path";
+
+/** Boundary for deterministic replay ingestion. The coordinator owns downloads,
+ * corpus registration, job observation, and durable upload state. */
+export interface ReplayIngestor {
+  accept(input: {
+    sessionId: number;
+    threadId: string;
+    messageId: string;
+    userId: string;
+    attachments: readonly {
+      id: string;
+      name: string;
+      size: number;
+      url: string;
+      contentType?: string | null;
+    }[];
+    authorized: boolean;
+    authorize?: () => Promise<boolean>;
+  }): Promise<{ accepted: number; rejected: number }>;
+  stop?(): void | Promise<void>;
+  start?(): void;
+}
 
 const MAX_DISCORD_MESSAGE = 2_000;
 function marker(turnId: string, chunk: number): string {
@@ -157,12 +182,70 @@ export class DiscordDelivery implements RuntimeDelivery {
   }
 }
 
+/** Durable publication delivery for standalone reports. Paths are checked against
+ * the configured corpus root before being handed to discord.js. */
+export class DiscordReportDelivery {
+  constructor(
+    private readonly client: Client,
+    private readonly store: BotStore,
+    // Discord's bot upload limit can remain 10 MiB even where the client UI
+    // advertises larger limits; use the conservative API limit.
+    private readonly maxBytes = 10 * 1024 * 1024,
+  ) {}
+
+  async deliver(input: {
+    uploadId: number;
+    threadId: string;
+    artifactPath: string;
+    corpusRoot: string;
+    label: string;
+  }): Promise<string> {
+    const delivery = this.store.ensureReportDelivery(input.uploadId, input.threadId, input.artifactPath);
+    if (delivery.state === "delivered" && delivery.discordMessageId) return delivery.discordMessageId;
+    const root = await realpath(resolve(input.corpusRoot));
+    const artifact = await realpath(resolve(input.artifactPath));
+    const rel = relative(root, artifact);
+    if (!rel || isAbsolute(rel) || rel === ".." || rel.startsWith(`..${sep}`))
+      throw new Error("published report is outside the corpus artifact root");
+    const requested = resolve(input.artifactPath);
+    if ((process.platform === "win32" ? artifact.toLowerCase() !== requested.toLowerCase() : artifact !== requested)) throw new Error("published report contains a symlink");
+    const info = await lstat(artifact);
+    if (!info.isFile()) throw new Error("published report is not a regular file");
+    if (info.size > this.maxBytes) throw new Error(`published report exceeds Discord upload limit (${this.maxBytes} bytes)`);
+    const channel = await this.client.channels.fetch(input.threadId);
+    if (!channel?.isThread()) throw new Error("session thread is unavailable");
+    const marker = `\u2063bf-report-${createHash("sha256").update(String(input.uploadId)).digest("hex").slice(0, 24)}\u2063`;
+    const history = await channel.messages.fetch({ limit: 100 });
+    const existing = history.find((message: any) => message.author?.id === this.client.user?.id && message.content?.includes(marker));
+    if (existing) {
+      this.store.markReportDelivered(input.uploadId, existing.id);
+      return existing.id;
+    }
+    const sent = await channel.send({
+      content: `Analysis complete: ${input.label.replace(/[\r\n`*_~|<>]/g, "_").slice(0, 120)} (#${this.sessionReplayNumber(input.uploadId)}). Your HTML report is attached. ${marker}`,
+      nonce: `bfr${createHash("sha256").update(String(input.uploadId)).digest("hex").slice(0, 20)}`,
+      enforceNonce: true,
+      files: [new AttachmentBuilder(artifact, { name: `${input.label.replace(/[^A-Za-z0-9._-]+/g, "_").slice(0, 80)}.html` })],
+      allowedMentions: { parse: [], repliedUser: false },
+    });
+    this.store.markReportDelivered(input.uploadId, sent.id);
+    return sent.id;
+  }
+  private sessionReplayNumber(uploadId: number): number {
+    const upload = this.store.getReplayUpload(uploadId)!;
+    const replays = this.store.db.query("SELECT corpus_id,replay_sha256 FROM session_replays WHERE session_id=? ORDER BY first_associated_at,rowid").all(upload.sessionId) as { corpus_id: string; replay_sha256: string }[];
+    const index = replays.findIndex(replay => replay.corpus_id === upload.corpusId && replay.replay_sha256 === upload.replaySha256);
+    return index >= 0 ? index + 1 : uploadId;
+  }
+}
+
 export interface DiscordAdapterOptions {
   client?: Client;
   config: BotConfig;
   store: BotStore;
   runtime: TurnRuntime;
   onStopped?: () => void;
+  replayIngestor?: ReplayIngestor;
 }
 
 /** Discord event adapter. All authorization and durable state remains outside discord.js. */
@@ -170,6 +253,7 @@ export class DiscordAdapter {
   readonly client: Client;
   readonly authorization: DiscordAuthorization;
   readonly delivery: DiscordDelivery;
+  readonly reportDelivery: DiscordReportDelivery;
   private stopping = false;
   private readonly messageChains = new Map<string, Promise<void>>();
   private readonly interactions = new Map<string, Promise<void>>();
@@ -188,6 +272,7 @@ export class DiscordAdapter {
       });
     this.authorization = new DiscordAuthorization(this.client, options.config);
     this.delivery = new DiscordDelivery(this.client, options.store);
+    this.reportDelivery = new DiscordReportDelivery(this.client, options.store);
     this.client.on(
       "interactionCreate",
       (interaction) =>
@@ -206,6 +291,7 @@ export class DiscordAdapter {
 
   async start(): Promise<void> {
     await this.client.login(this.options.config.discord.token);
+    this.options.replayIngestor?.start?.();
     await this.options.runtime.start();
   }
 
@@ -214,6 +300,7 @@ export class DiscordAdapter {
     this.stopping = true;
     try {
       await this.options.runtime.stop();
+      await this.options.replayIngestor?.stop?.();
     } finally {
       await this.client.destroy();
       this.options.store.close();
@@ -262,7 +349,7 @@ export class DiscordAdapter {
       )
     ) {
       await thread.send({
-        content: `Welcome to BW Forge. Ask questions about Brood War strategy; replay ingestion and MCP analysis are not available yet.${welcomeMarker}`,
+          content: `Welcome to BW Forge. Ask questions about Brood War strategy. Upload .rep files here for asynchronous HTML analysis; replay-aware chat and MCP analysis are not available yet.${welcomeMarker}`,
         nonce: createHash("sha256").update(key).digest("hex").slice(0, 24),
         enforceNonce: true,
         allowedMentions: { parse: [], repliedUser: false },
@@ -390,14 +477,37 @@ export class DiscordAdapter {
           ))
         )
           return;
-        if (message.attachments.size > 0 && !message.content.trim()) {
+        if (message.attachments.size > 0 && this.options.replayIngestor) {
+          const attachments = [...message.attachments.values()].map((a) => ({
+            id: a.id,
+            name: a.name ?? "attachment.rep",
+            size: a.size ?? 0,
+            url: a.url,
+            contentType: a.contentType,
+          }));
+          const candidates = attachments.filter((a) => /\.rep$/i.test(a.name));
+          const rejected = attachments.length - candidates.length;
           await (message.channel as TextChannel).send({
-            content:
-              "Replay ingestion is not supported yet; the attachment was ignored.",
+            content: candidates.length > 0
+              ? `Replay received (${candidates.length} accepted${rejected ? `, ${rejected} rejected` : ""}). Analysis will run asynchronously and the HTML report will be posted here.`
+              : "No valid .rep attachments were accepted.",
             allowedMentions: { parse: [], repliedUser: false },
           });
-          return;
+          void this.options.replayIngestor.accept({
+            sessionId: session.id,
+            threadId: message.channel.id,
+            messageId: message.id,
+            userId: message.author.id,
+            attachments,
+            authorized: true,
+            authorize: () => this.authorization.authorize({ guildId: message.guild!.id, userId: message.author.id }),
+          }).catch((error) => console.error("Replay ingestion failed", { sessionId: session.id, messageId: message.id, error: error instanceof Error ? error.message : String(error) }));
+          if (!message.content.trim()) return;
         }
+        if (message.attachments.size > 0 && !this.options.replayIngestor) {
+          await (message.channel as TextChannel).send({ content: "Replay uploads are not configured on this server yet.", allowedMentions: { parse: [], repliedUser: false } });
+        }
+        if (message.attachments.size > 0 && !message.content.trim()) return;
         try {
           await this.options.runtime.enqueue({
             messageId: message.id,

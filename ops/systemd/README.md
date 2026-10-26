@@ -247,3 +247,41 @@ systemctl status bw-forge-reports-index.service
 After at most one timer interval, confirm the index exists and opens from the
 read-only reports share. A report-index failure is operationally separate from the
 worker and cannot change a successful analysis job into a failure.
+
+## M2 multi-corpus and Discord ingestion
+
+Keep replay corpora separate from Discord bot state. The recommended appliance
+layout is `/srv/bw-forge/pro` for the read-only professional corpus,
+`/srv/bw-forge/community` for authorized uploads, and
+`/srv/bw-forge/discord-bot-state` for bot SQLite state and temporary work.
+
+Configure `BW_FORGE_CORPORA_JSON` in the persistent bot environment and select
+`community` as `BW_FORGE_DEFAULT_UPLOAD_CORPUS`. The bot account needs only
+read/traverse access to `pro`, and read/write/traverse access to `community` and
+its artifact directories. It must not own or write the professional corpus.
+The Corpus v2 worker remains independently managed; point its `--corpus-root`
+and `--db` at the community corpus when processing uploads. Never repoint the
+professional worker in place. Use a second service instance with a distinct
+unit name and lease/state directory when both corpora require workers.
+
+The Windows deployer preserves corpus roots, the bot environment, and the bot
+SQLite database while replacing only the committed application tree. It does
+not install packages on Debian: dependency stores and the Discord bundle are
+built and checksummed on Windows, then imported offline. After deployment,
+verify the bot and community worker independently with `systemctl` and inspect
+pending upload reconciliation in `journalctl`. A bot restart must leave Corpus
+v2 jobs and report-delivery intents intact.
+
+Application-level read-only checks are backed by Unix ownership and mode bits,
+which remain a deployment responsibility. If Discord delivery is temporarily
+unavailable, leave bot SQLite and corpus artifacts intact; the coordinator
+retries and reconciles deliveries after restart. Exactly-once delivery across
+Discord and SQLite is not possible, so stable upload and delivery identities
+are used to suppress duplicates.
+
+The default deployer preserves the existing unprivileged service account, so it
+does not automatically isolate the bot from a primary worker using that same
+account. A dedicated bot account with read-only professional corpus permissions
+is an operator-managed option. Detailed M2 provisioning, offline deployment,
+authorization policy, recovery and live checks are documented in
+[Discord M2 operations](../../apps/discord-bot/M2-OPERATIONS.md).

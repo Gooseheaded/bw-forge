@@ -16,6 +16,8 @@ MCP_PATH="/mcp"
 STABILITY_MS="1500"
 RECONCILE_SECONDS="60"
 REGISTRATION_CONCURRENCY="4"
+COMMUNITY_ROOT=""
+COMMUNITY_DB=""
 DESTDIR=${DESTDIR:-}
 CREATE_INBOX=0
 START=0
@@ -36,6 +38,8 @@ Options:
   --stability-ms <ms>         Default: 1500
   --reconcile-seconds <sec>   Default: 60
   --registration-concurrency <n> Default: 4
+  --community-corpus-root <dir> Install an independent community worker
+  --community-db <path>         Database for the independent community worker
   --create-inbox              Create the configured inbox when absent
   --start                     Restart/start bw-forge.target after installation
   --destdir <dir>             Stage files beneath a packaging/test root; skip systemctl
@@ -61,6 +65,8 @@ while [ "$#" -gt 0 ]; do
     --stability-ms) need_value "$@"; STABILITY_MS=$2; shift 2 ;;
     --reconcile-seconds) need_value "$@"; RECONCILE_SECONDS=$2; shift 2 ;;
     --registration-concurrency) need_value "$@"; REGISTRATION_CONCURRENCY=$2; shift 2 ;;
+    --community-corpus-root) need_value "$@"; COMMUNITY_ROOT=$2; shift 2 ;;
+    --community-db) need_value "$@"; COMMUNITY_DB=$2; shift 2 ;;
     --destdir) need_value "$@"; DESTDIR=$2; shift 2 ;;
     --create-inbox) CREATE_INBOX=1; shift ;;
     --start) START=1; shift ;;
@@ -74,6 +80,9 @@ done
 [ -n "$CORPUS_ROOT" ] || die "--corpus-root is required"
 [ -n "$INBOX" ] || die "--inbox is required"
 [ -n "$DB_PATH" ] || die "--db is required"
+if { [ -n "$COMMUNITY_ROOT" ] && [ -z "$COMMUNITY_DB" ]; } || { [ -z "$COMMUNITY_ROOT" ] && [ -n "$COMMUNITY_DB" ]; }; then
+  die "--community-corpus-root and --community-db must be supplied together"
+fi
 
 validate_text() {
   local name=$1 value=$2
@@ -84,6 +93,11 @@ absolute_path() { case "$2" in /*) ;; *) die "$1 must be an absolute path: $2" ;
 for pair in "app root|$APP_ROOT" "corpus root|$CORPUS_ROOT" "inbox|$INBOX" "database|$DB_PATH"; do
   name=${pair%%|*}; value=${pair#*|}; validate_text "$name" "$value"; absolute_path "$name" "$value"
 done
+if [ -n "$COMMUNITY_ROOT" ]; then
+  for pair in "community corpus root|$COMMUNITY_ROOT" "community database|$COMMUNITY_DB"; do
+    name=${pair%%|*}; value=${pair#*|}; validate_text "$name" "$value"; absolute_path "$name" "$value"
+  done
+fi
 [[ "$SERVICE_USER" =~ ^[A-Za-z_][A-Za-z0-9_.-]*$ ]] || die "invalid service user"
 id -- "$SERVICE_USER" >/dev/null 2>&1 || die "service user does not exist: $SERVICE_USER"
 [ "$(id -u -- "$SERVICE_USER")" != "0" ] || die "service user must not be root"
@@ -117,12 +131,32 @@ SCREP_ACTUAL_SHA256=$(sha256sum -- "$SCREP_PATH" | awk '{print $1}')
 [ -f "$DB_PATH" ] || die "Corpus database does not exist; refusing to initialize it: $DB_PATH"
 DB_DIR=$(dirname -- "$DB_PATH")
 [ -d "$DB_DIR" ] || die "database directory is not a directory: $DB_DIR"
+if [ -n "$COMMUNITY_ROOT" ]; then
+  [ -d "$COMMUNITY_ROOT" ] || die "community corpus root is not a directory: $COMMUNITY_ROOT"
+  [ -d "$COMMUNITY_ROOT/analyses" ] || die "community analyses root is not a directory: $COMMUNITY_ROOT/analyses"
+  [ -f "$COMMUNITY_DB" ] || die "community database does not exist: $COMMUNITY_DB"
+  COMMUNITY_DB_DIR=$(dirname -- "$COMMUNITY_DB")
+  [ -d "$COMMUNITY_DB_DIR" ] || die "community database directory is not a directory: $COMMUNITY_DB_DIR"
+  [ "$COMMUNITY_ROOT" != "$CORPUS_ROOT" ] || die "community corpus must be distinct from primary corpus"
+fi
 
 CORPUS_REAL=$(realpath -m -- "$CORPUS_ROOT")
 INBOX_REAL=$(realpath -m -- "$INBOX")
 paths_overlap() {
   [ "$1" = "$2" ] || [[ "$1/" == "$2/"* ]] || [[ "$2/" == "$1/"* ]]
 }
+if [ -n "$COMMUNITY_ROOT" ]; then
+  COMMUNITY_REAL=$(realpath -m -- "$COMMUNITY_ROOT")
+  COMMUNITY_DB_REAL=$(realpath -m -- "$COMMUNITY_DB")
+  PRIMARY_DB_REAL=$(realpath -m -- "$DB_PATH")
+  paths_overlap "$COMMUNITY_REAL" "$CORPUS_REAL" && die "community corpus overlaps primary corpus"
+  paths_overlap "$COMMUNITY_REAL" "$PRIMARY_DB_REAL" && die "community corpus overlaps primary database"
+  paths_overlap "$COMMUNITY_DB_REAL" "$CORPUS_REAL" && die "community database overlaps primary corpus"
+  paths_overlap "$COMMUNITY_DB_REAL" "$PRIMARY_DB_REAL" && die "community and primary databases overlap"
+  for managed in "$COMMUNITY_REAL/analyses" "$COMMUNITY_REAL/replays" "$COMMUNITY_REAL/work"; do
+    paths_overlap "$COMMUNITY_DB_REAL" "$managed" && die "community database overlaps managed artifacts"
+  done
+fi
 for managed in "$CORPUS_REAL/replays" "$CORPUS_REAL/analyses" "$CORPUS_REAL/work" "$CORPUS_REAL/db"; do
   paths_overlap "$INBOX_REAL" "$managed" && die "inbox overlaps managed corpus storage: $INBOX"
 done
@@ -154,6 +188,12 @@ check_access -r "read" "$APP_ROOT/apps/cli/src/main.ts"
 for path in "$CORPUS_ROOT" "$CORPUS_ROOT/analyses" "$INBOX" "$DB_DIR"; do
   check_access -r "read" "$path"; check_access -w "write" "$path"; check_access -x "traverse" "$path"
 done
+if [ -n "$COMMUNITY_ROOT" ]; then
+  for path in "$COMMUNITY_ROOT" "$COMMUNITY_ROOT/analyses" "$COMMUNITY_DB_DIR"; do
+    check_access -r "read" "$path"; check_access -w "write" "$path"; check_access -x "traverse" "$path"
+  done
+  check_access -r "read" "$COMMUNITY_DB"; check_access -w "write" "$COMMUNITY_DB"
+fi
 check_access -r "read" "$DB_PATH"; check_access -w "write" "$DB_PATH"
 for path in "$BUN_PATH" "$NODE_PATH" "$PYTHON_PATH" "$SCREP_PATH"; do check_access -x "execute" "$path"; done
 SCREP_VERSION_OUTPUT=$(as_service_user "$SCREP_PATH" -version 2>&1) || die "pinned screp runtime could not execute: $SCREP_PATH"
@@ -191,6 +231,33 @@ for unit in bw-forge-watch.service bw-forge-worker.service bw-forge-mcp.service 
   install -m 0644 -- "$STAGING/$unit" "$UNIT_DIR/$unit"
 done
 
+if [ -n "$COMMUNITY_ROOT" ]; then
+  # Clone the rendered worker unit but give it an independent environment,
+  # journal identity, and systemd unit/lease namespace.
+  COMMUNITY_ENV="$CONFIG_DIR/community-worker.env"
+  # Preserve Python/runtime and watcher settings from the primary environment;
+  # only corpus identity differs for this worker instance.
+  cp "$CONFIG_DIR/bw-forge.env" "$COMMUNITY_ENV"
+  "$NODE_PATH" --input-type=module - "$SCRIPT_DIR/render.mjs" "$COMMUNITY_ENV" "$COMMUNITY_ROOT" "$COMMUNITY_DB" "$APP_ROOT" <<'NODE'
+import { appendFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
+const [renderer, target, root, db, app] = process.argv.slice(2);
+const { environmentQuote } = await import(pathToFileURL(renderer).href);
+appendFileSync(target, [['BW_FORGE_CORPUS_ROOT', root], ['BW_FORGE_DB', db], ['BW_FORGE_REPO_ROOT', app]]
+  .map(([key, value]) => `${key}=${environmentQuote(value)}\n`).join(''));
+NODE
+  chown "$SERVICE_USER:$(id -gn -- "$SERVICE_USER")" "$COMMUNITY_ENV"
+  chmod 0640 "$COMMUNITY_ENV"
+  sed -e 's/bw-forge-worker/bw-forge-community-worker/g' \
+      -e 's#EnvironmentFile=.*#EnvironmentFile=/etc/bw-forge/community-worker.env#' \
+      "$STAGING/bw-forge-worker.service" > "$UNIT_DIR/bw-forge-community-worker.service"
+fi
+if [ -f "$UNIT_DIR/bw-forge-community-worker.service" ]; then
+  sed 's/Wants=/Wants=bw-forge-community-worker.service /; s/After=/After=bw-forge-community-worker.service /' \
+      "$UNIT_DIR/bw-forge.target" > "$UNIT_DIR/.bw-forge.target.tmp"
+  mv "$UNIT_DIR/.bw-forge.target.tmp" "$UNIT_DIR/bw-forge.target"
+fi
+
 if [ -z "$DESTDIR" ]; then
   systemctl daemon-reload
   systemctl enable bw-forge.target
@@ -201,4 +268,5 @@ fi
 
 printf 'Installed configuration: %s\n' "$CONFIG_DIR/bw-forge.env"
 printf 'Installed units: %s/{bw-forge-watch.service,bw-forge-worker.service,bw-forge-mcp.service,bw-forge-reports-index.service,bw-forge-reports-index.timer,bw-forge.target}\n' "$UNIT_DIR"
+[ -z "$COMMUNITY_ROOT" ] || printf 'Installed independent community worker: %s/bw-forge-community-worker.service\n' "$UNIT_DIR"
 if [ -z "$DESTDIR" ] && [ "$START" = 0 ]; then printf 'Enabled for boot; start with: systemctl start bw-forge.target\n'; fi

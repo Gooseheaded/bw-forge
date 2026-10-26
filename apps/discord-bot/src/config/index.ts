@@ -25,9 +25,42 @@ export interface BotConfig {
   };
   storage: { databasePath: string };
   queue: { maxConcurrent: number; maxPerThread: number };
+  corpus?: {
+    corpora: Record<string, { name: string; database: string; corpusRoot: string; access: "read-only" | "read-write" }>;
+    defaultUploadCorpus?: string;
+    readableCorpora: string[];
+    maxAttachmentBytes: number;
+    maxDownloads: number;
+    downloadTimeoutMs: number;
+    pollIntervalMs: number;
+    deliveryRetryLimit: number;
+    maxPendingPerSession: number;
+  };
 }
 
 const snowflake = /^\d{17,20}$/;
+
+// JSON.parse discards duplicate object keys. Reject duplicate corpus IDs before
+// parsing the top-level object; escaped spellings of the same ID count too.
+function rejectDuplicateCorpusKeys(json: string) {
+  let depth = 0;
+  const ids = new Set<string>();
+  for (let i = 0; i < json.length; i++) {
+    const char = json[i];
+    if (char === '"') {
+      const start = i++;
+      while (i < json.length && json[i] !== '"') { if (json[i] === "\\") i++; i++; }
+      let next = i + 1;
+      while (/\s/.test(json[next] ?? "" ) && next < json.length) next++;
+      if (depth === 1 && json.trimStart().startsWith("{") && json[next] === ":") {
+        const id = JSON.parse(json.slice(start, i + 1)) as string;
+        if (ids.has(id)) throw new ConfigError("Duplicate corpus ID in BW_FORGE_CORPORA_JSON");
+        ids.add(id);
+      }
+    } else if (char === "{" || char === "[") depth++;
+    else if (char === "}" || char === "]") depth--;
+  }
+}
 
 function required(
   env: Record<string, string | undefined>,
@@ -112,6 +145,37 @@ export function loadConfig(
     throw new ConfigError(
       "DISCORD_APPLICATION_ID must be a valid Discord snowflake ID",
     );
+  let corpora: NonNullable<BotConfig["corpus"]>["corpora"] = {};
+  const corpusJson = env.BW_FORGE_CORPORA_JSON?.trim();
+  if (corpusJson) {
+    let parsed: unknown;
+    try { parsed = JSON.parse(corpusJson); } catch { throw new ConfigError("BW_FORGE_CORPORA_JSON must be valid JSON"); }
+    rejectDuplicateCorpusKeys(corpusJson);
+    if (!parsed || typeof parsed !== "object") throw new ConfigError("BW_FORGE_CORPORA_JSON must be an object or array");
+    const corpusEntries: Array<[string, unknown]> = Array.isArray(parsed)
+      ? parsed.map((value, index) => [typeof value === "object" && value !== null && typeof (value as Record<string, unknown>).id === "string" ? (value as Record<string, unknown>).id as string : `#${index}`, value])
+      : Object.entries(parsed as Record<string, unknown>);
+    const seenIds = new Set<string>();
+    for (const [id, value] of corpusEntries) {
+      if (seenIds.has(id)) throw new ConfigError("Duplicate corpus ID in BW_FORGE_CORPORA_JSON");
+      seenIds.add(id);
+      if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(id)) throw new ConfigError(`Invalid corpus ID: ${id}`);
+      if (!value || typeof value !== "object" || Array.isArray(value)) throw new ConfigError(`Invalid corpus configuration: ${id}`);
+      const item = value as Record<string, unknown>;
+      const name = typeof item.name === "string" && item.name.trim() ? item.name.trim() : id;
+      const database = typeof item.database === "string" ? item.database.trim() : "";
+      const corpusRoot = typeof item.corpus_root === "string" ? item.corpus_root.trim() : typeof item.corpusRoot === "string" ? item.corpusRoot.trim() : "";
+      const access = item.access === "read-only" || item.access === "read-write" ? item.access : undefined;
+      if (!database || !corpusRoot || !access) throw new ConfigError(`Corpus ${id} requires name, database, corpus_root, and access`);
+      corpora[id] = { name, database, corpusRoot, access };
+    }
+  }
+  const readableCorpora = (env.BW_FORGE_READABLE_CORPORA ?? Object.keys(corpora).join(",")).split(",").map(v => v.trim()).filter(Boolean);
+  const defaultUploadCorpus = env.BW_FORGE_DEFAULT_UPLOAD_CORPUS?.trim() || undefined;
+  const boundedOptional = (key: string, fallback: number, min: number, max: number) => {
+    const raw = env[key]?.trim(); if (!raw) return fallback;
+    const value = Number(raw); if (!Number.isSafeInteger(value) || value < min || value > max) throw new ConfigError(`${key} must be an integer between ${min} and ${max}`); return value;
+  };
   return {
     discord: {
       token: required(env, "DISCORD_BOT_TOKEN"),
@@ -133,6 +197,17 @@ export function loadConfig(
     queue: {
       maxConcurrent: integer(env, "LLM_MAX_CONCURRENT_TURNS", 1, 64),
       maxPerThread: integer(env, "MAX_MESSAGES_QUEUED_PER_THREAD", 1, 1000),
+    },
+    corpus: {
+      corpora,
+      defaultUploadCorpus,
+      readableCorpora,
+      maxAttachmentBytes: boundedOptional("BW_FORGE_MAX_REPLAY_BYTES", 64 * 1024 * 1024, 1024, 1024 * 1024 * 1024),
+      maxDownloads: boundedOptional("BW_FORGE_MAX_REPLAY_DOWNLOADS", 2, 1, 32),
+      downloadTimeoutMs: boundedOptional("BW_FORGE_REPLAY_DOWNLOAD_TIMEOUT_MS", 120000, 1000, 900000),
+      pollIntervalMs: boundedOptional("BW_FORGE_REPLAY_POLL_INTERVAL_MS", 5000, 250, 300000),
+      deliveryRetryLimit: boundedOptional("BW_FORGE_REPORT_DELIVERY_RETRIES", 5, 1, 100),
+      maxPendingPerSession: boundedOptional("BW_FORGE_MAX_PENDING_REPLAYS_PER_SESSION", 8, 1, 1000),
     },
   };
 }

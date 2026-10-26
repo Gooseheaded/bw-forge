@@ -11,6 +11,7 @@ export function renderEnvironment(config) {
   validateConfig(config);
   const values = {
     BW_FORGE_APP_ROOT: config.appRoot,
+    BW_FORGE_REPO_ROOT: config.appRoot,
     BW_FORGE_CORPUS_ROOT: config.corpusRoot,
     BW_FORGE_DB: config.db,
     BW_FORGE_INBOX: config.inbox,

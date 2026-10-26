@@ -66,6 +66,22 @@ export interface EnqueueInput {
   content: string;
 }
 
+export type ReplayUploadState = "received" | "validating" | "registering" | "queued" | "running" | "succeeded" | "failed";
+export interface ReplayUpload {
+  id: number; sessionId: number; discordMessageId: string; attachmentId: string;
+  userId: string; corpusId: string; replaySha256: string | null; jobId: string | null;
+  filename: string; state: ReplayUploadState; error: string | null;
+  createdAt: string; updatedAt: string;
+  filePath?: string | null; nextAttemptAt?: string | null;
+  attempts: number; failureNotified: boolean;
+}
+export interface ReportDelivery {
+  id: number; uploadId: number; threadId: string; artifactPath: string | null;
+  state: "pending" | "delivered" | "failed"; discordMessageId: string | null;
+  attempts: number; error: string | null;
+  nextAttemptAt: string | null;
+}
+
 const now = () => new Date().toISOString();
 
 function session(row: any): Session {
@@ -110,6 +126,12 @@ function turn(row: any): Turn {
     error: row.error,
   };
 }
+function replayUpload(row: any): ReplayUpload {
+  return { id: row.id, sessionId: row.session_id, discordMessageId: row.discord_message_id, attachmentId: row.attachment_id, userId: row.user_id, corpusId: row.corpus_id, replaySha256: row.replay_sha256, jobId: row.job_id, filename: row.original_filename, state: row.state, error: row.error, createdAt: row.created_at, updatedAt: row.updated_at, filePath: row.file_path ?? null, nextAttemptAt: row.next_attempt_at ?? null, attempts: row.attempts ?? 0, failureNotified: Boolean(row.failure_notified) };
+}
+function reportDelivery(row: any): ReportDelivery {
+  return { id: row.id, uploadId: row.upload_id, threadId: row.target_thread_id, artifactPath: row.artifact_path, state: row.state, discordMessageId: row.discord_message_id, attempts: row.attempts, error: row.error, nextAttemptAt: row.next_attempt_at ?? null };
+}
 
 export class BotStore {
   readonly db: Database;
@@ -146,7 +168,7 @@ export class BotStore {
     const version = (
       this.db.query("SELECT version FROM schema_version").get() as any
     ).version as number;
-    if (version > 1)
+    if (version > 4)
       throw new Error(`Unsupported bot database schema version ${version}`);
     if (version < 1) {
       this.db.transaction(() =>
@@ -189,6 +211,41 @@ export class BotStore {
         UPDATE schema_version SET version = 1;
       `),
       )();
+    }
+    if (version < 2) {
+      this.db.transaction(() => this.db.exec(`
+        CREATE TABLE IF NOT EXISTS session_replays (
+          session_id INTEGER NOT NULL REFERENCES sessions(id), corpus_id TEXT NOT NULL,
+          replay_sha256 TEXT NOT NULL, first_associated_at TEXT NOT NULL,
+          display_name TEXT, PRIMARY KEY(session_id, corpus_id, replay_sha256)
+        );
+        CREATE TABLE IF NOT EXISTS replay_uploads (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, discord_message_id TEXT NOT NULL,
+          attachment_id TEXT NOT NULL, session_id INTEGER NOT NULL REFERENCES sessions(id),
+          user_id TEXT NOT NULL, corpus_id TEXT NOT NULL, replay_sha256 TEXT,
+          job_id TEXT, original_filename TEXT NOT NULL, state TEXT NOT NULL,
+          error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+          UNIQUE(discord_message_id, attachment_id)
+        );
+        CREATE INDEX IF NOT EXISTS replay_uploads_pending ON replay_uploads(state, id);
+        CREATE TABLE IF NOT EXISTS report_deliveries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, upload_id INTEGER NOT NULL REFERENCES replay_uploads(id),
+          target_thread_id TEXT NOT NULL, artifact_path TEXT, state TEXT NOT NULL DEFAULT 'pending',
+          discord_message_id TEXT, attempts INTEGER NOT NULL DEFAULT 0, error TEXT,
+          UNIQUE(upload_id)
+        );
+        UPDATE schema_version SET version = 2;
+      `))();
+    }
+    if (version < 3) {
+      this.db.transaction(() => this.db.exec(`ALTER TABLE replay_uploads ADD COLUMN file_path TEXT; ALTER TABLE replay_uploads ADD COLUMN next_attempt_at TEXT; ALTER TABLE report_deliveries ADD COLUMN next_attempt_at TEXT; UPDATE schema_version SET version = 3;`))();
+    }
+    if (version < 4) {
+      this.db.transaction(() => this.db.exec(`
+        ALTER TABLE replay_uploads ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE replay_uploads ADD COLUMN failure_notified INTEGER NOT NULL DEFAULT 0;
+        UPDATE schema_version SET version = 4;
+      `))();
     }
     this.db
       .query(
@@ -643,6 +700,62 @@ export class BotStore {
         "SELECT turn_id AS turnId,chunk_index AS chunkIndex,discord_message_id AS discordMessageId FROM delivery_attempts WHERE status!='delivered' ORDER BY turn_id,chunk_index",
       )
       .all() as any[];
+  }
+  createReplayUpload(input: { sessionId: number; discordMessageId: string; attachmentId: string; userId: string; corpusId: string; filename: string }): ReplayUpload {
+    const t = now();
+    this.db.query(`INSERT OR IGNORE INTO replay_uploads(discord_message_id,attachment_id,session_id,user_id,corpus_id,original_filename,state,created_at,updated_at) VALUES(?,?,?,?,?,?, 'received',?,?)`).run(input.discordMessageId,input.attachmentId,input.sessionId,input.userId,input.corpusId,input.filename,t,t);
+    return this.getReplayUploadByAttachment(input.discordMessageId, input.attachmentId)!;
+  }
+  getReplayUpload(id: number): ReplayUpload | null {
+    const r = this.db.query("SELECT * FROM replay_uploads WHERE id=?").get(id) as any;
+    return r ? replayUpload(r) : null;
+  }
+  getReplayUploadByAttachment(messageId: string, attachmentId: string): ReplayUpload | null {
+    const r = this.db.query("SELECT * FROM replay_uploads WHERE discord_message_id=? AND attachment_id=?").get(messageId, attachmentId) as any;
+    return r ? replayUpload(r) : null;
+  }
+  listReplayUploads(states?: ReplayUploadState[]): ReplayUpload[] {
+    const rows = states?.length ? this.db.query(`SELECT * FROM replay_uploads WHERE state IN (${states.map(()=>"?").join(",")}) ORDER BY id`).all(...states) : this.db.query("SELECT * FROM replay_uploads ORDER BY id").all();
+    return (rows as any[]).map(replayUpload);
+  }
+  getReplayWork(kind: "ingestion" | "observation" | "notification", before: string): ReplayUpload[] {
+    const predicate = kind === "ingestion" ? "u.state IN ('received','validating','registering')"
+      : kind === "observation" ? "(u.state IN ('queued','running') OR (u.state='succeeded' AND NOT EXISTS (SELECT 1 FROM report_deliveries d WHERE d.upload_id=u.id)))"
+      : "u.state IN ('failed','succeeded') AND u.error IS NOT NULL AND u.failure_notified=0 AND (u.state='failed' OR EXISTS (SELECT 1 FROM report_deliveries d WHERE d.upload_id=u.id AND d.state='failed'))";
+    return (this.db.query(`SELECT u.* FROM replay_uploads u WHERE ${predicate} AND (u.next_attempt_at IS NULL OR u.next_attempt_at<=?) ORDER BY u.updated_at,u.id LIMIT 128`).all(before) as any[]).map(replayUpload);
+  }
+  getReplayStaging(cleanupOnly = false): ReplayUpload[] {
+    return (this.db.query(`SELECT * FROM replay_uploads WHERE file_path IS NOT NULL ${cleanupOnly ? "AND state IN ('queued','running','succeeded','failed') LIMIT 128" : ""}`).all() as any[]).map(replayUpload);
+  }
+  updateReplayUpload(id: number, patch: Partial<Pick<ReplayUpload,"state"|"replaySha256"|"jobId"|"error"|"filePath"|"nextAttemptAt"|"attempts"|"failureNotified">>): ReplayUpload {
+    const current = this.getReplayUpload(id); if (!current) throw new Error("replay upload not found");
+    const updated = { ...current, ...patch };
+    this.db.query("UPDATE replay_uploads SET state=?,replay_sha256=?,job_id=?,error=?,file_path=?,next_attempt_at=?,attempts=?,failure_notified=?,updated_at=? WHERE id=?").run(updated.state, updated.replaySha256, updated.jobId, updated.error, updated.filePath ?? null, updated.nextAttemptAt ?? null, updated.attempts, Number(updated.failureNotified), now(), id);
+    return this.getReplayUpload(id)!;
+  }
+  associateSessionReplay(sessionId: number, corpusId: string, sha256: string, displayName?: string) {
+    this.db.query("INSERT OR IGNORE INTO session_replays(session_id,corpus_id,replay_sha256,first_associated_at,display_name) VALUES(?,?,?,?,?)").run(sessionId, corpusId, sha256, now(), displayName ?? null);
+  }
+  getReportDelivery(uploadId: number): ReportDelivery | null {
+    const r = this.db.query("SELECT * FROM report_deliveries WHERE upload_id=?").get(uploadId) as any;
+    return r ? reportDelivery(r) : null;
+  }
+  ensureReportDelivery(uploadId: number, threadId: string, artifactPath?: string): ReportDelivery {
+    this.db.query("INSERT INTO report_deliveries(upload_id,target_thread_id,artifact_path) VALUES(?,?,?) ON CONFLICT(upload_id) DO UPDATE SET target_thread_id=excluded.target_thread_id,artifact_path=COALESCE(excluded.artifact_path,report_deliveries.artifact_path)").run(uploadId,threadId,artifactPath ?? null);
+    return this.getReportDelivery(uploadId)!;
+  }
+  recordReportDeliveryAttempt(uploadId: number, error?: string) {
+    this.db.query("UPDATE report_deliveries SET attempts=attempts+1,error=? WHERE upload_id=?").run(error?.slice(0,2000) ?? null, uploadId);
+  }
+  markReportDelivered(uploadId: number, messageId: string) {
+    this.db.query("UPDATE report_deliveries SET state='delivered',discord_message_id=?,error=NULL WHERE upload_id=?").run(messageId, uploadId);
+  }
+  deferReportDelivery(uploadId: number, error: string, nextAttemptAt: string | null, terminal = false) {
+    this.db.query("UPDATE report_deliveries SET error=?,next_attempt_at=?,state=? WHERE upload_id=?")
+      .run(error.slice(0, 2000), nextAttemptAt, terminal ? "failed" : "pending", uploadId);
+  }
+  getPendingReportDeliveries(before = new Date().toISOString()): ReportDelivery[] {
+    return (this.db.query("SELECT * FROM report_deliveries WHERE state='pending' AND (next_attempt_at IS NULL OR next_attempt_at<=?) ORDER BY next_attempt_at,id LIMIT 128").all(before) as any[]).map(reportDelivery);
   }
   close() {
     this.db.close();

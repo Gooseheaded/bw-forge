@@ -66,7 +66,13 @@ export async function ingestReplayAnalysis(options: IngestReplayAnalysisOptions)
 }
 
 export async function runStore<T>(args: string[]): Promise<T> {
-  const script = fileURLToPath(new URL("../python/store.py", import.meta.url));
+  // Bundles relocate this module away from the repository's Python helper. The
+  // deployment supplies BW_FORGE_REPO_ROOT; source execution keeps the
+  // import-relative fallback for local development and tests.
+  const repositoryRoot = process.env.BW_FORGE_REPO_ROOT?.trim()
+    ? resolve(process.env.BW_FORGE_REPO_ROOT)
+    : fileURLToPath(new URL("../../../", import.meta.url));
+  const script = resolve(repositoryRoot, "packages/corpus-store/python/store.py");
   const configured = process.env.BW_FORGE_PYTHON;
   const candidates = configured ? [[configured]] : process.platform === "win32"
     ? [["py", "-3"], ["python"], ["python3"]] : [["python3"], ["python"]];

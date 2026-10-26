@@ -1,14 +1,14 @@
-# BW Forge Discord bot — M1
+# BW Forge Discord bot — M2
 
 An independently deployable Bun/TypeScript frontend. Authorized guild members create collaborative public threads with `/forge start [name]` and converse without mentioning the bot. SQLite stores history and pending turns separately from replay corpora. No desktop application is required.
 
-M1 supports conversation only. It does not download attachments, ingest replays, run replay analysis, deliver reports, connect to MCP, call tools, query corpora, or provide per-user memory. The assistant acknowledges these limits and must never fabricate replay evidence.
+M2 adds deterministic replay ingestion and report delivery while keeping it independent from the conversational turn queue. Authorized users can attach one or more `.rep` files to a BW Forge thread; the bot registers them in the configured writable corpus, observes the existing Corpus v2 job, and attaches the published standalone HTML report when analysis succeeds. The assistant still does not query replay facts or call tools.
 
 ## Discord setup
 
 1. Create an application at <https://discord.com/developers/applications>, add its bot, and retain the application ID and bot token. Keep the token private.
 2. Under Bot → Privileged Gateway Intents, enable **Message Content** and **Server Members**. The client requests Guilds, Guild Messages, Message Content, and Guild Members. Obtain privileged intent approval if Discord requires it for your application.
-3. Install into your testing guild with `bot` and `applications.commands` scopes. Grant **View Channel**, **Send Messages**, **Create Public Threads**, **Send Messages in Threads**, and **Read Message History** in enabled parent channels. Administrator permission is unnecessary. Users need channel permissions to access threads and use application commands.
+3. Install into your testing guild with `bot` and `applications.commands` scopes. Grant **View Channel**, **Send Messages**, **Create Public Threads**, **Send Messages in Threads**, **Attach Files**, and **Read Message History** in enabled parent channels. Administrator permission is unnecessary. Users need channel permissions to access threads and use application commands.
 4. Enable Discord Developer Mode and copy stable guild, parent text-channel, and authorized role IDs. Separate multiple channels or roles with commas. Any configured role grants application access in the configured guild. Public thread visibility follows Discord channel permissions; application authorization does not hide conversations from channel readers.
 5. Register the command explicitly. Registration targets only the configured testing guild and is separate from startup.
 
@@ -57,6 +57,28 @@ All current settings are environment variables. Startup validates configuration 
 | `MAX_MESSAGES_QUEUED_PER_THREAD` | Maximum waiting turns per thread |
 | `DISCORD_BOT_DATABASE_PATH` | Persistent bot-specific SQLite file |
 | `BW_FORGE_LLM_TEMPERATURE` | Optional temperature; omit when unsupported by model |
+| `BW_FORGE_CORPORA_JSON` | JSON registry of named corpora (`database`, `corpus_root`, `access`) |
+| `BW_FORGE_DEFAULT_UPLOAD_CORPUS` | The sole corpus used for Discord uploads; it must be explicitly `read-write` |
+| `BW_FORGE_READABLE_CORPORA` | Comma-separated corpus IDs available to the application |
+| `BW_FORGE_MAX_REPLAY_BYTES` | Maximum downloaded attachment size (default 64 MiB) |
+| `BW_FORGE_MAX_REPLAY_DOWNLOADS` | Maximum concurrent attachment downloads (default 2) |
+| `BW_FORGE_MAX_PENDING_REPLAYS_PER_SESSION` | Pending uploads/jobs per session (default 8); process-wide limit is 256 |
+| `BW_FORGE_REPLAY_DOWNLOAD_TIMEOUT_MS` | Attachment download deadline (default 120000 ms) |
+| `BW_FORGE_REPLAY_POLL_INTERVAL_MS` | Corpus job polling interval (default 5000 ms) |
+| `BW_FORGE_REPORT_DELIVERY_RETRIES` | Bounded report delivery retry count (default 5) |
+| `BW_FORGE_REPO_ROOT` | Application checkout root for bundled Python/screp helpers; supplied automatically by the deployer |
+
+Example production registry (JSON is used so the existing environment-file deployment remains compatible):
+
+```dotenv
+BW_FORGE_CORPORA_JSON='{"pro":{"name":"Professional Replays","database":"/srv/bw-forge/pro/db/corpus.sqlite","corpus_root":"/srv/bw-forge/pro","access":"read-only"},"community":{"name":"Community Replays","database":"/srv/bw-forge/community/db/corpus.sqlite","corpus_root":"/srv/bw-forge/community","access":"read-write"}}'
+BW_FORGE_DEFAULT_UPLOAD_CORPUS=community
+BW_FORGE_READABLE_CORPORA=pro,community
+```
+
+The bot database must be outside every corpus database and root. Startup rejects duplicate IDs, missing paths, overlapping layouts, a read-only upload target, and a corpus database equal to the bot database. Corpus IDs qualify replay identity (`corpusId` plus SHA-256), so the same bytes in professional and community corpora remain separate records. Application APIs enforce read-only writes; deployment should additionally grant the bot account write access only to the community corpus and read access to professional data.
+
+Attachments are accepted only from Discord's attachment metadata, are checked case-insensitively for `.rep`, downloaded to generated temporary paths with bounded size, timeout, and concurrency, then removed after registration or terminal failure. Filenames never become paths. Duplicate Discord events preserve upload provenance while reusing content-addressed Corpus v2 work. Pending uploads and report deliveries are stored in the bot SQLite database and reconciled after restart; a crash between registration and checkpoint is repaired by deterministic replay identity.
 
 Choose input/output limits that fit your model's context window. Context reconstruction retains the triggering message and drops older history first; oversized triggers are clipped. There is no summarization or retrieval. Byte budgeting deliberately overestimates ordinary text tokens for a simple provider-independent bound.
 
@@ -84,7 +106,7 @@ Queued work survives restarts. Interrupted running turns are recovered under a b
 
 Each turn receives up to three execution attempts in one running process, with no automatic backoff. Non-retryable provider errors produce a persisted friendly failure immediately. A delivery retry reuses saved text and completed chunk checkpoints. Exhausted delivery becomes a terminal failed turn so later messages can proceed; operators can inspect `turns`, `provider_requests`, and `delivery_attempts` in SQLite. Startup requeues interrupted turns, reuses saved output, and substitutes a friendly failure for generation interrupted at its retry limit. This policy favors recovery of saved responses after a process crash; repeated crashes can cause additional delivery attempts. Failed and revoked turns are excluded from later conversational context.
 
-The process lease uses an exclusive SQLite transaction in `<database>.owner.sqlite`, separate from conversation transactions. The operating system releases the lease on process death; do not delete the lease file to force a second process to run. Schema version 1 initializes the bot tables transactionally, and unknown newer versions are rejected. No replay-corpus tables are read or modified. Keep the bot database separate from any corpus path.
+The process lease uses an exclusive SQLite transaction in `<database>.owner.sqlite`, separate from conversation transactions. The operating system releases the lease on process death; do not delete the lease file to force a second process to run. Bot schema migrations through version 4 retain M1 sessions and add replay-upload/session/delivery associations. Unknown newer versions are rejected. Keep the bot database separate from all corpus paths.
 
 Long responses are split within Discord limits; output disables automatic mentions. Friendly errors omit internal details. SIGINT/SIGTERM cancel requests and drain work for a bounded period. Back up SQLite using its backup API or stop the bot before copying database files. Retain state across upgrades.
 
@@ -143,26 +165,39 @@ Automated tests mock Discord and provider requests and need no live credentials.
 
 Live checks require operator-provided credentials and are separate from mocked acceptance tests.
 
-## Future corpus configuration contract
+## M2 operational acceptance
 
-M1 does not load or connect to corpora. A later configuration file can add:
+See [M2 operations](M2-OPERATIONS.md) for exact environment-file quoting, first-time community provisioning, offline deployment, isolation, recovery commands and manual smoke testing.
 
-```yaml
-corpora:
-  pro:
-    database: /srv/bw-forge/pro/db/corpus.sqlite
-    corpus_root: /srv/bw-forge/pro
-    access: read-only
-  community:
-    database: /srv/bw-forge/community/db/corpus.sqlite
-    corpus_root: /srv/bw-forge/community
-    access: read-write
-discord:
-  default_upload_corpus: community
-agent:
-  readable_corpora:
-    - pro
-    - community
-```
+Before enabling uploads, provision both corpus roots and confirm the professional
+database checksum against the operator's known-good copy. Configure the JSON
+registry above, then run the bot and the independent community worker under the
+same unprivileged account. The recommended smoke test uses two different `.rep`
+files in one authorized thread: both should receive prompt acknowledgements,
+appear as separate session inventory entries, complete as Corpus v2 jobs, and
+produce two standalone HTML attachments. Uploading the same bytes in a second
+thread should reuse content-addressed analysis while delivering that thread's
+own report association.
 
-Corpus names identify independent stores; upload targets and readable corpora are separate policies. Future `session_replays`, `replay_uploads`, and `tool_invocations` can reference sessions/turns. M2 should add bounded attachment ingestion and analysis job/report delivery with explicit corpus policy while preserving authorization and persistent orchestration.
+Restart the bot while jobs are running and restart the community worker while a
+job is leased. On recovery, durable upload rows are reconciled from Discord
+message/attachment metadata and staged bytes; registration is idempotent and
+pending report deliveries resume without creating a second job. Accepted jobs
+continue toward the originating shared thread even if the uploader later loses
+the authorized role. New uploads and every user-directed operation recheck the
+current role.
+
+Upload and delivery state uses the versioned bot schema (schema 4). Pending
+uploads are bounded to eight per session and 256 globally; downloads are bounded
+by the configured size, timeout, and concurrency limits. Delivery retries use
+bounded persistent backoff (five attempts by default), record the terminal error,
+and never drop a successful analysis. Operators can inspect `replay_uploads` and
+`report_deliveries` in the bot database and reset one terminal delivery by its
+stable upload/delivery ID after correcting permissions. Do not run a broad SQL
+update against all sessions.
+
+Discord currently has practical attachment limits that vary by account and
+server boost level. BW Forge uses a conservative 10 MiB report limit for direct
+HTML delivery; an oversized report is retained in the corpus and reported as a
+delivery limitation rather than silently discarded. M2 does not host reports
+publicly or generate LLM replay commentary.

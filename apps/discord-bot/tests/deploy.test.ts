@@ -8,6 +8,18 @@ import { spawnSync } from "node:child_process";
 const root = join(import.meta.dir, "..", "..", "..");
 
 describe("Discord deployment script", () => {
+  it("exposes an opt-in independent community worker without changing the professional defaults", () => {
+    const source = readFileSync(join(root, "Deploy-BwForge.ps1"), "utf8");
+    expect(source).toContain("DeployCommunityWorker");
+    expect(source).toContain("RemoteCommunityRoot");
+    expect(source).toContain("--community-corpus-root");
+    const installer = readFileSync(join(root, "ops/systemd/install.sh"), "utf8");
+    expect(installer).toContain("--community-db");
+    expect(installer).toContain("community-worker.env");
+    expect(installer).toContain("bw-forge-community-worker.service");
+    expect(installer).toContain("community corpus must be distinct");
+  });
+
   it("does not install dependencies from the registry on the offline target", () => {
     const source = readFileSync(join(root, "Deploy-BwForge.ps1"), "utf8");
     const remote = source.match(

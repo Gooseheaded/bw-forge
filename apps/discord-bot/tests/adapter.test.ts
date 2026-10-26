@@ -39,6 +39,28 @@ function fakeClient(member: any): any {
   };
 }
 
+test("authorized collaborators upload multiple attachments independently of chat, and revoked roles cannot ingest", async () => {
+  const root = mkdtempSync(join(tmpdir(), "bwf-m2-adapter-"));
+  const store = new BotStore({ dbPath: join(root, "bot.sqlite") });
+  try {
+    const session = store.reserveSession({ guildId: "guild", parentChannelId: "parent", creatorUserId: "creator", creationKey: "session" }); store.attachThread(session.id, "thread");
+    const member = { roles: { cache: new Map([["role", true]]) } }, uploads: any[] = [], turns: any[] = [], notices: any[] = [];
+    const guild = { id: "guild", members: { fetch: async () => member } };
+    const thread = { id: "thread", parentId: "parent", isThread: () => true, send: async (input: any) => { notices.push(input); return { id: "ack" }; } };
+    const client: any = { on: () => client, user: { id: "bot" }, guilds: { fetch: async () => guild } };
+    const adapter = new DiscordAdapter({ client, config: config(), store, runtime: { enqueue: async (input: any) => { turns.push(input); } } as any,
+      replayIngestor: { accept: async input => { expect(await input.authorize!()).toBe(true); uploads.push(input); return { accepted: input.attachments.length, rejected: 0 }; } } });
+    const message = { id: "message", author: { id: "collaborator", bot: false }, guild, channel: thread, webhookId: null, content: "", createdTimestamp: Date.now(),
+      attachments: new Map([["a", { id: "a", name: "../pro/one.REP", size: 100, url: "https://cdn.discordapp.com/attachments/1/2/one.rep" }], ["b", { id: "b", name: "two.rep", size: 100, url: "https://cdn.discordapp.com/attachments/1/3/two.rep" }]]) };
+    await (adapter as any).onMessage(message);
+    expect(uploads).toHaveLength(1); expect(uploads[0].attachments).toHaveLength(2); expect(uploads[0].userId).toBe("collaborator");
+    expect(turns).toHaveLength(0); expect(notices[0].content).toContain("2 accepted");
+    member.roles.cache.clear(); await (adapter as any).onMessage({ ...message, id: "revoked" }); expect(uploads).toHaveLength(1);
+    member.roles.cache.set("role", true); await (adapter as any).onMessage({ ...message, id: "chat", attachments: new Map(), content: "ordinary chat" });
+    expect(turns).toHaveLength(1); expect(turns[0].content).toBe("ordinary chat");
+  } finally { store.close(); Bun.gc(true); rmSync(root, { recursive: true, force: true }); }
+});
+
 describe("Discord authorization", () => {
   test("authorizes current role and denies revocation or lookup failure", async () => {
     const member = { roles: { cache: new Map([["role", true]]) } };

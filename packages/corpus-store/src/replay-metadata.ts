@@ -125,7 +125,9 @@ async function verifyScrepRuntime(): Promise<string> {
   const key = `${process.platform}-${process.arch}` as ScrepRuntimeKey;
   const pinned = SCREP_RUNTIME.platforms[key];
   if (!pinned) throw new Error(`screp ${SCREP_RUNTIME.version} is not bundled for ${process.platform}/${process.arch}`);
-  const root = fileURLToPath(new URL("../../../", import.meta.url));
+  const root = process.env.BW_FORGE_REPO_ROOT?.trim()
+    ? resolve(process.env.BW_FORGE_REPO_ROOT)
+    : fileURLToPath(new URL("../../../", import.meta.url));
   const executable = resolve(root, pinned.relativePath);
   const entry = await lstat(executable);
   if (!entry.isFile() || entry.isSymbolicLink()) throw new Error(`Pinned screp runtime is not a regular file: ${executable}`);
