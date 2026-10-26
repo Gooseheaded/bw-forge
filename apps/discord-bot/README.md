@@ -170,6 +170,20 @@ On first deployment it creates `/etc/bw-forge/discord-bot.env` with restricted p
 
 This builds the bot, registers `/forge start` in the configured guild, and starts/restarts `bw-forge-discord-bot.service`. Command registration is explicit; subsequent deployments can use just `-DeployDiscordBot`. Once installed, the bot is also detected and rebuilt by normal deployments so replacing the application tree does not remove its dependencies. `-Restart DiscordBot` and `-Restart All` support the bot as well.
 
+To enable the read-only replay-aware analytical agent and configure its local MCP command during deployment, use:
+
+```powershell
+.\Deploy-BwForge.ps1 -DeployDiscordBot -EnableAnalyticalAgent -Restart DiscordBot
+```
+
+Before enabling it, configure `BW_FORGE_CORPORA_JSON` and `BW_FORGE_READABLE_CORPORA` in `/etc/bw-forge/discord-bot.env`. The deployer validates the resulting environment with the bot's `loadConfig`; if required credentials or readable corpora are missing, the service remains stopped for correction. Existing secrets, corpus definitions, and agent limits are preserved. Disable analytical tools explicitly with:
+
+```powershell
+.\Deploy-BwForge.ps1 -DeployDiscordBot -DisableAnalyticalAgent -Restart DiscordBot
+```
+
+The enable and disable switches are mutually exclusive and require `-DeployDiscordBot`.
+
 The default deployer layout is `/srv/bw-forge/app/apps/discord-bot`, with conversations retained at `/srv/bw-forge/discord-bot-state/bot.sqlite`. Secrets and state survive application swaps and backup pruning. Override locations with `-RemoteDiscordEnv` and `-RemoteDiscordStateRoot`.
 
 Debian requires **no internet access to install**. The connected Windows machine needs Bun and npm-registry access on a cache miss. It installs dependencies from the selected commit's frozen lockfile and bundles both bot entrypoints with their JavaScript dependencies. The archive is cached by commit and local Bun version, uploaded, checked with SHA-256, and imported on Debian before replacing the installed application. No Discord package install or build runs on Debian, and no Windows `node_modules` or native executable is copied. Debian still needs the existing Bun runtime. `-ForceDependencyUpload` also forces a fresh local bot bundle build. The existing offline corpus-query dependency cache remains separate.

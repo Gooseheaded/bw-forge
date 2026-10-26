@@ -22,6 +22,8 @@ param(
     [ValidateSet("None", "Watcher", "DiscordBot", "CommunityWorker", "All")]
     [string]$Restart = "None",
     [switch]$DeployDiscordBot,
+    [switch]$EnableAnalyticalAgent,
+    [switch]$DisableAnalyticalAgent,
     [switch]$DeployCommunityWorker,
     [switch]$RegisterDiscordCommands,
     [switch]$ForceDependencyUpload,
@@ -92,6 +94,12 @@ function Write-Utf8NoBom([string]$Path, [string]$Text) {
 
 if ($BackupCount -lt 0) { throw "BackupCount must be >= 0" }
 if ($DeployCommunityWorker) { $UpdateSystemd = $true }
+if ($EnableAnalyticalAgent -and $DisableAnalyticalAgent) {
+    throw "-EnableAnalyticalAgent and -DisableAnalyticalAgent are mutually exclusive"
+}
+if (($EnableAnalyticalAgent -or $DisableAnalyticalAgent) -and -not $DeployDiscordBot) {
+    throw "Analytical agent flags require -DeployDiscordBot"
+}
 if ($RegisterDiscordCommands -and -not $DeployDiscordBot) {
     throw "-RegisterDiscordCommands requires -DeployDiscordBot"
 }
@@ -296,6 +304,8 @@ fi
     $UpdateSystemdFlag = if ($UpdateSystemd) { "1" } else { "0" }
     $FullIntegrityFlag = if ($FullIntegrityCheck) { "1" } else { "0" }
 $DeployDiscordFlag = if ($DeployDiscordBot) { "1" } else { "0" }
+$EnableAnalyticalFlag = if ($EnableAnalyticalAgent) { "1" } else { "0" }
+$DisableAnalyticalFlag = if ($DisableAnalyticalAgent) { "1" } else { "0" }
 $RegisterDiscordFlag = if ($RegisterDiscordCommands) { "1" } else { "0" }
 $DeployCommunityFlag = if ($DeployCommunityWorker) { "1" } else { "0" }
 
@@ -321,6 +331,8 @@ UPDATE_SYSTEMD="__UPDATESYSTEMD__"
 RESTART_MODE="__RESTARTMODE__"
 FULL_INTEGRITY="__FULLINTEGRITY__"
 DEPLOY_DISCORD="__DEPLOYDISCORD__"
+ENABLE_ANALYTICAL="__ENABLEANALYTICAL__"
+DISABLE_ANALYTICAL="__DISABLEANALYTICAL__"
 DEPLOY_COMMUNITY="__DEPLOYCOMMUNITY__"
 REGISTER_DISCORD="__REGISTERDISCORD__"
 DISCORD_ENV="__DISCORDENV__"
@@ -468,6 +480,35 @@ if [ "$DEPLOY_DISCORD" = "1" ]; then
     DISCORD_CONFIGURED=0
   else
     DISCORD_CONFIGURED=0
+  fi
+  if [ "$ENABLE_ANALYTICAL" = "1" ] || [ "$DISABLE_ANALYTICAL" = "1" ]; then
+    # Change only the explicitly requested agent settings. Existing operator
+    # secrets, corpus definitions, and tuning values remain untouched.
+    set_env_value() {
+      local key="$1" value="$2" tmp
+      tmp="$BUILD/.env.$$.tmp"
+      sudo awk -v key="$key" -v value="$value" '
+        BEGIN { updated = 0 }
+        index($0, key "=") == 1 { print key "=" value; updated = 1; next }
+        { print }
+        END { if (!updated) print key "=" value }
+      ' "$DISCORD_ENV" > "$tmp"
+      sudo install -o "$USER_NAME" -g "$USER_NAME" -m 600 "$tmp" "$DISCORD_ENV"
+      rm -f "$tmp"
+    }
+    if [ "$ENABLE_ANALYTICAL" = "1" ]; then
+      echo "==> Enabling replay-aware analytical MCP tools"
+      set_env_value BW_FORGE_AGENT_ENABLED true
+      set_env_value BW_FORGE_MCP_COMMAND "$BUN_BIN"
+      # Keep the JSON in single quotes so systemd EnvironmentFile parsing
+      # preserves the inner double quotes for JSON.parse in loadConfig().
+      set_env_value BW_FORGE_MCP_ARGS "'[\"$APP_ROOT/app/apps/cli/src/main.ts\",\"mcp\",\"--db\",\"{db_path}\",\"--transport\",\"stdio\"]'"
+    else
+      echo "==> Disabling replay-aware analytical MCP tools"
+      set_env_value BW_FORGE_AGENT_ENABLED false
+    fi
+  fi
+  if [ -f "$DISCORD_ENV" ]; then
     if sudo systemd-run --quiet --wait --collect \
       -p User="$USER_NAME" \
       -p WorkingDirectory="$APP_ROOT/app/apps/discord-bot" \
@@ -590,6 +631,8 @@ fi
         "__RESTARTMODE__"  = $Restart
         "__FULLINTEGRITY__"= $FullIntegrityFlag
         "__DEPLOYDISCORD__"= $DeployDiscordFlag
+        "__ENABLEANALYTICAL__"= $EnableAnalyticalFlag
+        "__DISABLEANALYTICAL__"= $DisableAnalyticalFlag
         "__DEPLOYCOMMUNITY__"= $DeployCommunityFlag
         "__REGISTERDISCORD__"= $RegisterDiscordFlag
         "__DISCORDENV__"= $RemoteDiscordEnv
