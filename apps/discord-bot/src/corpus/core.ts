@@ -55,6 +55,16 @@ export class CorpusCore {
     return this.read(ref.corpusId, db => ({ jobs: (db.query(`${jobSelect} WHERE r.sha256=? ${status ? "AND j.status=?" : ""} ORDER BY j.created_at_ms DESC LIMIT 100`)
       .all(...(status ? [ref.replaySha256, status] : [ref.replaySha256])) as any[]).map(job) }));
   }
+  describeReplay(ref: CorpusReplayRef): { mapName: string | null; matchup: string | null } {
+    this.registry.ref(ref.corpusId, ref.replaySha256);
+    return this.read(ref.corpusId, db => {
+      const replay = db.query("SELECT replay_id,map_name FROM replays WHERE sha256=?").get(ref.replaySha256) as { replay_id: number; map_name: string | null } | null;
+      if (!replay) return { mapName: null, matchup: null };
+      const races = (db.query("SELECT race FROM participations WHERE replay_id=? ORDER BY owner LIMIT 2").all(replay.replay_id) as Array<{ race: string }>).map(row => row.race);
+      const short = (race: string) => ({ zerg: "Z", terran: "T", protoss: "P", unknown: "?" }[race] ?? "?");
+      return { mapName: replay.map_name, matchup: races.length === 2 ? `${short(races[0]!)}v${short(races[1]!)}` : null };
+    });
+  }
   async show(corpusId: string, jobKey: string): Promise<{ job: AnalysisJob }> {
     return this.read(corpusId, db => {
       if (/^completed_[1-9]\d*$/.test(jobKey)) {

@@ -244,7 +244,7 @@ export interface DiscordAdapterOptions {
   config: BotConfig;
   store: BotStore;
   runtime: TurnRuntime;
-  onStopped?: () => void;
+  onStopped?: () => void | Promise<void>;
   replayIngestor?: ReplayIngestor;
 }
 
@@ -304,7 +304,7 @@ export class DiscordAdapter {
     } finally {
       await this.client.destroy();
       this.options.store.close();
-      this.options.onStopped?.();
+      await this.options.onStopped?.();
     }
   }
 
@@ -349,7 +349,7 @@ export class DiscordAdapter {
       )
     ) {
       await thread.send({
-          content: `Welcome to BW Forge. Ask questions about Brood War strategy. Upload .rep files here for asynchronous HTML analysis; replay-aware chat and MCP analysis are not available yet.${welcomeMarker}`,
+          content: `Welcome to BW Forge. Ask questions about Brood War strategy. Upload .rep files here for asynchronous HTML analysis; replay-aware answers use analytical tools when the operator has enabled them.${welcomeMarker}`,
         nonce: createHash("sha256").update(key).digest("hex").slice(0, 24),
         enforceNonce: true,
         allowedMentions: { parse: [], repliedUser: false },

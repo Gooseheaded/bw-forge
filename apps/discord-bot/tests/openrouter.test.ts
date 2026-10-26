@@ -67,6 +67,15 @@ describe("OpenRouter provider", () => {
       createLlmProvider({ provider: "invalid" as any, apiKey: "x" }),
     ).toThrow();
   });
+  test("supports the shared structured tool protocol and call correlation", async () => {
+    const seen: { url?: string; init?: RequestInit } = {};
+    const p = new OpenRouterResponsesProvider("secret", mock(new Response(JSON.stringify({ status: "completed", output: [
+      { type: "function_call", call_id: "router-call", name: "get_economy", arguments: '{"replay_number":1}' },
+    ] })), seen));
+    const response = await p.generate({ ...req, tools: [{ name: "get_economy", parameters: { type: "object", properties: {} } }] });
+    expect(JSON.parse(String(seen.init?.body)).tools[0].name).toBe("get_economy");
+    expect(response.toolCalls).toEqual([{ id: "router-call", name: "get_economy", arguments: '{"replay_number":1}' }]);
+  });
   test("honors canonical top-level errors and embedded numeric credit errors", async () => {
     for (const [payload, retryable] of [
       [

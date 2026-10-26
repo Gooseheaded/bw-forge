@@ -36,6 +36,61 @@ describe("OpenAI provider", () => {
     expect(body.input[0].role).toBe("user");
     expect(body.input[0].content).toBe("hi");
   });
+  test("serializes approved tools and parses structured calls", async () => {
+    let body: any;
+    const p = new OpenAiResponsesProvider("secret", "x", request(async (_u, i) => {
+      body = JSON.parse(String(i.body));
+      return new Response(JSON.stringify({
+        status: "completed",
+        output: [{ type: "function_call", call_id: "call-1", name: "get_economy", arguments: '{"time":300}' }],
+      }));
+    }));
+    const result = await p.generate({
+      ...req,
+      tools: [{ name: "get_economy", description: "Read economy", parameters: { type: "object", properties: {} } }],
+    });
+    expect(body.tools[0]).toMatchObject({ type: "function", name: "get_economy" });
+    expect(result.toolCalls).toEqual([{ id: "call-1", name: "get_economy", arguments: '{"time":300}' }]);
+    expect(result.text).toBe("");
+    expect(result.status).toBe("completed");
+  });
+  test("parses multiple structured tool requests from one response", async () => {
+    const p = new OpenAiResponsesProvider("secret", "x", request(async () => new Response(JSON.stringify({
+      status: "completed", output: [
+        { type: "function_call", call_id: "call-a", name: "get_economy", arguments: '{"at_seconds":300}' },
+        { type: "function_call", call_id: "call-b", name: "get_corpus_summary", arguments: "{}" },
+      ],
+    }))));
+    const result = await p.generate({ ...req, tools: [
+      { name: "get_economy", parameters: { type: "object" } },
+      { name: "get_corpus_summary", parameters: { type: "object" } },
+    ] });
+    expect(result.toolCalls?.map((call) => [call.id, call.name])).toEqual([
+      ["call-a", "get_economy"], ["call-b", "get_corpus_summary"],
+    ]);
+  });
+  test("preserves function call outputs and incomplete status", async () => {
+    let body: any;
+    const p = new OpenAiResponsesProvider("secret", "x", request(async (_u, i) => {
+      body = JSON.parse(String(i.body));
+      return new Response(JSON.stringify({ status: "incomplete", incomplete_details: { reason: "max_output_tokens" }, output: [] }));
+    }));
+    const result = await p.generate({
+      ...req,
+      messages: [
+        { role: "user", content: "question" },
+        { role: "assistant", content: "", toolCalls: [{ id: "call-1", name: "get_economy", arguments: "{}" }] },
+        { role: "tool", toolCallId: "call-1", toolName: "get_economy", content: '{"workers":31}' },
+      ],
+    });
+    expect(body.input).toEqual([
+      { role: "user", content: "question" },
+      { type: "function_call", call_id: "call-1", name: "get_economy", arguments: "{}" },
+      { type: "function_call_output", call_id: "call-1", output: '{"workers":31}' },
+    ]);
+    expect(result.status).toBe("incomplete");
+    expect(result.incompleteReason).toBe("max_output_tokens");
+  });
   test("classifies provider failures without leaking body", async () => {
     const p401 = new OpenAiResponsesProvider(
       "secret",

@@ -25,6 +25,17 @@ export interface BotConfig {
   };
   storage: { databasePath: string };
   queue: { maxConcurrent: number; maxPerThread: number };
+  agent: {
+    enabled: boolean;
+    mcpCommand?: string;
+    mcpArgs: string[];
+    maxRounds: number;
+    maxToolCalls: number;
+    maxParallelCalls: number;
+    turnTimeoutMs: number;
+    toolTimeoutMs: number;
+    maxToolResultBytes: number;
+  };
   corpus?: {
     corpora: Record<string, { name: string; database: string; corpusRoot: string; access: "read-only" | "read-write" }>;
     defaultUploadCorpus?: string;
@@ -110,6 +121,14 @@ function integer(
   return value;
 }
 
+function optionalBool(env: Record<string, string | undefined>, key: string, fallback: boolean): boolean {
+  const raw = env[key]?.trim().toLowerCase();
+  if (!raw) return fallback;
+  if (raw === "true" || raw === "1" || raw === "yes") return true;
+  if (raw === "false" || raw === "0" || raw === "no") return false;
+  throw new ConfigError(`${key} must be true or false`);
+}
+
 /** Load and validate secrets and bounded operational settings from environment variables. */
 export function loadConfig(
   env: Record<string, string | undefined> = process.env,
@@ -176,6 +195,18 @@ export function loadConfig(
     const raw = env[key]?.trim(); if (!raw) return fallback;
     const value = Number(raw); if (!Number.isSafeInteger(value) || value < min || value > max) throw new ConfigError(`${key} must be an integer between ${min} and ${max}`); return value;
   };
+  const agentEnabled = optionalBool(env, "BW_FORGE_AGENT_ENABLED", false);
+  const mcpCommand = env.BW_FORGE_MCP_COMMAND?.trim() || undefined;
+  let mcpArgs: string[] = [];
+  if (env.BW_FORGE_MCP_ARGS?.trim()) {
+    try {
+      const parsed: unknown = JSON.parse(env.BW_FORGE_MCP_ARGS);
+      if (!Array.isArray(parsed) || parsed.some((arg) => typeof arg !== "string")) throw new Error();
+      mcpArgs = parsed as string[];
+    } catch { throw new ConfigError("BW_FORGE_MCP_ARGS must be a JSON array of strings"); }
+  }
+  if (agentEnabled && !mcpCommand) throw new ConfigError("BW_FORGE_MCP_COMMAND is required when BW_FORGE_AGENT_ENABLED is enabled");
+  if (agentEnabled && !readableCorpora.length) throw new ConfigError("BW_FORGE_READABLE_CORPORA must include at least one corpus when analytical tools are enabled");
   return {
     discord: {
       token: required(env, "DISCORD_BOT_TOKEN"),
@@ -197,6 +228,17 @@ export function loadConfig(
     queue: {
       maxConcurrent: integer(env, "LLM_MAX_CONCURRENT_TURNS", 1, 64),
       maxPerThread: integer(env, "MAX_MESSAGES_QUEUED_PER_THREAD", 1, 1000),
+    },
+    agent: {
+      enabled: agentEnabled,
+      mcpCommand,
+      mcpArgs,
+      maxRounds: boundedOptional("BW_FORGE_AGENT_MAX_ROUNDS", 4, 1, 12),
+      maxToolCalls: boundedOptional("BW_FORGE_AGENT_MAX_TOOL_CALLS", 6, 1, 32),
+      maxParallelCalls: boundedOptional("BW_FORGE_AGENT_MAX_PARALLEL_TOOLS", 2, 1, 8),
+      turnTimeoutMs: boundedOptional("BW_FORGE_AGENT_TURN_TIMEOUT_MS", 120000, 5000, 600000),
+      toolTimeoutMs: boundedOptional("BW_FORGE_AGENT_TOOL_TIMEOUT_MS", 10000, 1000, 120000),
+      maxToolResultBytes: boundedOptional("BW_FORGE_AGENT_MAX_TOOL_RESULT_BYTES", 24000, 1024, 256000),
     },
     corpus: {
       corpora,

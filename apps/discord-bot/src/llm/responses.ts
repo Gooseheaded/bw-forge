@@ -20,6 +20,27 @@ type ApiResponse = {
   usage?: Record<string, unknown>;
 };
 
+function responseInput(request: LlmRequest): unknown[] {
+  const input: unknown[] = [];
+  for (const message of request.messages) {
+    if (message.role === "tool") {
+      if (message.toolCallId) {
+        input.push({ type: "function_call_output", call_id: message.toolCallId, output: message.content });
+      }
+      continue;
+    }
+    if (message.toolCalls?.length) {
+      for (const call of message.toolCalls) {
+        input.push({ type: "function_call", call_id: call.id, name: call.name, arguments: call.arguments });
+      }
+      if (message.content) input.push({ role: message.role, content: message.content });
+      continue;
+    }
+    input.push({ role: message.role, content: message.content });
+  }
+  return input;
+}
+
 // Only known classifications influence retries; provider text is never exposed.
 function retryableFailure(data: ApiResponse): boolean {
   const error =
@@ -157,19 +178,24 @@ export class ResponsesProvider implements LlmProvider {
       );
     request.signal?.addEventListener("abort", rejectOnAbort, { once: true });
     try {
-      const input = request.messages.map((message) => ({
-        role: message.role,
-        content: message.content,
-      }));
       const body: Record<string, unknown> = {
         model: request.model,
         instructions: request.system,
-        input,
+        input: responseInput(request),
         max_output_tokens: request.maxOutputTokens,
         store: false,
       };
       if (request.temperature !== undefined)
         body.temperature = request.temperature;
+      if (request.tools?.length) {
+        body.tools = request.tools.map((tool) => ({
+          type: "function",
+          name: tool.name,
+          ...(tool.description ? { description: tool.description } : {}),
+          parameters: tool.parameters,
+        }));
+        body.tool_choice = request.toolChoice ?? "auto";
+      }
       const operation = (async () => {
         let response: Response;
         try {
@@ -230,6 +256,7 @@ export class ResponsesProvider implements LlmProvider {
           );
         }
         let text = typeof data.output_text === "string" ? data.output_text : "";
+        const toolCalls: import("./types.ts").LlmToolCall[] = [];
         if (!text && Array.isArray(data.output))
           for (const item of data.output)
             if (
@@ -245,7 +272,20 @@ export class ResponsesProvider implements LlmProvider {
                   typeof part.text === "string"
                 )
                   text += part.text;
-        if (!text.trim())
+        if (Array.isArray(data.output)) {
+          for (const item of data.output) {
+            if (!item || typeof item !== "object") continue;
+            const value = item as Record<string, unknown>;
+            if (value.type !== "function_call") continue;
+            if (typeof value.call_id !== "string" || typeof value.name !== "string")
+              throw new LlmProviderError("LLM provider returned an invalid tool call", "invalid_response");
+            const args = typeof value.arguments === "string" ? value.arguments : JSON.stringify(value.arguments ?? {});
+            toolCalls.push({ id: value.call_id, name: value.name, arguments: args });
+          }
+        }
+        const incomplete = data.status === "incomplete" || data.status === "in_progress";
+        const responseStatus: LlmResponse["status"] = incomplete ? "incomplete" : "completed";
+        if (!text.trim() && !toolCalls.length && !incomplete)
           throw new LlmProviderError(
             "LLM provider returned no text",
             "empty_response",
@@ -266,6 +306,10 @@ export class ResponsesProvider implements LlmProvider {
           : undefined;
         return {
           text,
+          toolCalls: toolCalls.length ? toolCalls : undefined,
+          status: responseStatus,
+          incompleteReason: incomplete && typeof (data as any).incomplete_details?.reason === "string"
+            ? (data as any).incomplete_details.reason : undefined,
           provider: this.provider,
           model: typeof data.model === "string" ? data.model : request.model,
           usage,

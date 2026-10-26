@@ -736,6 +736,23 @@ export class BotStore {
   associateSessionReplay(sessionId: number, corpusId: string, sha256: string, displayName?: string) {
     this.db.query("INSERT OR IGNORE INTO session_replays(session_id,corpus_id,replay_sha256,first_associated_at,display_name) VALUES(?,?,?,?,?)").run(sessionId, corpusId, sha256, now(), displayName ?? null);
   }
+  /** Replay identities visible to one session, in stable session-local order. */
+  getSessionReplayInventory(sessionId: number): Array<{
+    replayNumber: number; corpusId: string; replaySha256: string;
+    displayName: string | null; analysisAvailable: boolean; mapName?: string | null; matchup?: string | null;
+  }> {
+    const rows = this.db.query(`
+      SELECT r.corpus_id,r.replay_sha256,r.display_name,
+        EXISTS(SELECT 1 FROM replay_uploads u WHERE u.session_id=r.session_id
+          AND u.corpus_id=r.corpus_id AND u.replay_sha256=r.replay_sha256
+          AND u.state='succeeded') AS analysis_available
+      FROM session_replays r WHERE r.session_id=?
+      ORDER BY r.first_associated_at,r.rowid LIMIT 100
+    `).all(sessionId) as Array<{corpus_id:string;replay_sha256:string;display_name:string|null;analysis_available:number}>;
+    return rows.map((row, index) => ({ replayNumber: index + 1, corpusId: row.corpus_id,
+      replaySha256: row.replay_sha256, displayName: row.display_name,
+      analysisAvailable: row.analysis_available === 1 }));
+  }
   getReportDelivery(uploadId: number): ReportDelivery | null {
     const r = this.db.query("SELECT * FROM report_deliveries WHERE upload_id=?").get(uploadId) as any;
     return r ? reportDelivery(r) : null;

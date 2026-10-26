@@ -62,6 +62,22 @@ describe("BotStore", () => {
     store.close();
   });
 
+  test("returns a corpus-qualified replay inventory isolated by session", () => {
+    const store = new BotStore({ dbPath: ":memory:" });
+    const first = store.reserveSession({ guildId: "g", parentChannelId: "p", creatorUserId: "u", creationKey: "first" });
+    const second = store.reserveSession({ guildId: "g", parentChannelId: "p", creatorUserId: "u", creationKey: "second" });
+    const hash = "a".repeat(64);
+    store.associateSessionReplay(first.id, "community", hash, "first.rep");
+    store.associateSessionReplay(first.id, "pro", hash, "same-hash-pro.rep");
+    store.associateSessionReplay(second.id, "community", "b".repeat(64), "other.rep");
+    expect(store.getSessionReplayInventory(first.id)).toEqual([
+      { replayNumber: 1, corpusId: "community", replaySha256: hash, displayName: "first.rep", analysisAvailable: false },
+      { replayNumber: 2, corpusId: "pro", replaySha256: hash, displayName: "same-hash-pro.rep", analysisAvailable: false },
+    ]);
+    expect(store.getSessionReplayInventory(second.id).map((item) => item.replaySha256)).toEqual(["b".repeat(64)]);
+    store.close();
+  });
+
   test("requeues interrupted work and excludes revoked turns", () => {
     const directory = mkdtempSync(join(tmpdir(), "bw-forge-discord-"));
     const path = join(directory, "bot.sqlite");

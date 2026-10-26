@@ -12,6 +12,7 @@ import {
 } from "./discord/adapter.ts";
 import { createCorpusRegistry } from "./corpus/registry.ts";
 import { CorpusCore } from "./corpus/core.ts";
+import { McpGateway } from "./agent/mcp-gateway.ts";
 import { ReplayCoordinator, validateStagingDirectory, type UploadAttachment } from "./ingestion/coordinator.ts";
 import { dirname, join } from "node:path";
 
@@ -28,6 +29,7 @@ export async function startBot(
     console.error(JSON.stringify({ event: "corpus_configuration_failed", ...(code ? { code } : {}) }));
     throw new ConfigError("Corpus registry paths, layout or filesystem permissions are invalid; check configured roots and database access.");
   }
+  const corpusCore = registry ? new CorpusCore(registry) : undefined;
   const lock = acquireProcessLock(config.storage.databasePath);
   const releaseLock = () => lock.release();
   let store: BotStore;
@@ -49,11 +51,20 @@ export async function startBot(
   const client = createDiscordClient();
   const authorization = new DiscordAuthorization(client, config);
   const delivery = new DiscordDelivery(client, store);
-  const runtimeStore = new SqliteRuntimeStore(store, config.llm.contextBudget);
+  const runtimeStore = new SqliteRuntimeStore(store, config.llm.contextBudget,
+    corpusCore ? (ref) => corpusCore.describeReplay(ref) : undefined);
   const provider = createLlmProvider(config.llm);
+  const mcpGateway = config.agent.enabled && registry
+    ? new McpGateway(config.corpus!.readableCorpora.map((id) => ({
+        id, dbPath: registry.get(id).database, readable: true,
+        command: config.agent.mcpCommand!, args: config.agent.mcpArgs.map((arg) => arg.replaceAll("{db_path}", registry.get(id).database)),
+        cwd: env.BW_FORGE_REPO_ROOT,
+      })), { requestTimeoutMs: config.agent.toolTimeoutMs,
+        maxResultBytes: config.agent.maxToolResultBytes, maxCallsPerTurn: config.agent.maxToolCalls })
+    : undefined;
   let replayIngestor: import("./discord/adapter.ts").ReplayIngestor | undefined;
   if (corpusConfig?.defaultUploadCorpus && registry) {
-    const core = new CorpusCore(registry);
+    const core = corpusCore!;
     const reportTransport = new DiscordReportDelivery(client, store);
     const coordinator = new ReplayCoordinator({
       store,
@@ -134,6 +145,10 @@ export async function startBot(
     maxOutputTokens: config.llm.maxOutputTokens,
     temperature: config.llm.temperature,
     providerName: config.llm.provider,
+    ...(mcpGateway ? { agent: { gateway: mcpGateway, maxRounds: config.agent.maxRounds,
+      maxToolCalls: config.agent.maxToolCalls, maxParallelCalls: config.agent.maxParallelCalls,
+      turnTimeoutMs: config.agent.turnTimeoutMs,
+      maxToolResultBytes: config.agent.maxToolResultBytes } } : {}),
     provider,
     store: runtimeStore,
     authorization,
@@ -146,7 +161,8 @@ export async function startBot(
     store,
     runtime,
     replayIngestor,
-    onStopped: () => {
+    onStopped: async () => {
+      await mcpGateway?.close();
       releaseLock();
       process.removeListener("SIGINT", shutdown);
       process.removeListener("SIGTERM", shutdown);

@@ -67,6 +67,15 @@ All current settings are environment variables. Startup validates configuration 
 | `BW_FORGE_REPLAY_POLL_INTERVAL_MS` | Corpus job polling interval (default 5000 ms) |
 | `BW_FORGE_REPORT_DELIVERY_RETRIES` | Bounded report delivery retry count (default 5) |
 | `BW_FORGE_REPO_ROOT` | Application checkout root for bundled Python/screp helpers; supplied automatically by the deployer |
+| `BW_FORGE_AGENT_ENABLED` | Enable read-only analytical MCP tool calling (default `false`; conversation remains available when disabled) |
+| `BW_FORGE_MCP_COMMAND` | Trusted operator-configured executable used for local stdio MCP servers (for example `bun`) |
+| `BW_FORGE_MCP_ARGS` | JSON string array of executable arguments; `{db_path}` is replaced with each registered corpus database path |
+| `BW_FORGE_AGENT_MAX_ROUNDS` | Maximum model/tool rounds per turn (default 4, max 12) |
+| `BW_FORGE_AGENT_MAX_TOOL_CALLS` | Maximum MCP calls per turn (default 6, max 32) |
+| `BW_FORGE_AGENT_MAX_PARALLEL_TOOLS` | Maximum simultaneous tool calls (default 2, max 8) |
+| `BW_FORGE_AGENT_TURN_TIMEOUT_MS` | Total agent-turn deadline, including all model rounds and tools (default 120000 ms, max 600000) |
+| `BW_FORGE_AGENT_TOOL_TIMEOUT_MS` | Per-tool deadline (default 10000 ms, max 120000 ms) |
+| `BW_FORGE_AGENT_MAX_TOOL_RESULT_BYTES` | Maximum serialized tool result size (default 24000 bytes, max 256000) |
 
 Example production registry (JSON is used so the existing environment-file deployment remains compatible):
 
@@ -78,11 +87,46 @@ BW_FORGE_READABLE_CORPORA=pro,community
 
 The bot database must be outside every corpus database and root. Startup rejects duplicate IDs, missing paths, overlapping layouts, a read-only upload target, and a corpus database equal to the bot database. Corpus IDs qualify replay identity (`corpusId` plus SHA-256), so the same bytes in professional and community corpora remain separate records. Application APIs enforce read-only writes; deployment should additionally grant the bot account write access only to the community corpus and read access to professional data.
 
+## M3 replay-aware analytical tools
+
+Analytical tools are disabled by default. To enable them, configure an MCP command that the service account trusts and can run. The bot starts one local stdio MCP server per configured readable corpus, discovers the server schemas, and exposes only the allowlisted read-only tools: `get_economy`, `get_economy_distribution`, `get_unit_count`, `get_deaths`, `list_build_events`, `get_event_timing_distribution`, `get_composition_snapshot`, `get_corpus_summary`, `list_players`, `list_matchups`, `list_build_items`, `count_replays_with_event_before_event`, `get_death_summary`, and `get_player_replay_card`. Ingestion, writes, SQL, filesystem operations, and administrative tools are not passed to the model. Each call selects an explicit registered corpus; replay numbers are resolved against the current Discord session's inventory before a replay hash reaches MCP.
+
+Example for a bundled appliance checkout (edit the MCP executable arguments to match the actual installation paths):
+
+```dotenv
+BW_FORGE_AGENT_ENABLED=true
+BW_FORGE_MCP_COMMAND=bun
+BW_FORGE_MCP_ARGS='["/srv/bw-forge/app/apps/cli/src/main.ts","mcp","--db","{db_path}","--transport","stdio"]'
+BW_FORGE_AGENT_MAX_ROUNDS=4
+BW_FORGE_AGENT_MAX_TOOL_CALLS=6
+BW_FORGE_AGENT_MAX_PARALLEL_TOOLS=2
+BW_FORGE_AGENT_TURN_TIMEOUT_MS=120000
+BW_FORGE_AGENT_TOOL_TIMEOUT_MS=10000
+BW_FORGE_AGENT_MAX_TOOL_RESULT_BYTES=24000
+BW_FORGE_READABLE_CORPORA=pro,community
+```
+
+`{db_path}` is substituted separately for each readable corpus, so the professional and community MCP processes receive the correct database. The process command and arguments are operator configuration and are never accepted from Discord or the model. Keep the professional database and its sidecar directory read-only to the bot service account. The parallel-call limit applies globally across active Discord turns. If one MCP corpus is unavailable, reachable corpora stay available; if no configured corpus can provide approved tools, the bot falls back to conversation-only behavior for that turn.
+
+After updating `/etc/bw-forge/discord-bot.env`, restart and inspect the service:
+
+```sh
+sudo systemctl restart bw-forge-discord-bot
+sudo systemctl status bw-forge-discord-bot
+sudo journalctl -u bw-forge-discord-bot -f
+```
+
+On the appliance, test in an authorized Discord thread: upload a replay and ask “How many workers did I have at 5:00 in replay #1?”, then ask “How about at 7:00?”. Upload a second replay and ask for a comparison with replay #2, then compare its five-minute economy with professional players in the same matchup. Verify the answer identifies the replay/corpus, reports actual measurements and sample sizes, and does not claim a comparison without tool evidence. To test failure recovery, stop the local MCP process or temporarily configure an invalid trusted executable, ask a normal strategy question and an analytical question, then restore the command and restart the service. Check `journalctl` for `analytical MCP unavailable` and `analytical tool call rejected`; do not treat fixture tests as live model or appliance acceptance.
+
+The provider tool-call compatibility probe is optional and requires the configured key/model. From the bot directory, run `bun run probe:tools` with `BW_FORGE_LLM_PROVIDER`, `LLM_API_KEY`, and `LLM_MODEL` set in the environment. It asks for a harmless `get_corpus_summary` function call without starting Discord or executing the function; exit code 0 means the model returned the expected structured request, 2 means it returned no expected call or an incomplete response, and 1 means a provider error. Do not record secrets or reasoning traces. Automated fixtures cover protocol parsing; no live provider probe or Discord acceptance is claimed by this implementation session.
+
+Successful tool provenance is logged as `analytical tool call completed` with turn/session IDs, tool call ID, tool name, corpus ID, replay number when applicable, and result byte count. MCP query errors use `analytical tool call failed`; validation or authorization failures use `analytical tool call rejected`, both with bounded error codes. The logs omit tool arguments, replay hashes, database paths, credentials, and model reasoning. Inspect the bot's `journalctl` stream alongside the bot database's turns and provider request rows when troubleshooting.
+
 Attachments are accepted only from Discord's attachment metadata, are checked case-insensitively for `.rep`, downloaded to generated temporary paths with bounded size, timeout, and concurrency, then removed after registration or terminal failure. Filenames never become paths. Duplicate Discord events preserve upload provenance while reusing content-addressed Corpus v2 work. Pending uploads and report deliveries are stored in the bot SQLite database and reconciled after restart; a crash between registration and checkpoint is repaired by deterministic replay identity.
 
 Choose input/output limits that fit your model's context window. Context reconstruction retains the triggering message and drops older history first; oversized triggers are clipped. There is no summarization or retrieval. Byte budgeting deliberately overestimates ordinary text tokens for a simple provider-independent bound.
 
-The OpenAI adapter uses the [Responses API](https://developers.openai.com/api/docs/guides/text) with local history and `store: false`. Provider conversation IDs are not authoritative. Provider interfaces, context assembly, authorization, Discord transport, and storage are separate so later tool orchestration can preserve existing sessions. No tool calling is implemented.
+The OpenAI adapter uses the [Responses API](https://developers.openai.com/api/docs/guides/text) with local history and `store: false`. Provider conversation IDs are not authoritative. Structured tool calls and tool outputs stay inside the provider adapter contract and the bounded orchestrator; only approved gateway definitions are sent to the hosted model.
 
 To use OpenRouter, edit the existing `/etc/bw-forge/discord-bot.env` on Debian:
 
