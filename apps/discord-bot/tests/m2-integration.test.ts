@@ -42,6 +42,9 @@ test("two Discord uploads traverse the real Corpus v2 queue/publication and deli
     await mkdir(join(proRoot, "db"), { recursive: true });
     const proDbPath = join(proRoot, "db", "corpus.sqlite");
     await listAnalysisJobs(proDbPath);
+    // Appliance provisioning initializes the community schema before independent
+    // uploads/workers begin; do the same rather than racing schema bootstrap.
+    await listAnalysisJobs(dbPath);
     const pro = new Database(proDbPath); pro.exec("CREATE TABLE preserved(value TEXT); INSERT INTO preserved VALUES('professional')"); pro.close();
     const proBefore = await readFile(proDbPath), proTime = (await stat(proDbPath)).mtimeMs;
     const registry = new CorpusRegistry({

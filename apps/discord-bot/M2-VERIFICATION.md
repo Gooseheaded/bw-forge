@@ -26,7 +26,7 @@ Verification ran on Windows with Bun 1.3.11. Python-dependent tests need `BW_FOR
 
 | Gate | Result |
 | --- | --- |
-| `bun run discord:test` | 83 passed, 0 failed, including real replay → core queue → fixture worker publication → mocked Discord HTML delivery |
+| `bun run discord:test` | 84 passed, 0 failed, including real replay → core queue → fixture worker publication → mocked Discord HTML delivery |
 | `bun run typecheck` | Passed root, desktop, corpus-query and Discord checks |
 | `bun run discord:build` | Passed both production entrypoints |
 | `bun run desktop:test` | 52 passed |

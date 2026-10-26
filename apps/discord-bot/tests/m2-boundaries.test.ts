@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, stat, symlink, unlink, writeFile } from "
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { BotStore } from "../src/storage/store.ts";
-import { ReplayCoordinator, type CoordinatorOptions } from "../src/ingestion/coordinator.ts";
+import { ReplayCoordinator, downloadReplayAttachment, type CoordinatorOptions } from "../src/ingestion/coordinator.ts";
 import { CorpusRegistry } from "../src/corpus/registry.ts";
 import { CorpusCore } from "../src/corpus/core.ts";
 import { loadConfig } from "../src/config/index.ts";
@@ -19,7 +19,9 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   for (const coordinator of coordinators.splice(0)) await coordinator.stop();
-  store.close(); Bun.gc(true); await rm(root, { recursive: true, force: true });
+  store.close(); store = undefined as unknown as BotStore;
+  await new Promise<void>(resolve => setImmediate(resolve));
+  Bun.gc(true); await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
 });
 function coordinator(options: Partial<CoordinatorOptions> = {}) {
   const result = new ReplayCoordinator({ store, download: { maxBytes: 1000, timeoutMs: 1000, tempRoot: join(root, "uploads") },
@@ -60,6 +62,19 @@ test("read-only corpus writes are rejected at the API boundary", async () => {
   await expect(new CorpusCore(registry).registerAndEnqueue({ corpusId: "professional", replayPath: "anything.rep" })).rejects.toThrow("read-only");
   expect(await readFile(database, "utf8")).toBe("untouched");
   expect(registry.ref("professional", "a".repeat(64))).not.toEqual(registry.ref("writable", "a".repeat(64)));
+});
+
+test("redirected staging cannot write or clean files in a corpus", async () => {
+  const professional = join(root, "professional"); await mkdir(professional);
+  const protectedFile = join(professional, "12345678-1234-1234-1234-123456789abc.rep"); await writeFile(protectedFile, "preserve");
+  const alias = join(root, "uploads"); await symlink(professional, alias, process.platform === "win32" ? "junction" : "dir");
+  try {
+    const runner = coordinator();
+    await expect(runner.tickOnce()).rejects.toThrow("symlinks");
+    await expect(downloadReplayAttachment(input("one").attachment, { maxBytes: 100, timeoutMs: 100, tempRoot: alias,
+      fetch: async () => { throw new Error("must not download"); } })).rejects.toThrow("symlinks");
+    expect(await readFile(protectedFile, "utf8")).toBe("preserve");
+  } finally { await unlink(alias); }
 });
 
 test("an independently named bot database cannot be mistaken for a corpus", async () => {

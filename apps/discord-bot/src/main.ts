@@ -12,7 +12,7 @@ import {
 } from "./discord/adapter.ts";
 import { createCorpusRegistry } from "./corpus/registry.ts";
 import { CorpusCore } from "./corpus/core.ts";
-import { ReplayCoordinator, type UploadAttachment } from "./ingestion/coordinator.ts";
+import { ReplayCoordinator, validateStagingDirectory, type UploadAttachment } from "./ingestion/coordinator.ts";
 import { dirname, join } from "node:path";
 
 /** Production entry point. The process owns one SQLite database and one Discord client. */
@@ -32,12 +32,17 @@ export async function startBot(
   const releaseLock = () => lock.release();
   let store: BotStore;
   try {
+    if (corpusConfig?.defaultUploadCorpus) {
+      await validateStagingDirectory(join(dirname(lock.databasePath), "uploads")).catch(() => {
+        throw new ConfigError("Replay staging directory is unavailable or contains symlinks; use a private directory beside the bot database.");
+      });
+    }
     store = new BotStore({
       dbPath: lock.databasePath,
       maxQueuedPerThread: config.queue.maxPerThread,
     });
   } catch (error) {
-    console.error(JSON.stringify({ event: "bot_storage_failed", code: (error as NodeJS.ErrnoException).code ?? "SQLITE_OPEN_OR_MIGRATION" }));
+    console.error(JSON.stringify({ event: "bot_storage_failed", code: error instanceof ConfigError ? "REPLAY_STAGING_INVALID" : (error as NodeJS.ErrnoException).code ?? "SQLITE_OPEN_OR_MIGRATION" }));
     releaseLock();
     throw error;
   }

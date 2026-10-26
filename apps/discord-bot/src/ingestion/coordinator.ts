@@ -21,6 +21,15 @@ export interface DownloadOptions {
 }
 export class PermanentUploadError extends Error {}
 
+async function stagingRoot(requested: string): Promise<string> {
+  await mkdir(requested, { recursive: true, mode: 0o700 });
+  const entry = await lstat(requested), actual = await realpath(requested), expected = resolve(requested);
+  const matches = process.platform === "win32" ? actual.toLowerCase() === expected.toLowerCase() : actual === expected;
+  if (!entry.isDirectory() || entry.isSymbolicLink() || !matches) throw new PermanentUploadError("Replay staging directory must not contain symlinks.");
+  return actual;
+}
+export { stagingRoot as validateStagingDirectory };
+
 function validateAttachment(attachment: UploadAttachment, maxBytes: number) {
   if (!attachment.name || !/\.rep$/i.test(attachment.name)) throw new PermanentUploadError("Only .rep attachments are accepted.");
   let url: URL;
@@ -37,8 +46,7 @@ function validateAttachment(attachment: UploadAttachment, maxBytes: number) {
 /** Bounded streaming, exclusive generated paths, exact CDN hosts and no redirects. */
 export async function downloadReplayAttachment(attachment: UploadAttachment, options: DownloadOptions): Promise<{ path: string; sha256: string }> {
   validateAttachment(attachment, options.maxBytes);
-  await mkdir(options.tempRoot, { recursive: true, mode: 0o700 });
-  const path = join(await realpath(options.tempRoot), `${randomUUID()}.rep`);
+  const path = join(await stagingRoot(options.tempRoot), `${randomUUID()}.rep`);
   const controller = new AbortController();
   let rejectTimeout!: (error: Error) => void;
   const timeout = new Promise<never>((_, reject) => { rejectTimeout = reject; });
@@ -161,7 +169,7 @@ export class ReplayCoordinator {
   private async checkedFile(upload: ReplayUpload) {
     const path = upload.filePath;
     if (!path || !upload.replaySha256) throw new PermanentUploadError("The staged replay is unavailable; please upload it again.");
-    const root = await realpath(this.options.download.tempRoot);
+    const root = await stagingRoot(this.options.download.tempRoot);
     if (dirname(resolve(path)) !== root || await realpath(path) !== resolve(path) || !(await lstat(path)).isFile()) {
       throw new PermanentUploadError("The staged replay is invalid; please upload it again.");
     }
@@ -172,7 +180,7 @@ export class ReplayCoordinator {
   }
   private async cleanup(upload: ReplayUpload) {
     if (!upload.filePath) return;
-    const root = await realpath(this.options.download.tempRoot).catch(() => null);
+    const root = await stagingRoot(this.options.download.tempRoot);
     if (root && dirname(resolve(upload.filePath)) === root) await rm(upload.filePath, { force: true });
     this.options.store.updateReplayUpload(upload.id, { filePath: null });
   }
@@ -222,9 +230,8 @@ export class ReplayCoordinator {
   private async tick() {
     const store = this.options.store;
     if (!this.stagingChecked) {
-      await mkdir(this.options.download.tempRoot, { recursive: true, mode: 0o700 });
+      const root = await stagingRoot(this.options.download.tempRoot);
       const referenced = new Set(store.getReplayStaging().map(upload => upload.filePath && resolve(upload.filePath)));
-      const root = await realpath(this.options.download.tempRoot);
       for (const entry of await readdir(root, { withFileTypes: true })) {
         const path = join(root, entry.name);
         if (/^[a-f0-9-]{36}\.rep$/.test(entry.name) && entry.isFile() && !referenced.has(path)) await rm(path, { force: true });

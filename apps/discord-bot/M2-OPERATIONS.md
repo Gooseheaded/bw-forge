@@ -66,6 +66,8 @@ The coordinator fetches a fresh signed attachment URL from the original Discord 
 
 Infrastructure ingestion failures receive up to six attempts with exponential backoff capped at five minutes. Validation/authorization failures are permanent. Job observation backs off during outages and keeps its durable reference; an unavailable worker leaves the core job queued. Terminal worker errors generate safe failure notices. Completed reuploads reuse the current indexed analysis even if it predates bot ingestion.
 
+Staging must be a real private directory without symlink redirects. Startup, download, recovery and cleanup validate that boundary; a redirected staging directory is rejected before files are written or orphan files are removed.
+
 Delivery intent is persisted before sending. Stable Discord nonces and bot-only markers reconcile the latest 100 thread messages after a send/checkpoint crash. Discord and SQLite cannot share a transaction: deletions, history gaps and nonce retention can still produce duplicates. Report retry counts and backoff survive restart. Exhaustion or a permission/size failure leaves the immutable analysis intact and a terminal delivery record; a safe limitation notice is retried when Discord becomes available. New uploads never require an LLM call.
 
 Inspect event logs with `journalctl -u bw-forge-discord-bot -f` and core status with `jobs list/show --db <community-db>`. Logs contain stable session/upload/corpus/SHA/job IDs and safe event categories; they exclude signed URLs, credentials, provider bodies and filesystem paths from user-facing notices.
