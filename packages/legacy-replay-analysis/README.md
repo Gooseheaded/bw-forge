@@ -59,8 +59,8 @@ python -m unittest discover -s tests -p "test_*.py"
 
 ## Mineral saturation model
 
-`mineral_saturation.py` is a pure economic primitive for later opportunity-cost
-calculation. `MineralSaturationModel.rate(worker_count, patch_count)` returns an
+`mineral_saturation.py` is a pure economic primitive used by the M2
+opportunity-cost calculator. `MineralSaturationModel.rate(worker_count, patch_count)` returns an
 estimated total mineral income rate in minerals per `fastest-replay-second`,
 using the repository's 42 ms/frame fastest-game clock. It consumes no replay
 telemetry. `mineral_income_rate(n, p)` is the versioned default wrapper.
@@ -82,8 +82,11 @@ patch counts above `10**12` are rejected, and calibration rates are bounded so
 finite output is guaranteed.
 
 Use `MineralSaturationModel` with documented `CalibrationPoint` values when a
-future calibration is substituted. Opportunity cost and telemetry attribution
-belong to later milestones.
+future calibration is substituted. The synthetic, frame-based M2 calculator is
+documented in [`../../docs/mining-opportunity-cost.md`](../../docs/mining-opportunity-cost.md).
+It integrates aggregate counterfactual loss and attributes it equally among
+caller-supplied eligible worker absences. Telemetry activity inference and base
+assignment remain later milestones.
 
 Example:
 
