@@ -9,6 +9,7 @@ import {
   type ChatMessage,
 } from "../src/agent/runtime.ts";
 import { OpenRouterResponsesProvider } from "../src/llm/openrouter.ts";
+import { McpGateway, type McpTransport } from "../src/agent/mcp-gateway.ts";
 
 class FakeStore implements RuntimeStore {
   queue: RuntimeTurn[] = [];
@@ -80,6 +81,59 @@ const msg = (id: string, sessionId = "1"): RuntimeMessage => ({
 });
 
 describe("TurnRuntime", () => {
+  it("sends an optional aggregate schema and executes only the requested benchmark filters", async () => {
+    const store = new FakeStore();
+    const mcpCalls: Array<{ method: string; params: any }> = [];
+    const transport: McpTransport = {
+      connect: async () => {}, close: async () => {},
+      request: async (method, params) => {
+        mcpCalls.push({ method, params });
+        if (method === "tools/list") { return { tools: [{ name: "get_economy_distribution",
+          description: "timeSeconds is required. Every other argument is optional; omit unused filters entirely.",
+          inputSchema: { type: "object", properties: {
+            db_path: { type: "string" }, player: { type: "string" }, opponent: { type: "string" }, race: { type: "string" },
+            opponentRace: { type: "string" }, matchup: { type: "string" }, map: { type: "string" },
+            player_group: { type: "string" }, opponent_group: { type: "string" }, scope: { type: "string" },
+            played_from: { type: "string" }, played_before: { type: "string" }, replay_ids: { type: "array", items: { type: "string" } },
+            timeSeconds: { type: "number" }, limitExamples: { type: "integer" },
+          }, required: ["timeSeconds"] } }] }; }
+        if (method === "tools/call") return { content: [{ type: "text", text: "311 matching player rows" }],
+          structuredContent: { sampleSize: 311, filters: { race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300 } } };
+        throw new Error(`unexpected MCP method: ${method}`);
+      },
+    };
+    const gateway = new McpGateway([{ id: "pro", transport }]);
+    const requests: any[] = [];
+    let delivered = "";
+    const provider = new OpenRouterResponsesProvider("test-key", (async (_url: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body));
+      requests.push(body);
+      if (requests.length === 1) {
+        const parameters = body.tools[0].parameters;
+        expect(body.tools[0]).toMatchObject({ type: "function", name: "get_economy_distribution" });
+        expect(parameters.required).toEqual(["timeSeconds", "corpus_id"]);
+        expect(parameters.additionalProperties).toBe(false);
+        expect(parameters.properties.race.type).toBe("string");
+        expect(parameters.properties.player.type).toBe("string");
+        expect(body.tools[0].strict).toBeUndefined();
+        return new Response(JSON.stringify({ status: "completed", output: [{ type: "function_call", call_id: "minimal-benchmark",
+          name: "get_economy_distribution", arguments: JSON.stringify({ corpus_id: "pro", race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300 }) }] }));
+      }
+      return new Response(JSON.stringify({ status: "completed", output_text: "311 matching Zerg versus Protoss player rows at 5:00." }));
+    }) as unknown as typeof fetch);
+    const rt = new TurnRuntime({ store, provider, maxConcurrent: 1, requestTimeoutMs: 1000, model: "openrouter/openai/gpt-6-luna",
+      authorization: { authorize: async () => true }, delivery: { send: async ({ text }) => { delivered = text; }, failure: async () => {} },
+      agent: { gateway, maxRounds: 3, maxToolCalls: 3, maxParallelCalls: 1, turnTimeoutMs: 1000, maxToolResultBytes: 2000 },
+    });
+    await rt.enqueue({ ...msg("optional-aggregate-schema"), content: "Compare professional Zerg versus Protoss economy at 5:00." }); await Bun.sleep(40);
+
+    const call = mcpCalls.find((item) => item.method === "tools/call")!;
+    expect(call.params.name).toBe("get_economy_distribution");
+    expect(call.params.arguments).toEqual({ race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300 });
+    expect(delivered).toContain("311 matching");
+    expect(store.completed).toEqual(["optional-aggregate-schema"]);
+  });
+
   it("preserves OpenRouter-provided aggregate filters through gateway dispatch", async () => {
     const store = new FakeStore();
     const gatewayInputs: any[] = [];

@@ -71,6 +71,12 @@ test("MCP server exposes generic tools and returns structured replay query resul
     const tools = await client.listTools();
     const economyTool = tools.tools.find((tool) => tool.name === "get_economy_distribution");
     assert.ok(economyTool);
+    assert.match(economyTool.description ?? "", /timeSeconds is required/i);
+    assert.match(economyTool.description ?? "", /Every other argument is optional/i);
+    assert.match(economyTool.description ?? "", /Omitted filters are not applied/i);
+    assert.match(economyTool.description ?? "", /omit unused filters entirely/i);
+    const economySchema = economyTool.inputSchema as { required?: string[]; properties?: Record<string, { description?: string }> };
+    assert.deepEqual(economySchema.required, ["timeSeconds"]);
     assert.match(economyTool.description ?? "", /race is the current player row/i);
     assert.match(economyTool.description ?? "", /stored replay-level label/i);
     assert.match(economyTool.description ?? "", /race and opponentRace/i);

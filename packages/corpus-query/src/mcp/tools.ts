@@ -986,7 +986,7 @@ export function createReplayCorpusMcpServer(): McpServer {
   server.registerTool(
     "get_economy_distribution",
     {
-      description: "Aggregate economy distributions at or before a timestamp. Apply the supplied filters before sampling: race is the current player row's race, opponentRace is that row's opponent race, and matchup is the stored replay-level label (Corpus v2 uses participation owner-slot order; for example ZvP), not a guaranteed per-row perspective. Combine race and opponentRace to express the current player's perspective robustly. Race, opponentRace, matchup, map, player, and opponent text filters are case-insensitive; omit a filter only when an unfiltered corpus-wide distribution is intended.",
+      description: "Aggregate economy distributions at or before a timestamp. timeSeconds is required. Every other argument is optional: pass only the filters requested by the user and omit unused filters entirely (do not send null or empty strings). Omitted filters are not applied; any subset of filters can produce a filtered corpus-wide distribution. In Discord, corpus_id is also required by the gateway. Apply supplied filters before sampling: race is the current player row's race, opponentRace is that row's opponent race, and matchup is the stored replay-level label (Corpus v2 uses participation owner-slot order; for example ZvP), not a guaranteed per-row perspective. Combine race and opponentRace to express the current player's perspective robustly. Race, opponentRace, matchup, map, player, and opponent text filters are case-insensitive.",
       inputSchema: getEconomyDistributionInputSchema.shape
     },
     async (args) =>
