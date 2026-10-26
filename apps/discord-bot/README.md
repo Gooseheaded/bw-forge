@@ -78,6 +78,24 @@ Long responses are split within Discord limits; output disables automatic mentio
 
 ## Controlled server deployment
 
+For the existing Windows → Debian workflow, use the repository's primary PowerShell deployer:
+
+```powershell
+.\Deploy-BwForge.ps1 -DeployDiscordBot
+```
+
+On first deployment it creates `/etc/bw-forge/discord-bot.env` with restricted permissions and installs the service. Fill in that file on Debian (`sudo nano /etc/bw-forge/discord-bot.env`): bot token, application/guild/channel/role IDs, provider key, and model. Enable the Discord intents and install the app into the guild as described above. Then run:
+
+```powershell
+.\Deploy-BwForge.ps1 -DeployDiscordBot -RegisterDiscordCommands
+```
+
+This builds the bot, registers `/forge start` in the configured guild, and starts/restarts `bw-forge-discord-bot.service`. Command registration is explicit; subsequent deployments can use just `-DeployDiscordBot`. Once installed, the bot is also detected and rebuilt by normal deployments so replacing the application tree does not remove its dependencies. `-Restart DiscordBot` and `-Restart All` support the bot as well.
+
+The default deployer layout is `/srv/bw-forge/app/apps/discord-bot`, with conversations retained at `/srv/bw-forge/discord-bot-state/bot.sqlite`. Secrets and state survive application swaps and backup pruning. Override locations with `-RemoteDiscordEnv` and `-RemoteDiscordStateRoot`. Bot dependency installation needs npm-registry access from Debian; the existing offline corpus-query dependency cache remains separate. Deployment archives the selected **committed** revision (`-Commit`, default `HEAD`). Check status/logs with `sudo systemctl status bw-forge-discord-bot` and `sudo journalctl -u bw-forge-discord-bot -f`.
+
+For a manual installation instead:
+
 Build and install dependencies on a controlled server with Bun. Create an unprivileged `bw-forge` user and a writable state directory. Put secrets and absolute paths in `/etc/bw-forge/discord-bot.env`, readable only by the operator/service user. Set `DISCORD_BOT_DATABASE_PATH=/var/lib/bw-forge-discord/bot.sqlite` and create that directory with service-user ownership.
 
 Adjust paths in `bw-forge-discord-bot.service`, copy it into `/etc/systemd/system`, then:
