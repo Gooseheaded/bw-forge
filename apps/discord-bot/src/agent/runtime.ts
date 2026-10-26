@@ -33,6 +33,66 @@ function withAgentToolGuidance(toolName: string, result: unknown): unknown {
     : "This aggregate response is unfiltered because no aggregate filters were supplied. The tool supports race, opponentRace, matchup, player, opponent, and map; do not claim filters are unsupported. If the user requested constraints, issue a corrected call with those fields.";
   return { ...record, agent_guidance: guidance };
 }
+
+const RACE_NAMES = { z: "zerg", t: "terran", p: "protoss" } as const;
+const DIAGNOSTIC_ARGUMENT_KEYS = new Set([
+  "corpus_id", "replay_number", "at_seconds", "timeSeconds", "race", "opponentRace", "matchup",
+  "player", "opponent", "map", "limit", "limitExamples", "n", "firstN", "secondN",
+]);
+
+/** Recognize only explicit, ordered race-pair wording; this is not a query parser. */
+function explicitRacePair(text: string): { race: string; opponentRace: string; matchup: string } | undefined {
+  const names = "(zerg|terran|protoss)";
+  const namedPair = new RegExp(`\\b${names}\\s*(?:[-/]?versus[-/]?|[-/]?vs\\.?[-/]?)\\s*${names}\\b`, "i").exec(text);
+  if (namedPair) {
+    const toCode = (race: string) => race.toLowerCase()[0] as keyof typeof RACE_NAMES;
+    const first = toCode(namedPair[1]!);
+    const second = toCode(namedPair[2]!);
+    return { race: RACE_NAMES[first], opponentRace: RACE_NAMES[second], matchup: `${first.toUpperCase()}v${second.toUpperCase()}` };
+  }
+  const codedPair = /\b([ZTP])v([ZTP])\b/i.exec(text);
+  if (!codedPair) return undefined;
+  const first = codedPair[1]!.toLowerCase() as keyof typeof RACE_NAMES;
+  const second = codedPair[2]!.toLowerCase() as keyof typeof RACE_NAMES;
+  return { race: RACE_NAMES[first], opponentRace: RACE_NAMES[second], matchup: `${first.toUpperCase()}v${second.toUpperCase()}` };
+}
+
+function stableCallKey(name: string, argsText: string): string {
+  try {
+    const args = JSON.parse(argsText) as unknown;
+    return `${name}\n${JSON.stringify(sortJson(args))}`;
+  } catch { return `${name}\n${argsText}`; }
+}
+
+function sortJson(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortJson);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, sortJson(item)]));
+}
+
+function argumentDiagnostic(stage: "provider_adapter" | "gateway_dispatch", name: string, args: unknown): Record<string, unknown> {
+  const record = args && typeof args === "object" && !Array.isArray(args) ? args as Record<string, unknown> : {};
+  const keys = Object.keys(record).map((key) => DIAGNOSTIC_ARGUMENT_KEYS.has(key) ? key : "<other>");
+  const filters: Record<string, unknown> = {};
+  for (const key of ["race", "opponentRace", "matchup", "timeSeconds", "at_seconds", "map", "player", "opponent"]) {
+    if (!(key in record)) continue;
+    const value = record[key];
+    if (["race", "opponentRace"].includes(key) && typeof value === "string" && ["zerg", "terran", "protoss"].includes(value.toLowerCase())) filters[key] = value.toLowerCase();
+    else if (key === "matchup" && typeof value === "string" && /^[ZTP]v[ZTP]$/i.test(value)) filters[key] = value.toUpperCase().replace("V", "v");
+    else if (["timeSeconds", "at_seconds"].includes(key) && typeof value === "number" && Number.isFinite(value)) filters[key] = value;
+    else filters[key] = "[redacted]";
+  }
+  return { stage, tool: name === "get_economy_distribution" ? name : "<other>", argumentKeys: [...new Set(keys)].sort(), filters };
+}
+
+function validateExplicitAggregateFilters(name: string, args: Record<string, unknown>, text: string): string | undefined {
+  if (name !== "get_economy_distribution") return undefined;
+  const requested = explicitRacePair(text);
+  if (!requested) return undefined;
+  const missing = Object.entries(requested).filter(([key, expected]) => String(args[key] ?? "").toLowerCase() !== expected.toLowerCase()).map(([key]) => key);
+  if (!missing.length) return undefined;
+  return `Aggregate query not run: your request explicitly names ${requested.matchup}. Supply matching ${missing.join(", ")} arguments to get_economy_distribution, then retry. No filters were inferred or applied.`;
+}
 export type { LlmProvider, LlmRequest, LlmResponse };
 type SavedResponse = LlmResponse & { failed?: boolean };
 const FAILURE_TEXT =
@@ -135,6 +195,8 @@ export interface RuntimeOptions {
     maxParallelCalls: number;
     turnTimeoutMs: number;
     maxToolResultBytes: number;
+    /** Emit redacted provider/gateway argument shape diagnostics when enabled. */
+    diagnosticToolArguments?: boolean;
   };
 }
 
@@ -492,6 +554,7 @@ export class TurnRuntime {
     const messages: LlmInputMessage[] = context.filter((m) => m.role !== "system");
     let inputTokens = 0, outputTokens = 0, totalTokens = 0;
     let callsUsed = 0;
+    const toolResultCache = new Map<string, string>();
     for (let round = 0; round < agent.maxRounds; round++) {
       let current: LlmResponse;
       try {
@@ -508,6 +571,11 @@ export class TurnRuntime {
         throw error;
       }
       inputTokens += current.usage?.inputTokens ?? 0; outputTokens += current.usage?.outputTokens ?? 0; totalTokens += current.usage?.totalTokens ?? 0;
+      if (agent.diagnosticToolArguments) for (const call of current.toolCalls ?? []) {
+        let modelArguments: unknown;
+        try { modelArguments = JSON.parse(call.arguments); } catch { modelArguments = {}; }
+        this.options.log?.("tool argument diagnostic", argumentDiagnostic("provider_adapter", call.name, modelArguments));
+      }
       if (current.status === "incomplete") return { ...current,
         text: current.text.trim() ? `This response was incomplete, so I can't present it as a verified result. Partial response: ${current.text.slice(0, 1200)}` : "The model ran out of response budget before producing a complete answer. I couldn't verify the analysis.",
         toolCalls: undefined, usage: { inputTokens, outputTokens, totalTokens } };
@@ -521,7 +589,7 @@ export class TurnRuntime {
       const uniqueCalls: LlmToolCall[] = [];
       const uniqueCallKeys = new Set<string>();
       for (const call of current.toolCalls) {
-        const key = `${call.name}\n${call.arguments}`;
+        const key = stableCallKey(call.name, call.arguments);
         if (!uniqueCallKeys.has(key)) { uniqueCallKeys.add(key); uniqueCalls.push(call); }
       }
       const callsToExecute = uniqueCalls.slice(0, remaining);
@@ -537,6 +605,16 @@ export class TurnRuntime {
           let args: Record<string, unknown>;
           try { const parsed: unknown = JSON.parse(call.arguments); if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error(); args = parsed as Record<string, unknown>; }
           catch { throw new Error("invalid arguments"); }
+          const cacheKey = stableCallKey(call.name, call.arguments);
+          const cached = toolResultCache.get(cacheKey);
+          if (cached !== undefined) return { role: "tool" as const, toolCallId: call.id, toolName: call.name, content: cached };
+          const filterError = validateExplicitAggregateFilters(call.name, args, turn.message.content);
+          if (filterError) {
+            content = JSON.stringify({ error: "aggregate_filters_required", message: filterError });
+            toolResultCache.set(cacheKey, content);
+            this.options.log?.("analytical tool call rejected", { tool: call.name, code: "aggregate_filters_required" });
+            return { role: "tool" as const, toolCallId: call.id, toolName: call.name, content };
+          }
           const corpusId = args.corpus_id;
           if (typeof corpusId !== "string" || !corpusId) throw new Error("explicit corpus_id required");
           delete args.corpus_id;
@@ -548,12 +626,14 @@ export class TurnRuntime {
             let currentAuthorization = false;
             try { currentAuthorization = await this.options.authorization.authorize({ guildId: turn.message.guildId, userId: turn.message.authorId }); } catch { currentAuthorization = false; }
             if (!currentAuthorization) { callController.abort(); throw new AgentAuthorizationRevokedError("authorization revoked"); }
+            if (agent.diagnosticToolArguments) this.options.log?.("tool argument diagnostic", argumentDiagnostic("gateway_dispatch", call.name, args));
             result = await agent.gateway.call({ corpusId, name: call.name, arguments: args, allowedReplayRefs: refs, signal: callController.signal });
           }
           finally { release(); }
           content = JSON.stringify(withAgentToolGuidance(call.name, result));
           const resultBytes = new TextEncoder().encode(content).byteLength;
           if (resultBytes > agent.maxToolResultBytes) throw new Error("result too large");
+          toolResultCache.set(cacheKey, content);
           const mcpFailed = !!result && typeof result === "object" && (result as { isError?: unknown }).isError === true;
           this.options.log?.(mcpFailed ? "analytical tool call failed" : "analytical tool call completed", { turnId: turn.id, sessionId: turn.message.sessionId,
             toolCallId: call.id, tool: call.name, corpusId, replayNumber: args.replay_number ?? null,

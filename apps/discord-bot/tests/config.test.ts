@@ -22,6 +22,12 @@ describe("configuration", () => {
     expect(c.discord.guildId).toBe(base.DISCORD_GUILD_ID!);
     expect(c.queue.maxConcurrent).toBe(2);
     expect(c.agent.enabled).toBe(false);
+    expect(c.agent.diagnosticToolArguments).toBe(false);
+  });
+  test("controls opt-in tool argument diagnostics", () => {
+    expect(loadConfig({ ...base, BW_FORGE_TOOL_ARGUMENT_DIAGNOSTICS: "true" }).agent.diagnosticToolArguments).toBe(true);
+    expect(loadConfig({ ...base, BW_FORGE_TOOL_ARGUMENT_DIAGNOSTICS: "0" }).agent.diagnosticToolArguments).toBe(false);
+    expect(() => loadConfig({ ...base, BW_FORGE_TOOL_ARGUMENT_DIAGNOSTICS: "maybe" })).toThrow("BW_FORGE_TOOL_ARGUMENT_DIAGNOSTICS");
   });
   test("requires a trusted MCP command and readable corpus when analysis is enabled", () => {
     expect(() => loadConfig({ ...base, BW_FORGE_AGENT_ENABLED: "true" })).toThrow("BW_FORGE_MCP_COMMAND");

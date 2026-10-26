@@ -27,6 +27,7 @@ export interface BotConfig {
   queue: { maxConcurrent: number; maxPerThread: number };
   agent: {
     enabled: boolean;
+    diagnosticToolArguments: boolean;
     mcpCommand?: string;
     mcpArgs: string[];
     maxRounds: number;
@@ -231,6 +232,7 @@ export function loadConfig(
     },
     agent: {
       enabled: agentEnabled,
+      diagnosticToolArguments: optionalBool(env, "BW_FORGE_TOOL_ARGUMENT_DIAGNOSTICS", false),
       mcpCommand,
       mcpArgs,
       maxRounds: boundedOptional("BW_FORGE_AGENT_MAX_ROUNDS", 4, 1, 12),

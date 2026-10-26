@@ -90,7 +90,7 @@ describe("persistent routing integration", () => {
       },
       storage: { databasePath: path },
       queue: { maxConcurrent: 1, maxPerThread: 10 },
-      agent: { enabled: false, mcpArgs: [], maxRounds: 4, maxToolCalls: 6, maxParallelCalls: 2, turnTimeoutMs: 120000, toolTimeoutMs: 10000, maxToolResultBytes: 24000 },
+      agent: { enabled: false, diagnosticToolArguments: false, mcpArgs: [], maxRounds: 4, maxToolCalls: 6, maxParallelCalls: 2, turnTimeoutMs: 120000, toolTimeoutMs: 10000, maxToolResultBytes: 24000 },
     };
     const adapter = new DiscordAdapter({
       client: fakeClient,
@@ -534,7 +534,7 @@ describe("persistent routing integration", () => {
         },
         storage: { databasePath: path },
         queue: { maxConcurrent: 1, maxPerThread: 10 },
-        agent: { enabled: false, mcpArgs: [], maxRounds: 4, maxToolCalls: 6, maxParallelCalls: 2, turnTimeoutMs: 120000, toolTimeoutMs: 10000, maxToolResultBytes: 24000 },
+        agent: { enabled: false, diagnosticToolArguments: false, mcpArgs: [], maxRounds: 4, maxToolCalls: 6, maxParallelCalls: 2, turnTimeoutMs: 120000, toolTimeoutMs: 10000, maxToolResultBytes: 24000 },
       };
       let enqueued = 0;
       const adapter = new DiscordAdapter({

@@ -76,6 +76,7 @@ All current settings are environment variables. Startup validates configuration 
 | `BW_FORGE_AGENT_TURN_TIMEOUT_MS` | Total agent-turn deadline, including all model rounds and tools (default 120000 ms, max 600000) |
 | `BW_FORGE_AGENT_TOOL_TIMEOUT_MS` | Per-tool deadline (default 10000 ms, max 120000 ms) |
 | `BW_FORGE_AGENT_MAX_TOOL_RESULT_BYTES` | Maximum serialized tool result size (default 24000 bytes, max 256000) |
+| `BW_FORGE_TOOL_ARGUMENT_DIAGNOSTICS` | Opt in to redacted provider/gateway tool-argument keys and safe filter diagnostics (default `false`) |
 
 Example production registry (JSON is used so the existing environment-file deployment remains compatible):
 
@@ -105,6 +106,8 @@ BW_FORGE_AGENT_TOOL_TIMEOUT_MS=10000
 BW_FORGE_AGENT_MAX_TOOL_RESULT_BYTES=24000
 BW_FORGE_READABLE_CORPORA=pro,community
 ```
+
+For an aggregate economy request that explicitly names a race pair (for example, “Zerg versus Protoss” or “ZvP”), the agent checks that `race`, `opponentRace`, and `matchup` agree before MCP execution. An incomplete call gets an actionable tool error and does not query an unfiltered distribution. This deliberately recognizes only explicit race-pair forms; other natural-language constraints are not parsed. `BW_FORGE_TOOL_ARGUMENT_DIAGNOSTICS=true` enables logs of argument keys and redacted/allowlisted scalar filters at the provider and gateway boundaries. It never logs raw argument payloads, credentials, reasoning, or replay identifiers.
 
 `{db_path}` is substituted separately for each readable corpus, so the professional and community MCP processes receive the correct database. The process command and arguments are operator configuration and are never accepted from Discord or the model. Keep the professional database and its sidecar directory read-only to the bot service account. The parallel-call limit applies globally across active Discord turns. If one MCP corpus is unavailable, reachable corpora stay available; if no configured corpus can provide approved tools, the bot falls back to conversation-only behavior for that turn.
 
