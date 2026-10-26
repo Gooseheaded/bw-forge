@@ -1,6 +1,6 @@
 import { ConfigError, loadConfig } from "./config/index.ts";
 import { TurnRuntime, SqliteRuntimeStore } from "./agent/runtime.ts";
-import { OpenAiResponsesProvider } from "./llm/openai.ts";
+import { createLlmProvider } from "./llm/factory.ts";
 import { BotStore } from "./storage/store.ts";
 import { acquireProcessLock } from "./storage/process-lock.ts";
 import {
@@ -31,7 +31,7 @@ export async function startBot(
   const authorization = new DiscordAuthorization(client, config);
   const delivery = new DiscordDelivery(client, store);
   const runtimeStore = new SqliteRuntimeStore(store, config.llm.contextBudget);
-  const provider = new OpenAiResponsesProvider(config.llm.apiKey);
+  const provider = createLlmProvider(config.llm);
   const runtime = new TurnRuntime({
     maxConcurrent: config.queue.maxConcurrent,
     requestTimeoutMs: config.llm.requestTimeoutMs,

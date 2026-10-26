@@ -22,6 +22,26 @@ describe("configuration", () => {
     expect(c.discord.guildId).toBe(base.DISCORD_GUILD_ID!);
     expect(c.queue.maxConcurrent).toBe(2);
   });
+  test("defaults provider to OpenAI and accepts OpenRouter case-insensitively", () => {
+    expect(loadConfig(base).llm.provider).toBe("openai");
+    expect(
+      loadConfig({ ...base, BW_FORGE_LLM_PROVIDER: "OpenRouter" }).llm.provider,
+    ).toBe("openrouter");
+    expect(
+      loadConfig({ ...base, BW_FORGE_LLM_PROVIDER: "OPENAI" }).llm.provider,
+    ).toBe("openai");
+  });
+  test("rejects unknown provider without echoing secrets", () => {
+    const secret = "provider-secret";
+    expect(() =>
+      loadConfig({ ...base, BW_FORGE_LLM_PROVIDER: secret }),
+    ).toThrow("supported providers");
+    try {
+      loadConfig({ ...base, BW_FORGE_LLM_PROVIDER: secret });
+    } catch (error) {
+      expect(String(error)).not.toContain(secret);
+    }
+  });
   test("reports missing secret", () => {
     const e = { ...base };
     delete e.DISCORD_BOT_TOKEN;

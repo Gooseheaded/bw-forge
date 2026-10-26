@@ -47,9 +47,9 @@ All current settings are environment variables. Startup validates configuration 
 | `DISCORD_GUILD_ID` | One testing guild |
 | `DISCORD_PARENT_CHANNEL_IDS` | Comma-separated enabled parent text-channel IDs |
 | `DISCORD_AUTHORIZED_ROLE_IDS` | Comma-separated authorized role IDs |
-| `BW_FORGE_LLM_PROVIDER` | `openai`, the implemented provider |
-| `LLM_API_KEY` | Secret hosted provider key |
-| `LLM_MODEL` | Model ID enabled for your API account |
+| `BW_FORGE_LLM_PROVIDER` | `openai` (default) or `openrouter` |
+| `LLM_API_KEY` | Secret API key for the selected provider |
+| `LLM_MODEL` | Provider model ID; use an OpenRouter model identifier when selecting OpenRouter |
 | `LLM_MAX_OUTPUT_TOKENS` | Maximum generated tokens, including reasoning where applicable |
 | `LLM_CONTEXT_BUDGET` | Conservative input budget accounted as UTF-8 bytes plus envelope overhead |
 | `LLM_REQUEST_TIMEOUT_MS` | Hosted request deadline |
@@ -61,6 +61,18 @@ All current settings are environment variables. Startup validates configuration 
 Choose input/output limits that fit your model's context window. Context reconstruction retains the triggering message and drops older history first; oversized triggers are clipped. There is no summarization or retrieval. Byte budgeting deliberately overestimates ordinary text tokens for a simple provider-independent bound.
 
 The OpenAI adapter uses the [Responses API](https://developers.openai.com/api/docs/guides/text) with local history and `store: false`. Provider conversation IDs are not authoritative. Provider interfaces, context assembly, authorization, Discord transport, and storage are separate so later tool orchestration can preserve existing sessions. No tool calling is implemented.
+
+To use OpenRouter, edit the existing `/etc/bw-forge/discord-bot.env` on Debian:
+
+```dotenv
+BW_FORGE_LLM_PROVIDER=openrouter
+LLM_API_KEY=your-openrouter-api-key
+LLM_MODEL=provider/your-model-id
+```
+
+Replace the placeholders with your key and the exact model identifier from your OpenRouter account. Keep the other settings. The adapter sends requests to `https://openrouter.ai/api/v1/responses` using OpenRouter's [stateless Responses API](https://openrouter.ai/docs/api_reference/responses/overview). It includes local conversation history, uses `store: false`, and records `openrouter` as the provider. Select a model that supports text responses through this endpoint, and set context/output limits and optional temperature to values supported by that model.
+
+Deploy the updated committed revision with `.\Deploy-BwForge.ps1 -DeployDiscordBot`; the existing environment file and conversation database are retained. Switching providers does not require slash-command registration or a new session. Dependency-inclusive bundles still install offline on Debian. Provider requests require runtime access to OpenRouter. Mocked tests verify the protocol and error handling; a live OpenRouter smoke test needs your credentials and is not part of automated verification.
 
 ## Persistence and recovery
 

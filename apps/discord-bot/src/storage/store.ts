@@ -487,7 +487,10 @@ export class BotStore {
       }
       const updated = this.db
         .query(
-          "UPDATE turns SET status='running',attempt_count=attempt_count+1,started_at=?,provider=?,model=? WHERE id=? AND status='queued'",
+          `UPDATE turns SET status='running',attempt_count=attempt_count+1,started_at=?,
+          provider=CASE WHEN EXISTS(SELECT 1 FROM messages m WHERE m.turn_id=turns.id AND m.role='assistant') THEN provider ELSE ? END,
+          model=CASE WHEN EXISTS(SELECT 1 FROM messages m WHERE m.turn_id=turns.id AND m.role='assistant') THEN model ELSE ? END
+          WHERE id=? AND status='queued'`,
         )
         .run(now(), provider ?? null, model ?? null, row.id);
       if (updated.changes !== 1) return null;

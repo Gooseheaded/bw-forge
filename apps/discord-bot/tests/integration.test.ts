@@ -6,6 +6,7 @@ import { BotStore } from "../src/storage/store.ts";
 import { SqliteRuntimeStore, TurnRuntime } from "../src/agent/runtime.ts";
 import { DiscordAdapter } from "../src/discord/adapter.ts";
 import type { BotConfig } from "../src/config/index.ts";
+import { createLlmProvider } from "../src/llm/factory.ts";
 
 const waitFor = async (check: () => boolean, ms = 1000) => {
   const end = Date.now() + ms;
@@ -578,6 +579,132 @@ describe("persistent routing integration", () => {
       await Bun.sleep(20);
       expect(enqueued).toBe(1);
       void adapter;
+    } finally {
+      db.close();
+      try {
+        rmSync(dir, { recursive: true, force: true });
+      } catch {}
+    }
+  });
+
+  it("runs an OpenRouter factory provider through SQLite and persists metadata", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "bwf-router-"));
+    const path = join(dir, "bot.sqlite");
+    const db = new BotStore({ dbPath: path });
+    try {
+      const s = db.reserveSession({
+        guildId: "g",
+        parentChannelId: "p",
+        creatorUserId: "u",
+        creationKey: "router",
+      });
+      db.attachThread(s.id, "to");
+      db.enqueueUserMessage({
+        sessionId: s.id,
+        discordMessageId: "mo",
+        authorUserId: "u",
+        content: "hello",
+      });
+      const provider = createLlmProvider(
+        { provider: "openrouter", apiKey: "secret" },
+        (async (_url: RequestInfo | URL, init?: RequestInit) => {
+          expect(new Headers(init?.headers).get("authorization")).toBe(
+            "Bearer secret",
+          );
+          return new Response(
+            JSON.stringify({
+              model: "router-model",
+              output_text: "router answer",
+              usage: { input_tokens: 4, output_tokens: 2, total_tokens: 6 },
+            }),
+            { status: 200 },
+          );
+        }) as unknown as typeof fetch,
+      );
+      const rt = new TurnRuntime({
+        store: new SqliteRuntimeStore(db),
+        provider,
+        providerName: "openrouter",
+        model: "router-model",
+        maxConcurrent: 1,
+        requestTimeoutMs: 500,
+        authorization: { authorize: async () => true },
+        delivery: { send: async () => {}, failure: async () => {} },
+      });
+      await rt.start();
+      await waitFor(() => db.getTurn(1)?.status === "completed");
+      await rt.stop();
+      expect(db.getTurn(1)?.provider).toBe("openrouter");
+      expect(db.getTurn(1)?.model).toBe("router-model");
+      expect(db.getTurn(1)?.tokenUsage).toBe(6);
+    } finally {
+      db.close();
+      try {
+        rmSync(dir, { recursive: true, force: true });
+      } catch {}
+    }
+  });
+
+  it("keeps saved response provider metadata across a provider switch", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "bwf-switch-"));
+    const path = join(dir, "bot.sqlite");
+    let db = new BotStore({ dbPath: path });
+    try {
+      const s = db.reserveSession({
+        guildId: "g",
+        parentChannelId: "p",
+        creatorUserId: "u",
+        creationKey: "switch",
+      });
+      db.attachThread(s.id, "tw");
+      db.enqueueUserMessage({
+        sessionId: s.id,
+        discordMessageId: "mw",
+        authorUserId: "u",
+        content: "old",
+      });
+      const t = db.claimNextTurn(s.id, "openai", "old-model");
+      if (!t) throw new Error("claim failed");
+      db.saveTurnResponse(t.id, {
+        text: "old answer",
+        provider: "openai",
+        model: "old-model",
+        tokenUsage: 3,
+      });
+      db.close();
+      db = new BotStore({ dbPath: path });
+      let generated = 0;
+      let delivered = "";
+      const rt = new TurnRuntime({
+        store: new SqliteRuntimeStore(db),
+        providerName: "openrouter",
+        provider: {
+          generate: async () => {
+            generated++;
+            return {
+              text: "wrong",
+              provider: "openrouter",
+              model: "new-model",
+            };
+          },
+        },
+        model: "new-model",
+        maxConcurrent: 1,
+        requestTimeoutMs: 500,
+        authorization: { authorize: async () => true },
+        delivery: {
+          send: async (x) => {
+            delivered = x.text;
+          },
+          failure: async () => {},
+        },
+      });
+      await rt.start();
+      await waitFor(() => delivered === "old answer");
+      await rt.stop();
+      expect(generated).toBe(0);
+      expect(db.getTurn(1)?.provider).toBe("openai");
+      expect(db.getTurn(1)?.model).toBe("old-model");
     } finally {
       db.close();
       try {

@@ -1,4 +1,4 @@
-export type LlmProviderName = "openai";
+export type LlmProviderName = "openai" | "openrouter";
 export class ConfigError extends Error {
   constructor(message: string) {
     super(message);
@@ -82,9 +82,9 @@ export function loadConfig(
   env: Record<string, string | undefined> = process.env,
 ): BotConfig {
   const provider = (env.BW_FORGE_LLM_PROVIDER ?? "openai").trim().toLowerCase();
-  if (provider !== "openai")
+  if (provider !== "openai" && provider !== "openrouter")
     throw new ConfigError(
-      "Unsupported BW_FORGE_LLM_PROVIDER; supported providers: openai",
+      "Unsupported BW_FORGE_LLM_PROVIDER; supported providers: openai, openrouter",
     );
   const temperatureRaw = env.BW_FORGE_LLM_TEMPERATURE?.trim();
   let temperature: number | undefined;
