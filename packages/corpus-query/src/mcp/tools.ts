@@ -266,8 +266,8 @@ const getEconomyDistributionInputSchema = z.object({
   player: optionalNonEmptyString.describe("Observed player name; filters the player side of each replay/player row."),
   opponent: optionalNonEmptyString.describe("Observed opponent name; filters the opponent side of each replay/player row."),
   race: optionalNonEmptyString.describe("Player race, matched case-insensitively (for example zerg). This is the race of player, not opponent."),
-  opponentRace: optionalNonEmptyString.describe("Opponent race, matched case-insensitively (for example protoss). Use with race for a directional matchup filter."),
-  matchup: optionalNonEmptyString.describe("Directional matchup string derived from player then opponent races (for example ZvP means Zerg player versus Protoss opponent); matched case-insensitively."),
+  opponentRace: optionalNonEmptyString.describe("Opponent race, matched case-insensitively (for example protoss). Use with race to select the player/opponent race pairing."),
+  matchup: optionalNonEmptyString.describe("Stored replay-level matchup label, matched case-insensitively (for example ZvP). Corpus v2 labels use participation owner-slot order; combine race and opponentRace to express the current player row's perspective robustly."),
   map: optionalNonEmptyString.describe("Map name, matched case-insensitively."),
   ...identityFilterInputSchema,
   ...chronologyFilterInputSchema,
@@ -986,7 +986,7 @@ export function createReplayCorpusMcpServer(): McpServer {
   server.registerTool(
     "get_economy_distribution",
     {
-      description: "Aggregate economy distributions at or before a timestamp. Apply the supplied filters before sampling: race is the player race, opponentRace is the opponent race, and matchup is directional player-versus-opponent shorthand such as ZvP. Filters are case-insensitive; omit a filter only when an unfiltered corpus-wide distribution is intended.",
+      description: "Aggregate economy distributions at or before a timestamp. Apply the supplied filters before sampling: race is the current player row's race, opponentRace is that row's opponent race, and matchup is the stored replay-level label (Corpus v2 uses participation owner-slot order; for example ZvP), not a guaranteed per-row perspective. Combine race and opponentRace to express the current player's perspective robustly. Race, opponentRace, matchup, map, player, and opponent text filters are case-insensitive; omit a filter only when an unfiltered corpus-wide distribution is intended.",
       inputSchema: getEconomyDistributionInputSchema.shape
     },
     async (args) =>

@@ -71,12 +71,13 @@ test("MCP server exposes generic tools and returns structured replay query resul
     const tools = await client.listTools();
     const economyTool = tools.tools.find((tool) => tool.name === "get_economy_distribution");
     assert.ok(economyTool);
-    assert.match(economyTool.description ?? "", /race is the player race/i);
-    assert.match(economyTool.description ?? "", /directional.*ZvP/i);
+    assert.match(economyTool.description ?? "", /race is the current player row/i);
+    assert.match(economyTool.description ?? "", /stored replay-level label/i);
+    assert.match(economyTool.description ?? "", /race and opponentRace/i);
     const economyProperties = (economyTool.inputSchema as { properties?: Record<string, { description?: string }> }).properties ?? {};
     assert.match(economyProperties.race?.description ?? "", /player race/i);
     assert.match(economyProperties.opponentRace?.description ?? "", /opponent race/i);
-    assert.match(economyProperties.matchup?.description ?? "", /directional/i);
+    assert.match(economyProperties.matchup?.description ?? "", /owner-slot order/i);
     const unitTool = tools.tools.find((tool) => tool.name === "get_unit_count");
     const primitiveEconomyTool = tools.tools.find((tool) => tool.name === "get_economy");
     assert.ok(unitTool);
@@ -1131,7 +1132,7 @@ test("MCP server exposes timing, snapshot, death, and replay-card analytics tool
         db_path: databasePath,
         race: "zerg",
         opponentRace: "terran",
-        matchup: "ZvT",
+        matchup: "zvt",
         timeSeconds: 420
       }
     });

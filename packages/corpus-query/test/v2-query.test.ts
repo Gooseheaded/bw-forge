@@ -214,9 +214,10 @@ test("shared MCP tools and resources execute on v2 and reject v1-only operations
     const dated=await call("find_replays",{player:"Player",played_from:"2025-01-01",played_before:"2026-01-01"});
     assert.equal(dated.count,1);assert.equal(dated.results[0].playedAt,"2025-01-01T00:00:00Z");
     assert.equal((await call("get_economy_distribution",{player:"Player",timeSeconds:.042,played_from:"2025-01-01",played_before:"2026-01-01"})).sampleSize,1);
-    const zergZvT = await call("get_economy_distribution",{race:"Zerg",matchup:"ZvT",timeSeconds:.042});
+    const zergZvT = await call("get_economy_distribution",{race:"Zerg",opponentRace:"Terran",matchup:"ZvT",timeSeconds:.042});
     assert.equal(zergZvT.sampleSize,2);
     assert.equal(zergZvT.filters.race,"Zerg");
+    assert.equal(zergZvT.filters.opponentRace,"Terran");
     assert.equal(zergZvT.filters.matchup,"ZvT");
     const noProtossZvP = await call("get_economy_distribution",{race:"Protoss",matchup:"ZvP",timeSeconds:.042});
     assert.equal(noProtossZvP.sampleSize,0);

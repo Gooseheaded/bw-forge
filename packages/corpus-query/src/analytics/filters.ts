@@ -126,7 +126,7 @@ export function buildReplayScope(
     params.push(...filters.replayIds);
   }
   if (filters.matchup) {
-    conditions.push("r.matchup = ?");
+    conditions.push("r.matchup = ? COLLATE NOCASE");
     params.push(filters.matchup);
   }
   if (filters.map) {
