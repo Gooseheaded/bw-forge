@@ -116,13 +116,24 @@ export function coverageAtFrame(db: Database, observationId: number, stream: str
 export function coverage(db: Database, row: Scope, stream: string, time: number) {
   return coverageAtFrame(db,row.observation_id,stream,frameAt(row,time));
 }
+function observationMetadata(row: Scope, requestedTime: number, result: ReturnType<typeof coverageAtFrame>, sampleFrame?: number) {
+  return {
+    requested_time_seconds: requestedTime,
+    requested_frame: result.frame,
+    coverage_start_frame: result.segment ? Number(result.segment.start_frame) : null,
+    coverage_end_frame: result.segment ? Number(result.segment.end_frame) : null,
+    coverage_basis: result.segment ? String(result.segment.basis) : null,
+    sample_age_seconds: sampleFrame === undefined ? null : Math.max(0, requestedTime - seconds(row, sampleFrame))
+  };
+}
 export function economy(db: Database, row: Scope, time: number) {
   const c = coverage(db,row,"economy",time);
-  if (c.availability !== "known") return { availability: c.availability, sample: null };
+  if (c.availability !== "known") return { availability: c.availability, ...observationMetadata(row,time,c), sample: null };
   const s = sqlRows(db, `SELECT * FROM economy_changes WHERE observation_id=? AND frame>=? AND frame<=? ORDER BY frame DESC LIMIT 1`,
     [row.observation_id,c.segment!.start_frame,c.frame])[0];
   if (!s) throw new Error("Covered economy segment has no baseline");
-  return { availability: c.availability, sample: { frame: Number(s.frame),time_seconds: seconds(row,Number(s.frame)),
+  const sampleFrame = Number(s.frame);
+  return { availability: c.availability, ...observationMetadata(row,time,c,sampleFrame), sample: { frame: sampleFrame,time_seconds: seconds(row,sampleFrame),
     minerals: Number(s.minerals),gas: Number(s.gas),workers: s.workers == null ? null : Number(s.workers),
     gathered_minerals: s.gathered_minerals == null ? null : Number(s.gathered_minerals),gathered_gas: s.gathered_gas == null ? null : Number(s.gathered_gas) } };
 }
@@ -131,14 +142,15 @@ export function domain(db: Database,row: Scope) {
 }
 export function unit(db: Database, row: Scope, name: string, time: number) {
   const c = coverage(db,row,"composition",time);
-  if (c.availability !== "known") return { availability: c.availability, sample: null };
+  if (c.availability !== "known") return { availability: c.availability, ...observationMetadata(row,time,c), sample: null };
   const type = sqlRows(db,`SELECT u.unit_type_id,u.unit_key FROM analysis_unit_domain d JOIN unit_types u USING(unit_type_id)
     WHERE d.spec_id=? AND u.unit_key=? COLLATE NOCASE`,[row.spec_id,name])[0];
-  if (!type) return { availability: "unobserved" as Availability, sample: null };
+  if (!type) return { availability: "unobserved" as Availability, ...observationMetadata(row,time,c), sample: null };
   const s = sqlRows(db, `SELECT frame,count FROM unit_count_changes WHERE observation_id=? AND unit_type_id=?
     AND frame>=? AND frame<=? ORDER BY frame DESC LIMIT 1`,[row.observation_id,type.unit_type_id,c.segment!.start_frame,c.frame])[0];
-  return { availability: "known" as Availability, sample: { time_seconds: seconds(row,Number(s?.frame ?? c.segment!.start_frame)),
-    frame: Number(s?.frame ?? c.segment!.start_frame),unit_type: String(type.unit_key),count: Number(s?.count ?? 0),
+  const sampleFrame = Number(s?.frame ?? c.segment!.start_frame);
+  return { availability: "known" as Availability, ...observationMetadata(row,time,c,sampleFrame), sample: { time_seconds: seconds(row,sampleFrame),
+    frame: sampleFrame,unit_type: String(type.unit_key),count: Number(s?.count ?? 0),
     basis: s ? "explicit_change" : "complete_baseline_absence" } };
 }
 export function supply(db: Database,row: Scope,time: number) {

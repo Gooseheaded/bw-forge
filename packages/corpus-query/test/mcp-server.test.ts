@@ -75,20 +75,25 @@ test("MCP server exposes generic tools and returns structured replay query resul
     assert.match(economyTool.description ?? "", /stored replay-level label/i);
     assert.match(economyTool.description ?? "", /race and opponentRace/i);
     const economyProperties = (economyTool.inputSchema as { properties?: Record<string, { description?: string }> }).properties ?? {};
-    assert.match(economyProperties.race?.description ?? "", /player race/i);
+    assert.match(economyProperties.race?.description ?? "", /race of the player row/i);
     assert.match(economyProperties.opponentRace?.description ?? "", /opponent race/i);
     assert.match(economyProperties.matchup?.description ?? "", /owner-slot order/i);
     const unitTool = tools.tools.find((tool) => tool.name === "get_unit_count");
     const primitiveEconomyTool = tools.tools.find((tool) => tool.name === "get_economy");
     assert.ok(unitTool);
     assert.ok(primitiveEconomyTool);
-    assert.match(unitTool.description ?? "", /last recorded change/i);
+    assert.match(unitTool.description ?? "", /availability describes coverage at the requested timestamp/i);
+    assert.match(unitTool.description ?? "", /known means the timestamp lies inside composition coverage/i);
+    assert.match(unitTool.description ?? "", /last recorded count change/i);
     assert.match(unitTool.description ?? "", /explicit_change/i);
     assert.match(unitTool.description ?? "", /complete_baseline_absence/i);
     assert.match(unitTool.description ?? "", /unknown.*not zero/i);
-    assert.match(unitTool.description ?? "", /self_owner.*parser owner slot/i);
-    assert.match(primitiveEconomyTool.description ?? "", /last recorded economy change/i);
-    assert.match(primitiveEconomyTool.description ?? "", /carried forward only within known economy coverage/i);
+    assert.match(unitTool.description ?? "", /target_owner.*equals self_owner.*by design/i);
+    assert.match(unitTool.description ?? "", /identityResolution=unresolved.*does not undermine replay-local owner attribution/i);
+    assert.match(primitiveEconomyTool.description ?? "", /availability describes coverage at the requested timestamp/i);
+    assert.match(primitiveEconomyTool.description ?? "", /target_owner.*equals self_owner.*by design/i);
+    assert.match(primitiveEconomyTool.description ?? "", /identityResolution=unresolved.*does not undermine replay-local owner attribution/i);
+    assert.match(primitiveEconomyTool.description ?? "", /carried forward only within that known segment/i);
     assert.match(primitiveEconomyTool.description ?? "", /source values/i);
     assert.match(primitiveEconomyTool.description ?? "", /canonicalPlayerKey.*identity catalog/i);
     assert.deepEqual(
@@ -384,6 +389,18 @@ test("MCP server exposes generic tools and returns structured replay query resul
         }
       ]
     });
+    const selfPerspective = (nthEventResult.structuredContent as { results: Array<{ self_owner: number; target_owner: number }> }).results[0]!;
+    assert.equal(selfPerspective.target_owner, selfPerspective.self_owner, "self perspective targets the same replay-local owner slot");
+
+    const enemyPerspective = await client.callTool({
+      name: "find_nth_event",
+      arguments: { db_path: databasePath, player: "pbjt", item: "Science Vessel", n: 1, as: "enemy" },
+    });
+    assert.equal(enemyPerspective.isError, undefined);
+    const enemyRow = (enemyPerspective.structuredContent as { results: Array<{ self_owner: number; target_owner: number; target_name: string }> }).results[0]!;
+    assert.equal(enemyRow.self_owner, 3);
+    assert.equal(enemyRow.target_owner, 5);
+    assert.equal(enemyRow.target_name, "Scan");
 
     const replayScopedEconomy = await client.callTool({
       name: "get_economy",
@@ -1841,6 +1858,77 @@ test("MCP server rejects invalid death windows through tool input validation", a
     });
     assert.equal(result.isError, true);
     assert.match(result.content[0]?.type === "text" ? result.content[0].text : "", /from_seconds/i);
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
+
+test("MCP economy distribution applies player and opponent race filters without an LLM", async () => {
+  await using fixture = await createFixtureRoot();
+  const createReplay = async (
+    replayId: string,
+    matchup: string,
+    opponentName: string,
+    opponentRace: string,
+    zergWorkers: number,
+  ) => {
+    const zergEconomy = [{ frame: 7142, time_seconds: 299.964, minerals: 400, gas: 20, workers: zergWorkers }];
+    const opponentEconomy = [{ frame: 7142, time_seconds: 299.964, minerals: 500, gas: 100, workers: 50 }];
+    await writeReplayFixture(fixture.root, `aggregate/${replayId}`, {
+      schema_version: "replay-analysis-manifest-v1",
+      replay_id: replayId,
+      source: { filename: `${replayId}.rep`, path: `/replays/${replayId}.rep` },
+      matchup,
+      map: "Python",
+      duration_seconds: 900,
+      players: [
+        { owner: 0, name: "FixtureZerg", race: "zerg", zip_filename: "zerg.zip" },
+        { owner: 1, name: opponentName, race: opponentRace, zip_filename: "opponent.zip" },
+      ],
+    }, {
+      "zerg.zip": await buildPlayerZip({ owner: 0, name: "FixtureZerg", race: "zerg", buildOrder: "",
+        economySamples: zergEconomy, supplySamples: [{ frame: 1, time_seconds: 0.042, current: 9, max: 18 }] }),
+      "opponent.zip": await buildPlayerZip({ owner: 1, name: opponentName, race: opponentRace, buildOrder: "",
+        economySamples: opponentEconomy, supplySamples: [{ frame: 1, time_seconds: 0.042, current: 9, max: 18 }] }),
+    });
+  };
+  await createReplay("zvp-game", "ZvP", "FixtureProtoss", "protoss", 25);
+  await createReplay("zvt-game", "ZvT", "FixtureTerran", "terran", 35);
+
+  const databasePath = join(fixture.root, "aggregate.sqlite");
+  const { db } = await openDatabase(databasePath);
+  ensureSchema(db);
+  await ingestAnalysisRoot(db, fixture.root);
+  await saveDatabase(db, databasePath);
+  db.close();
+
+  const server = createReplayCorpusMcpServer();
+  const client = new Client({ name: "aggregate-filter-test", version: "1.0.0" }, { capabilities: {} });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  try {
+    const filtered = await client.callTool({
+      name: "get_economy_distribution",
+      arguments: { db_path: databasePath, race: "zerg", opponentRace: "protoss", timeSeconds: 300 },
+    });
+    assert.equal(filtered.isError, undefined);
+    const result = filtered.structuredContent as {
+      filters: Record<string, unknown>;
+      sampleSize: number;
+      workers: { mean: number };
+    };
+    assert.equal(result.filters.race, "zerg");
+    assert.equal(result.filters.opponentRace, "protoss");
+    assert.equal(result.sampleSize, 1);
+    assert.equal(result.workers.mean, 25);
+
+    const unfiltered = await client.callTool({
+      name: "get_economy_distribution",
+      arguments: { db_path: databasePath, timeSeconds: 300 },
+    });
+    assert.equal(unfiltered.isError, undefined);
+    assert.equal((unfiltered.structuredContent as { sampleSize: number }).sampleSize, 4);
   } finally {
     await client.close();
     await server.close();

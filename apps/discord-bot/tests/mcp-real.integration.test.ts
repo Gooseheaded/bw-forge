@@ -42,8 +42,10 @@ describe("MCP gateway with the real corpus query server", () => {
       expect(JSON.stringify(result.structuredContent)).toContain('"workers":31');
       expect(JSON.stringify(result.structuredContent)).toContain(communityReplay);
       const comparison = await gateway.call({ corpusId: "pro", name: "get_economy_distribution",
-        arguments: { matchup: "ZvP", timeSeconds: 300, limitExamples: 2 } });
-      expect(JSON.stringify(comparison.structuredContent)).toContain('"sampleSize":2');
+        arguments: { race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300, limitExamples: 2 } });
+      expect(comparison.structuredContent).toMatchObject({
+        filters: { race: "zerg", opponentRace: "protoss", matchup: "ZvP" }, sampleSize: 2,
+      });
       expect(JSON.stringify(comparison.structuredContent)).toContain('"mean":31');
 
       // The mock model supplies protocol requests; this verifies orchestration,
@@ -65,7 +67,7 @@ describe("MCP gateway with the real corpus query server", () => {
           provider: { generate: async (request: any) => {
             if (!request.messages.some((message: any) => message.role === "tool")) return { text: "", provider: "mock", model: "mock", toolCalls: [
               { id: "community-call", name: "get_economy", arguments: JSON.stringify({ corpus_id: "community", replay_number: 1, player: "FixtureZerg", at_seconds: 300 }) },
-              { id: "pro-call", name: "get_economy_distribution", arguments: JSON.stringify({ corpus_id: "pro", matchup: "ZvP", timeSeconds: 300, limitExamples: 2 }) },
+              { id: "pro-call", name: "get_economy_distribution", arguments: JSON.stringify({ corpus_id: "pro", race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300, limitExamples: 2 }) },
             ] };
             const observations = request.messages.filter((message: any) => message.role === "tool").map((message: any) => JSON.parse(message.content));
             expect(observations).toHaveLength(2);

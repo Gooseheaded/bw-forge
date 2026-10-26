@@ -263,11 +263,11 @@ const getCompositionSnapshotInputSchema = z.object({
 
 const getEconomyDistributionInputSchema = z.object({
   db_path: optionalNonEmptyString,
-  player: optionalNonEmptyString.describe("Observed player name; filters the player side of each replay/player row."),
-  opponent: optionalNonEmptyString.describe("Observed opponent name; filters the opponent side of each replay/player row."),
-  race: optionalNonEmptyString.describe("Player race, matched case-insensitively (for example zerg). This is the race of player, not opponent."),
-  opponentRace: optionalNonEmptyString.describe("Opponent race, matched case-insensitively (for example protoss). Use with race to select the player/opponent race pairing."),
-  matchup: optionalNonEmptyString.describe("Stored replay-level matchup label, matched case-insensitively (for example ZvP). Corpus v2 labels use participation owner-slot order; combine race and opponentRace to express the current player row's perspective robustly."),
+  player: optionalNonEmptyString.describe("Observed player name; filters the player side of each replay/player row. Supply it when the user names the player to benchmark."),
+  opponent: optionalNonEmptyString.describe("Observed opponent name; filters the opponent side of each replay/player row. Supply it when the user names the opponent."),
+  race: optionalNonEmptyString.describe("Race of the player row (not the opponent), matched case-insensitively. For a Zerg-player benchmark pass race=zerg; do not omit a race the user requested."),
+  opponentRace: optionalNonEmptyString.describe("Race of the opponent row, matched case-insensitively. For Zerg versus Protoss pass opponentRace=protoss alongside race=zerg; do not omit an opponent race the user requested."),
+  matchup: optionalNonEmptyString.describe("Optional stored replay-level matchup label, matched case-insensitively (for example ZvP). Corpus v2 labels use participation owner-slot order and are not guaranteed to follow the current player row; combine race and opponentRace to express player perspective robustly."),
   map: optionalNonEmptyString.describe("Map name, matched case-insensitively."),
   ...identityFilterInputSchema,
   ...chronologyFilterInputSchema,
@@ -1247,7 +1247,7 @@ export function createReplayCorpusMcpServer(): McpServer {
   server.registerTool(
     "get_unit_count",
     {
-      description: "Get the latest unit-count state at or before a timestamp. On Corpus v2 this is a sparse state-change stream: the returned sample timestamp is the last recorded change at or before the query time, carried forward only within known composition coverage. A sample with basis=explicit_change is an observed change; basis=complete_baseline_absence means the unit was absent in a complete baseline, not that an incomplete stream proves zero. availability=unknown/before_coverage/after_coverage/gap is not zero. self_owner is the replay parser owner slot; observedName is the recorded name, while canonicalPlayerKey/canonicalPlayerName are populated only when the identity catalog resolves that name.",
+      description: "Get the latest unit-count state at or before a timestamp. On Corpus v2, availability describes coverage at the requested timestamp: known means the timestamp lies inside composition coverage. The result includes requested_time_seconds/requested_frame, coverage_start_frame/coverage_end_frame/coverage_basis, and sample_age_seconds; a known result establishes the requested frame is covered. The returned sample timestamp is the last recorded count change, carried forward as the current state only within that known segment. basis=explicit_change is an observed transition and is authoritative at the requested frame only when availability=known; basis=complete_baseline_absence means zero was established by a complete baseline. Outside known coverage, the state is unknown, not zero or exact. self_owner is the replay-local parser slot; target_owner is the selected perspective slot and equals self_owner for the default/self perspective by design. canonicalPlayerKey/canonicalPlayerName are populated only by the identity catalog as alias metadata; identityResolution=unresolved means no canonical alias mapping was found and does not undermine replay-local owner attribution or imply a punctuation problem. Preserve observedName as recorded.",
       inputSchema: getUnitCountInputSchema.shape
     },
     async (args) =>
@@ -1269,7 +1269,7 @@ export function createReplayCorpusMcpServer(): McpServer {
   server.registerTool(
     "get_economy",
     {
-      description: "Get the latest economy state at or before a timestamp. On Corpus v2 the returned sample timestamp is the last recorded economy change at or before the query time, carried forward only within known economy coverage; minerals, gas, workers, and gathered totals are source values from that sample, while null/unknown availability means the value is not established. self_owner is the replay parser owner slot; observedName is the recorded name, while canonicalPlayerKey/canonicalPlayerName are populated only when the identity catalog resolves that name.",
+      description: "Get the latest economy state at or before a timestamp. On Corpus v2, availability describes coverage at the requested timestamp: known means the timestamp lies inside economy coverage. The result includes requested_time_seconds/requested_frame, coverage_start_frame/coverage_end_frame/coverage_basis, and sample_age_seconds; a known result establishes the requested frame is covered. The returned sample timestamp is the last recorded economy tuple change, carried forward only within that known segment; minerals, gas, workers, and gathered totals are source values from that tuple. Null values or non-known availability are unknown, not estimates, and state is not carried across gaps or beyond coverage. self_owner is the replay-local parser slot; target_owner is the selected perspective slot and equals self_owner for the default/self perspective by design. canonicalPlayerKey/canonicalPlayerName are populated only by the identity catalog as alias metadata; identityResolution=unresolved means no canonical alias mapping was found and does not undermine replay-local owner attribution or imply a punctuation problem. Preserve observedName as recorded.",
       inputSchema: getEconomyInputSchema.shape
     },
     async (args) =>

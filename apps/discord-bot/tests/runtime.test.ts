@@ -143,6 +143,59 @@ describe("TurnRuntime", () => {
     expect(store.completed).toEqual(["dedupe"]);
   });
 
+  it("marks an omitted aggregate filter as unfiltered instead of unsupported", async () => {
+    const store = new FakeStore();
+    const requests: any[] = [];
+    const gateway = {
+      listTools: async () => [{ name: "get_economy_distribution", description: "aggregate economy", corpusRequired: true as const,
+        corpusId: "pro", corpusIds: ["pro"], inputSchema: { type: "object", properties: {
+          race: { type: "string" }, opponentRace: { type: "string" }, timeSeconds: { type: "number" }, corpus_id: { type: "string" },
+        } } }],
+      resetTurnBudget: () => {},
+      call: async () => ({ structuredContent: { filters: { race: null, opponentRace: null, matchup: null, player: null, opponent: null, map: null, timeSeconds: 300 }, sampleSize: 4766 } }),
+    };
+    const provider: LlmProvider = { generate: async (request) => {
+      requests.push(request);
+      if (requests.length === 1) return { text: "", provider: "fake", model: "m", toolCalls: [{ id: "aggregate", name: "get_economy_distribution", arguments: JSON.stringify({ corpus_id: "pro", timeSeconds: 300 }) }] };
+      return { text: "The result was unfiltered; I need to rerun it with the requested race and opponent race filters.", provider: "fake", model: "m" };
+    } };
+    const rt = new TurnRuntime({ store, provider, maxConcurrent: 1, requestTimeoutMs: 1000,
+      authorization: { authorize: async () => true }, delivery: { send: async () => {}, failure: async () => {} },
+      agent: { gateway, maxRounds: 3, maxToolCalls: 3, maxParallelCalls: 1, turnTimeoutMs: 1000, maxToolResultBytes: 2000 },
+    });
+    await rt.enqueue({ ...msg("aggregate-feedback"), content: "Compare Zerg versus Protoss at 5:00." }); await Bun.sleep(30);
+    const toolContent = requests[1].messages.find((message: any) => message.role === "tool")?.content ?? "";
+    expect(toolContent).toContain("unfiltered because no aggregate filters were supplied");
+    expect(toolContent).toContain("do not claim filters are unsupported");
+    expect(store.completed).toEqual(["aggregate-feedback"]);
+  });
+
+  it("tells the model which aggregate filters were omitted from a partial result", async () => {
+    const store = new FakeStore();
+    const requests: any[] = [];
+    const gateway = {
+      listTools: async () => [{ name: "get_economy_distribution", description: "aggregate economy", corpusRequired: true as const,
+        corpusId: "pro", corpusIds: ["pro"], inputSchema: { type: "object", properties: {} } }],
+      resetTurnBudget: () => {},
+      call: async () => ({ structuredContent: { filters: { race: "Zerg", opponentRace: null, matchup: null, player: null, opponent: null, map: null, timeSeconds: 300 }, sampleSize: 12 } }),
+    };
+    const provider: LlmProvider = { generate: async (request) => {
+      requests.push(request);
+      if (requests.length === 1) return { text: "", provider: "fake", model: "m", toolCalls: [{ id: "partial", name: "get_economy_distribution", arguments: JSON.stringify({ corpus_id: "pro", race: "Zerg", timeSeconds: 300 }) }] };
+      return { text: "The response applied race but omitted opponentRace, so I cannot present it as the requested matchup benchmark.", provider: "fake", model: "m" };
+    } };
+    const rt = new TurnRuntime({ store, provider, maxConcurrent: 1, requestTimeoutMs: 1000,
+      authorization: { authorize: async () => true }, delivery: { send: async () => {}, failure: async () => {} },
+      agent: { gateway, maxRounds: 3, maxToolCalls: 3, maxParallelCalls: 1, turnTimeoutMs: 1000, maxToolResultBytes: 2000 },
+    });
+    await rt.enqueue({ ...msg("aggregate-partial"), content: "Compare Zerg versus Protoss at 5:00." }); await Bun.sleep(30);
+    const toolContent = requests[1].messages.find((message: any) => message.role === "tool")?.content ?? "";
+    expect(toolContent).toContain("race");
+    expect(toolContent).toContain("null filters were not applied (opponentRace");
+    expect(toolContent).toContain("missing or mismatched");
+    expect(store.completed).toEqual(["aggregate-partial"]);
+  });
+
   it("stops the agent turn when the role is revoked before MCP execution", async () => {
     const store = new FakeStore(); let authCalls = 0, modelCalls = 0, toolCalls = 0;
     const gateway = {
