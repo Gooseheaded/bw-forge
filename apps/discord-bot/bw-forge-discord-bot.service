@@ -1,0 +1,23 @@
+[Unit]
+Description=BW Forge Discord conversational bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bw-forge
+WorkingDirectory=/srv/bw-forge/apps/discord-bot
+EnvironmentFile=/etc/bw-forge/discord-bot.env
+ExecStart=/usr/local/bin/bun dist/main.js
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

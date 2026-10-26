@@ -9,6 +9,10 @@ projects. The current source also includes the later MCP analytics, native
 SQLite, implicit database-path, informative text-output, and bounded
 read-only SQL work.
 
+The independently deployed [Discord bot](apps/discord-bot/README.md) adds
+role-gated conversational threads with persistent hosted-LLM sessions. Its M1
+scope is conversation; replay ingestion and MCP tool calling are later milestones.
+
 ## System Overview
 
 ```text
