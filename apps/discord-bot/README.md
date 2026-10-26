@@ -34,7 +34,7 @@ bun run build
 bun run start:production
 ```
 
-Build output externalizes packages: deploy with workspace dependencies installed, not just `dist/`. Root shortcuts are `bun run discord:dev`, `discord:test`, `discord:typecheck`, and `discord:build`. Root test/typecheck scripts include the bot.
+The ordinary application build externalizes packages: manual deployments need workspace dependencies installed alongside `dist/`. The PowerShell deployer below instead builds dependency-inclusive bundles on Windows for an offline Debian installation. Root shortcuts are `bun run discord:dev`, `discord:test`, `discord:typecheck`, and `discord:build`. Root test/typecheck scripts include the bot.
 
 ## Configuration
 
@@ -92,7 +92,11 @@ On first deployment it creates `/etc/bw-forge/discord-bot.env` with restricted p
 
 This builds the bot, registers `/forge start` in the configured guild, and starts/restarts `bw-forge-discord-bot.service`. Command registration is explicit; subsequent deployments can use just `-DeployDiscordBot`. Once installed, the bot is also detected and rebuilt by normal deployments so replacing the application tree does not remove its dependencies. `-Restart DiscordBot` and `-Restart All` support the bot as well.
 
-The default deployer layout is `/srv/bw-forge/app/apps/discord-bot`, with conversations retained at `/srv/bw-forge/discord-bot-state/bot.sqlite`. Secrets and state survive application swaps and backup pruning. Override locations with `-RemoteDiscordEnv` and `-RemoteDiscordStateRoot`. Bot dependency installation needs npm-registry access from Debian; the existing offline corpus-query dependency cache remains separate. Deployment archives the selected **committed** revision (`-Commit`, default `HEAD`). Check status/logs with `sudo systemctl status bw-forge-discord-bot` and `sudo journalctl -u bw-forge-discord-bot -f`.
+The default deployer layout is `/srv/bw-forge/app/apps/discord-bot`, with conversations retained at `/srv/bw-forge/discord-bot-state/bot.sqlite`. Secrets and state survive application swaps and backup pruning. Override locations with `-RemoteDiscordEnv` and `-RemoteDiscordStateRoot`.
+
+Debian requires **no internet access to install**. The connected Windows machine needs Bun and npm-registry access on a cache miss. It installs dependencies from the selected commit's frozen lockfile and bundles both bot entrypoints with their JavaScript dependencies. The archive is cached by commit and local Bun version, uploaded, checked with SHA-256, and imported on Debian before replacing the installed application. No Discord package install or build runs on Debian, and no Windows `node_modules` or native executable is copied. Debian still needs the existing Bun runtime. `-ForceDependencyUpload` also forces a fresh local bot bundle build. The existing offline corpus-query dependency cache remains separate.
+
+Deployment archives the selected **committed** revision (`-Commit`, default `HEAD`). Check status/logs with `sudo systemctl status bw-forge-discord-bot` and `sudo journalctl -u bw-forge-discord-bot -f`. The running bot and explicit slash-command registration still require a network route to Discord and the hosted LLM; a completely isolated server cannot provide those hosted features without permitted egress or a suitable proxy.
 
 For a manual installation instead:
 

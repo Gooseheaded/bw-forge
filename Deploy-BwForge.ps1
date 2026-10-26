@@ -27,7 +27,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
-$ScriptRevision = "2026-10-26-v3-discord-bot"
+$ScriptRevision = "2026-10-26-v4-offline-discord-bundle"
 
 $PnpmVersion = "10.32.1"
 $PnpmWinSha256 = "849141504c83bcd08a3d84dc20d43cff2584d672138d28c33ad62bdac809e7f2"
@@ -203,6 +203,44 @@ try {
     & git -C $RepoPath archive --format=tar.gz -o $SourceArchive $ResolvedCommit
     if ($LASTEXITCODE -ne 0) { throw "git archive failed" }
 
+    $DiscordSourceSpec = "${ResolvedCommit}:apps/discord-bot/package.json"
+    & git -C $RepoPath cat-file -e $DiscordSourceSpec 2>$null
+    $HasDiscordSource = ($LASTEXITCODE -eq 0)
+    if ($DeployDiscordBot -and -not $HasDiscordSource) {
+        throw "Commit $ResolvedCommit does not contain apps/discord-bot; choose a commit with the Discord bot before deploying it."
+    }
+    $DiscordBundle = $null
+    $DiscordBundleSha256 = ""
+    if ($HasDiscordSource) {
+        Require-Command bun
+        $BunVersion = (& bun --version).Trim()
+        if ($LASTEXITCODE -ne 0 -or $BunVersion -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$') { throw "Could not resolve a safe Bun version for Discord bundling" }
+        $DiscordBundle = Join-Path $ArchivesDir "discord-bot-bundle-$ResolvedCommit-bun$BunVersion-v1.tar.gz"
+        if ($ForceDependencyUpload -or -not (Test-Path $DiscordBundle)) {
+            Write-Host "==> Building self-contained Discord bot bundle locally"
+            $DiscordBuildRoot = Join-Path $TempRoot "discord-source"
+            New-Item -ItemType Directory -Force -Path $DiscordBuildRoot | Out-Null
+            & tar -xzf $SourceArchive -C $DiscordBuildRoot
+            if ($LASTEXITCODE -ne 0) { throw "Failed to extract source for local Discord bundle build" }
+            Push-Location $DiscordBuildRoot
+            $BundleTemp = $null
+            try {
+                & bun install --frozen-lockfile --production --ignore-scripts --filter "@bw-forge/discord-bot"
+                if ($LASTEXITCODE -ne 0) { throw "Local Discord dependency install failed" }
+                & bun build ./apps/discord-bot/src/main.ts ./apps/discord-bot/src/discord/register.ts --target=bun --packages=bundle --outdir=discord-dist
+                if ($LASTEXITCODE -ne 0) { throw "Local Discord bundle build failed" }
+                if (-not (Test-Path "discord-dist/main.js") -or -not (Test-Path "discord-dist/discord/register.js")) { throw "Discord bundle outputs are missing" }
+                $BundleTemp = "$DiscordBundle.tmp-$([guid]::NewGuid().ToString('N'))"
+                & tar -czf $BundleTemp -C discord-dist main.js discord/register.js
+                if ($LASTEXITCODE -ne 0) { throw "Failed to archive Discord bundle" }
+                Move-Item -Force $BundleTemp $DiscordBundle
+            }
+            finally { Pop-Location; if ($BundleTemp -and (Test-Path $BundleTemp)) { Remove-Item -Force $BundleTemp } }
+        }
+        $DiscordBundleSha256 = Get-Sha256 $DiscordBundle
+        Write-Host "    Discord bundle: $DiscordBundleSha256"
+    }
+
     $RemoteHome = "/home/$DebianUser"
     $RemoteCache = "$RemoteHome/.cache/bwforge-deploy"
     $RemoteTools = "$RemoteCache/tools"
@@ -276,6 +314,7 @@ DEPLOY_DISCORD="__DEPLOYDISCORD__"
 REGISTER_DISCORD="__REGISTERDISCORD__"
 DISCORD_ENV="__DISCORDENV__"
 DISCORD_STATE="__DISCORDSTATE__"
+DISCORD_BUNDLE_SHA="__DISCORDBUNDLESHA__"
 
 # Keep an already-installed bot healthy when the normal replay deployment swaps
 # the application tree. A fresh bot is opt-in with -DeployDiscordBot.
@@ -337,13 +376,20 @@ test -f "$BUILD/app/packages/corpus-query/node_modules/tsx/dist/cli.mjs"
 echo "==> Building corpus-query"
 "$PNPM" run build
 
+# BEGIN OFFLINE DISCORD INSTALL
 if [ "$DEPLOY_DISCORD" = "1" ]; then
-  echo "==> Installing and building Discord bot dependencies"
+  echo "==> Preparing self-contained Discord bot bundle"
   cd "$BUILD/app"
   command -v bun >/dev/null 2>&1 || { echo "Bun is required on the Debian host to deploy the Discord bot" >&2; exit 1; }
-  bun install --frozen-lockfile --production --ignore-scripts --filter @bw-forge/discord-bot
-  bun run --cwd apps/discord-bot build
+  test -n "$DISCORD_BUNDLE_SHA" || { echo "Missing local Discord bundle for this commit" >&2; exit 1; }
+  echo "$DISCORD_BUNDLE_SHA  $DROP/discord-bot-bundle.tar.gz" | sha256sum -c - >/dev/null
+  mkdir -p apps/discord-bot/dist
+  tar -xzf "$DROP/discord-bot-bundle.tar.gz" -C apps/discord-bot/dist
+  test -f apps/discord-bot/dist/main.js
+  test -f apps/discord-bot/dist/discord/register.js
+  bun --eval 'await import("./apps/discord-bot/dist/main.js"); await import("./apps/discord-bot/dist/discord/register.js");'
 fi
+# END OFFLINE DISCORD INSTALL
 
 echo "==> Verifying new BW Forge source"
 cd "$BUILD/app"
@@ -527,6 +573,7 @@ fi
         "__REGISTERDISCORD__"= $RegisterDiscordFlag
         "__DISCORDENV__"= $RemoteDiscordEnv
         "__DISCORDSTATE__"= $RemoteDiscordStateRoot
+        "__DISCORDBUNDLESHA__"= $DiscordBundleSha256
     }
     foreach ($Key in $Replacements.Keys) {
         $remoteScript = $remoteScript.Replace($Key, [string]$Replacements[$Key])
@@ -544,6 +591,7 @@ fi
     New-Item -ItemType Directory -Force -Path $UploadStage | Out-Null
     Copy-Item $SourceArchive (Join-Path $UploadStage "source.tar.gz")
     Copy-Item $RemoteScriptLocal (Join-Path $UploadStage "install.sh")
+    if ($HasDiscordSource) { Copy-Item $DiscordBundle (Join-Path $UploadStage "discord-bot-bundle.tar.gz") }
     if (-not $RemoteHasPnpm) { Copy-Item $PnpmLinux (Join-Path $UploadStage "pnpm-linux-x64") }
     if (-not $RemoteHasStore) { Copy-Item $StoreArchive (Join-Path $UploadStage "pnpm-store.tar.gz") }
 
