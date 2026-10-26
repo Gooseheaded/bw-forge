@@ -263,7 +263,15 @@ const getCompositionSnapshotInputSchema = z.object({
 
 const getEconomyDistributionInputSchema = z.object({
   db_path: optionalNonEmptyString,
-  ...corpusFilterInputSchema,
+  player: optionalNonEmptyString.describe("Observed player name; filters the player side of each replay/player row."),
+  opponent: optionalNonEmptyString.describe("Observed opponent name; filters the opponent side of each replay/player row."),
+  race: optionalNonEmptyString.describe("Player race, matched case-insensitively (for example zerg). This is the race of player, not opponent."),
+  opponentRace: optionalNonEmptyString.describe("Opponent race, matched case-insensitively (for example protoss). Use with race for a directional matchup filter."),
+  matchup: optionalNonEmptyString.describe("Directional matchup string derived from player then opponent races (for example ZvP means Zerg player versus Protoss opponent); matched case-insensitively."),
+  map: optionalNonEmptyString.describe("Map name, matched case-insensitively."),
+  ...identityFilterInputSchema,
+  ...chronologyFilterInputSchema,
+  replay_ids: replayIdsSchema,
   timeSeconds: finiteSeconds,
   limitExamples: z.number().int().positive().max(25).optional()
 });
@@ -978,7 +986,7 @@ export function createReplayCorpusMcpServer(): McpServer {
   server.registerTool(
     "get_economy_distribution",
     {
-      description: "Aggregate economy distributions at or before a timestamp for the filtered corpus.",
+      description: "Aggregate economy distributions at or before a timestamp. Apply the supplied filters before sampling: race is the player race, opponentRace is the opponent race, and matchup is directional player-versus-opponent shorthand such as ZvP. Filters are case-insensitive; omit a filter only when an unfiltered corpus-wide distribution is intended.",
       inputSchema: getEconomyDistributionInputSchema.shape
     },
     async (args) =>
@@ -1239,7 +1247,7 @@ export function createReplayCorpusMcpServer(): McpServer {
   server.registerTool(
     "get_unit_count",
     {
-      description: "Get the latest unit-count sample at or before a timestamp.",
+      description: "Get the latest unit-count state at or before a timestamp. On Corpus v2 this is a sparse state-change stream: the returned sample timestamp is the last recorded change at or before the query time, carried forward only within known composition coverage. A sample with basis=explicit_change is an observed change; basis=complete_baseline_absence means the unit was absent in a complete baseline, not that an incomplete stream proves zero. availability=unknown/before_coverage/after_coverage/gap is not zero. self_owner is the replay parser owner slot; observedName is the recorded name, while canonicalPlayerKey/canonicalPlayerName are populated only when the identity catalog resolves that name.",
       inputSchema: getUnitCountInputSchema.shape
     },
     async (args) =>
@@ -1261,7 +1269,7 @@ export function createReplayCorpusMcpServer(): McpServer {
   server.registerTool(
     "get_economy",
     {
-      description: "Get the latest economy sample at or before a timestamp.",
+      description: "Get the latest economy state at or before a timestamp. On Corpus v2 the returned sample timestamp is the last recorded economy change at or before the query time, carried forward only within known economy coverage; minerals, gas, workers, and gathered totals are source values from that sample, while null/unknown availability means the value is not established. self_owner is the replay parser owner slot; observedName is the recorded name, while canonicalPlayerKey/canonicalPlayerName are populated only when the identity catalog resolves that name.",
       inputSchema: getEconomyInputSchema.shape
     },
     async (args) =>

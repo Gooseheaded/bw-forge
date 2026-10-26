@@ -69,6 +69,27 @@ test("MCP server exposes generic tools and returns structured replay query resul
 
   try {
     const tools = await client.listTools();
+    const economyTool = tools.tools.find((tool) => tool.name === "get_economy_distribution");
+    assert.ok(economyTool);
+    assert.match(economyTool.description ?? "", /race is the player race/i);
+    assert.match(economyTool.description ?? "", /directional.*ZvP/i);
+    const economyProperties = (economyTool.inputSchema as { properties?: Record<string, { description?: string }> }).properties ?? {};
+    assert.match(economyProperties.race?.description ?? "", /player race/i);
+    assert.match(economyProperties.opponentRace?.description ?? "", /opponent race/i);
+    assert.match(economyProperties.matchup?.description ?? "", /directional/i);
+    const unitTool = tools.tools.find((tool) => tool.name === "get_unit_count");
+    const primitiveEconomyTool = tools.tools.find((tool) => tool.name === "get_economy");
+    assert.ok(unitTool);
+    assert.ok(primitiveEconomyTool);
+    assert.match(unitTool.description ?? "", /last recorded change/i);
+    assert.match(unitTool.description ?? "", /explicit_change/i);
+    assert.match(unitTool.description ?? "", /complete_baseline_absence/i);
+    assert.match(unitTool.description ?? "", /unknown.*not zero/i);
+    assert.match(unitTool.description ?? "", /self_owner.*parser owner slot/i);
+    assert.match(primitiveEconomyTool.description ?? "", /last recorded economy change/i);
+    assert.match(primitiveEconomyTool.description ?? "", /carried forward only within known economy coverage/i);
+    assert.match(primitiveEconomyTool.description ?? "", /source values/i);
+    assert.match(primitiveEconomyTool.description ?? "", /canonicalPlayerKey.*identity catalog/i);
     assert.deepEqual(
       tools.tools.map((tool) => tool.name).sort(),
       [
@@ -1079,6 +1100,44 @@ test("MCP server exposes timing, snapshot, death, and replay-card analytics tool
         }
       ]
     });
+
+    const filteredEconomy = await client.callTool({
+      name: "get_economy_distribution",
+      arguments: {
+        db_path: databasePath,
+        race: "Zerg",
+        opponentRace: "PROTOSS",
+        matchup: "zvp",
+        timeSeconds: 420
+      }
+    });
+    assert.equal(filteredEconomy.isError, undefined);
+    assert.equal((filteredEconomy.structuredContent as { sampleSize: number }).sampleSize, 0);
+    assert.deepEqual((filteredEconomy.structuredContent as { filters: Record<string, unknown> }).filters, {
+      player: null,
+      opponent: null,
+      race: "Zerg",
+      opponentRace: "PROTOSS",
+      matchup: "zvp",
+      map: null,
+      replayIds: null,
+      timeSeconds: 420,
+      time: "7:00"
+    });
+
+    const directionalFilter = await client.callTool({
+      name: "get_economy_distribution",
+      arguments: {
+        db_path: databasePath,
+        race: "zerg",
+        opponentRace: "terran",
+        matchup: "ZvT",
+        timeSeconds: 420
+      }
+    });
+    assert.equal(directionalFilter.isError, undefined);
+    assert.equal((directionalFilter.structuredContent as { sampleSize: number }).sampleSize, 1);
+    assert.equal((directionalFilter.structuredContent as { workers: { median: number } }).workers.median, 31);
 
     const deaths = await client.callTool({
       name: "get_death_summary",

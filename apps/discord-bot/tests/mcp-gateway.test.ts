@@ -9,7 +9,7 @@ class FakeTransport implements McpTransport {
     this.calls.push({ method, params });
     if (method === "tools/list") return { tools: [
       { name: "get_economy", description: "economy", inputSchema: { type: "object", properties: { player: { type: "string" }, at_seconds: { type: "number" }, replay_ids: { type: "array", items: { type: "string" }, maxItems: 100 } } } },
-      { name: "get_economy_distribution", description: "aggregate economy", inputSchema: { type: "object", properties: { matchup: { type: "string" }, timeSeconds: { type: "number" }, limitExamples: { type: "integer", maximum: 25 } } } },
+      { name: "get_economy_distribution", description: "aggregate economy", inputSchema: { type: "object", properties: { player: { type: "string" }, opponent: { type: "string" }, race: { type: "string" }, opponentRace: { type: "string" }, matchup: { type: "string" }, map: { type: "string" }, timeSeconds: { type: "number" }, limitExamples: { type: "integer", maximum: 25 } } } },
       { name: "get_player_replay_card", description: "replay card", inputSchema: { type: "object", properties: { replayId: { type: "string" }, player: { type: "string" } }, required: ["replayId", "player"] } },
       { name: "execute_query_plan", description: "mutating", inputSchema: { type: "object", properties: {} } }
     ] };
@@ -33,6 +33,16 @@ describe("MCP analytical gateway", () => {
     await gateway.call({ corpusId: "community", name: "get_economy", arguments: { replay_number: 1, player: "z", at_seconds: 300, db_path: "C:/attacker.sqlite" }, allowedReplayRefs: [ref] });
     const call = transport.calls.find((item) => item.method === "tools/call")!;
     expect(call.params.arguments).toMatchObject({ replay_ids: [ref.replaySha256], db_path: "C:/trusted/community.sqlite" });
+  });
+
+  test("preserves explicit race and matchup filters for aggregate queries", async () => {
+    const transport = new FakeTransport();
+    const gateway = new McpGateway([{ id: "pro", transport, dbPath: "trusted-pro.sqlite" }]);
+    await gateway.call({ corpusId: "pro", name: "get_economy_distribution", arguments: {
+      race: "Zerg", matchup: "ZvP", timeSeconds: 300,
+    } });
+    const call = transport.calls.find((item) => item.method === "tools/call")!;
+    expect(call.params.arguments).toMatchObject({ race: "Zerg", matchup: "ZvP", timeSeconds: 300, db_path: "trusted-pro.sqlite" });
   });
 
   test("rejects unknown corpus, mutating tools, and cross-session replay refs", async () => {

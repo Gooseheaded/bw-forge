@@ -69,6 +69,18 @@ describe("OpenAI provider", () => {
       ["call-a", "get_economy"], ["call-b", "get_corpus_summary"],
     ]);
   });
+  test("preserves aggregate filters exactly as returned by the provider", async () => {
+    const argumentsJson = JSON.stringify({ corpus_id: "pro", race: "Zerg", matchup: "ZvP", timeSeconds: 300 });
+    const p = new OpenAiResponsesProvider("secret", "x", request(async () => new Response(JSON.stringify({
+      status: "completed", output: [
+        { type: "function_call", call_id: "aggregate-call", name: "get_economy_distribution", arguments: argumentsJson },
+      ],
+    }))));
+    const result = await p.generate({ ...req, tools: [
+      { name: "get_economy_distribution", parameters: { type: "object" } },
+    ] });
+    expect(result.toolCalls?.[0]?.arguments).toBe(argumentsJson);
+  });
   test("preserves function call outputs and incomplete status", async () => {
     let body: any;
     const p = new OpenAiResponsesProvider("secret", "x", request(async (_u, i) => {

@@ -111,6 +111,38 @@ describe("TurnRuntime", () => {
     expect(store.completed).toEqual(["analysis"]);
   });
 
+  it("deduplicates equivalent tool calls while preserving each tool-call result", async () => {
+    const store = new FakeStore();
+    let gatewayCalls = 0;
+    const gateway = {
+      listTools: async () => [{ name: "get_economy", description: "economy", corpusRequired: true as const,
+        corpusId: "community", corpusIds: ["community"], inputSchema: { type: "object", properties: {} } }],
+      resetTurnBudget: () => {},
+      call: async () => { gatewayCalls++; return { workers: 15 }; },
+    };
+    const requests: any[] = [];
+    const provider: LlmProvider = { generate: async (request) => {
+      requests.push(request);
+      if (requests.length === 1) return { text: "", provider: "fake", model: "m", toolCalls: [1, 2].map((n) => ({
+        id: `duplicate-${n}`, name: "get_economy", arguments: JSON.stringify({ corpus_id: "community", at_seconds: 300 }),
+      })) };
+      return { text: "The measured economy was 15 workers.", provider: "fake", model: "m" };
+    } };
+    const rt = new TurnRuntime({ store, provider, maxConcurrent: 1, requestTimeoutMs: 1000,
+      authorization: { authorize: async () => true },
+      delivery: { send: async () => {}, failure: async () => {} },
+      agent: { gateway, maxRounds: 3, maxToolCalls: 1, maxParallelCalls: 2, turnTimeoutMs: 1000, maxToolResultBytes: 1000 },
+    });
+    await rt.enqueue(msg("dedupe")); await Bun.sleep(30);
+    expect(gatewayCalls).toBe(1);
+    expect(requests[0].system).toContain("Choose the smallest relevant set of tools");
+    expect(requests[0].system).toContain("Translate every user-specified race, matchup, player, and map constraint");
+    expect(requests[1].messages.filter((message: any) => message.role === "tool")).toHaveLength(2);
+    expect(requests[1].messages.filter((message: any) => message.role === "tool").map((message: any) => message.toolCallId))
+      .toEqual(["duplicate-1", "duplicate-2"]);
+    expect(store.completed).toEqual(["dedupe"]);
+  });
+
   it("stops the agent turn when the role is revoked before MCP execution", async () => {
     const store = new FakeStore(); let authCalls = 0, modelCalls = 0, toolCalls = 0;
     const gateway = {
