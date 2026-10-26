@@ -82,7 +82,11 @@ function argumentDiagnostic(stage: "provider_adapter" | "gateway_dispatch", name
     else if (["timeSeconds", "at_seconds"].includes(key) && typeof value === "number" && Number.isFinite(value)) filters[key] = value;
     else filters[key] = "[redacted]";
   }
-  return { stage, tool: name === "get_economy_distribution" ? name : "<other>", argumentKeys: [...new Set(keys)].sort(), filters };
+  const replayNumberKind = !("replay_number" in record) ? undefined
+    : record.replay_number === null ? "null"
+      : Number.isInteger(record.replay_number) && Number(record.replay_number) > 0 ? "positive_integer" : "invalid";
+  return { stage, tool: name === "get_economy_distribution" ? name : "<other>", argumentKeys: [...new Set(keys)].sort(), filters,
+    ...(replayNumberKind ? { replayNumberKind } : {}) };
 }
 
 function validateExplicitAggregateFilters(name: string, args: Record<string, unknown>, text: string): string | undefined {
@@ -642,7 +646,11 @@ export class TurnRuntime {
           if (error instanceof AgentAuthorizationRevokedError) throw error;
           this.options.log?.("analytical tool call rejected", { turnId: turn.id, sessionId: turn.message.sessionId,
             toolCallId: call.id, tool: call.name, code: safeToolError(error) });
-          content = JSON.stringify({ error: "Tool request could not be completed or was not authorized." });
+          const message = error instanceof Error ? error.message : "";
+          const invalidReplayNumber = `${call.name} does not accept replay_number; this is a corpus-wide query. Omit replay_number.`;
+          content = message === invalidReplayNumber
+            ? JSON.stringify({ error: "invalid_argument", message: invalidReplayNumber })
+            : JSON.stringify({ error: "Tool request could not be completed or was not authorized." });
         }
         return { role: "tool" as const, toolCallId: call.id, toolName: call.name, content };
         });

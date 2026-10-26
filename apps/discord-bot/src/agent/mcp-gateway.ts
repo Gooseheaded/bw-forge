@@ -208,12 +208,13 @@ export class McpGateway {
       return true;
     }).map((tool: McpTool) => {
       this.schemas.set(`${endpoint.id}:${tool.name}`, tool.inputSchema!);
-      return { ...tool, inputSchema: this.modelSchema(tool.name, tool.inputSchema!, ["replay_id", "replay_ids", "replaySha256", "replayId"].some((key) => key in (tool.inputSchema!.properties as Record<string, unknown>)), [endpoint.id]), corpusRequired: true as const, corpusId: endpoint.id };
+      return { ...tool, inputSchema: this.modelSchema(tool.name, tool.inputSchema!, REPLAY_SCOPED_TOOLS.has(tool.name), [endpoint.id]), corpusRequired: true as const, corpusId: endpoint.id };
     });
     this.discovered.set(endpoint.id, result); return result;
   }
   private validateArguments(name: string, raw: Record<string, unknown>, refs: CorpusReplayRef[], endpoint: CorpusEndpoint): Record<string, unknown> {
     const args = { ...raw }; delete args.db_path; delete args.corpus_id; if (endpoint.dbPath) args.db_path = endpoint.dbPath;
+    if ("replay_number" in raw && !REPLAY_SCOPED_TOOLS.has(name)) throw new Error(`${name} does not accept replay_number; this is a corpus-wide query. Omit replay_number.`);
     if (REPLAY_SCOPED_TOOLS.has(name) && !("replay_number" in args)) throw new Error(`${name} requires a replay_number from this session`);
     const schema = this.schemas.get(`${endpoint.id}:${name}`);
     const schemaProperties = (schema?.properties && typeof schema.properties === "object" ? schema.properties : {}) as Record<string, unknown>;

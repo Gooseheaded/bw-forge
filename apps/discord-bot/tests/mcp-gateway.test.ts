@@ -9,7 +9,7 @@ class FakeTransport implements McpTransport {
     this.calls.push({ method, params });
     if (method === "tools/list") return { tools: [
       { name: "get_economy", description: "economy", inputSchema: { type: "object", properties: { player: { type: "string" }, at_seconds: { type: "number" }, replay_ids: { type: "array", items: { type: "string" }, maxItems: 100 } } } },
-      { name: "get_economy_distribution", description: "aggregate economy", inputSchema: { type: "object", properties: { player: { type: "string" }, opponent: { type: "string" }, race: { type: "string" }, opponentRace: { type: "string" }, matchup: { type: "string" }, map: { type: "string" }, timeSeconds: { type: "number" }, limitExamples: { type: "integer", maximum: 25 } } } },
+      { name: "get_economy_distribution", description: "aggregate economy", inputSchema: { type: "object", properties: { player: { type: "string" }, opponent: { type: "string" }, race: { type: "string" }, opponentRace: { type: "string" }, matchup: { type: "string" }, map: { type: "string" }, timeSeconds: { type: "number" }, limitExamples: { type: "integer", maximum: 25 }, replay_ids: { type: "array", items: { type: "string" } } } } },
       { name: "get_player_replay_card", description: "replay card", inputSchema: { type: "object", properties: { replayId: { type: "string" }, player: { type: "string" } }, required: ["replayId", "player"] } },
       { name: "execute_query_plan", description: "mutating", inputSchema: { type: "object", properties: {} } }
     ] };
@@ -24,7 +24,12 @@ describe("MCP analytical gateway", () => {
   test("discovers only the read-only allowlist", async () => {
     const transport = new FakeTransport();
     const gateway = new McpGateway([{ id: "community", transport }]);
-    expect((await gateway.listTools("community")).map((tool) => tool.name)).toEqual(["get_economy", "get_economy_distribution", "get_player_replay_card"]);
+    const tools = await gateway.listTools("community");
+    expect(tools.map((tool) => tool.name)).toEqual(["get_economy", "get_economy_distribution", "get_player_replay_card"]);
+    const aggregateSchema = tools.find((tool) => tool.name === "get_economy_distribution")!.inputSchema as any;
+    expect(aggregateSchema.properties.replay_number).toBeUndefined();
+    expect(aggregateSchema.required ?? []).not.toContain("replay_number");
+    expect(aggregateSchema.properties.replay_ids).toBeUndefined();
   });
 
   test("routes a canonical replay number and strips model db paths", async () => {
@@ -43,6 +48,16 @@ describe("MCP analytical gateway", () => {
     } });
     const call = transport.calls.find((item) => item.method === "tools/call")!;
     expect(call.params.arguments).toMatchObject({ race: "Zerg", matchup: "ZvP", timeSeconds: 300, db_path: "trusted-pro.sqlite" });
+  });
+
+  test("rejects replay_number on a correctly filtered corpus-wide aggregate call", async () => {
+    const transport = new FakeTransport();
+    const gateway = new McpGateway([{ id: "pro", transport }]);
+    const filters = { corpusId: "pro", name: "get_economy_distribution", arguments: {
+      race: "zerg", opponentRace: "protoss", matchup: "ZvP", timeSeconds: 300, replay_number: 7,
+    } };
+    await expect(gateway.call(filters)).rejects.toThrow("get_economy_distribution does not accept replay_number; this is a corpus-wide query. Omit replay_number.");
+    expect(transport.calls.some((call) => call.method === "tools/call")).toBe(false);
   });
 
   test("rejects unknown corpus, mutating tools, and cross-session replay refs", async () => {

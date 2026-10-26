@@ -159,6 +159,41 @@ describe("TurnRuntime", () => {
     expect(store.completed).toEqual(["explicit-filters-required"]);
   });
 
+  it("returns actionable feedback for an aggregate call with an irrelevant replay number", async () => {
+    const store = new FakeStore();
+    const requests: any[] = [];
+    const logs: Array<{ message: string; details?: Record<string, unknown> }> = [];
+    let gatewayCalls = 0;
+    const provider = new OpenRouterResponsesProvider("test-key", (async (_url: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)); requests.push(body);
+      if (requests.length === 1) return new Response(JSON.stringify({ status: "completed", output: [{ type: "function_call", call_id: "irrelevant-replay-number",
+        name: "get_economy_distribution", arguments: '{"corpus_id":"pro","race":"zerg","opponentRace":"protoss","matchup":"ZvP","timeSeconds":300,"replay_number":7}' }] }));
+      return new Response(JSON.stringify({ status: "completed", output_text: "I will retry without the irrelevant replay number." }));
+    }) as unknown as typeof fetch);
+    const gateway = {
+      listTools: async () => [{ name: "get_economy_distribution", description: "aggregate", corpusRequired: true as const, corpusId: "pro",
+        inputSchema: { type: "object", properties: { race: { type: "string" }, opponentRace: { type: "string" }, matchup: { type: "string" }, timeSeconds: { type: "number" }, corpus_id: { type: "string" } } } }],
+      resetTurnBudget: () => {},
+      call: async () => { gatewayCalls++; throw new Error("get_economy_distribution does not accept replay_number; this is a corpus-wide query. Omit replay_number."); },
+    };
+    const rt = new TurnRuntime({ store, provider, maxConcurrent: 1, requestTimeoutMs: 1000,
+      authorization: { authorize: async () => true }, delivery: { send: async () => {}, failure: async () => {} },
+      log: (message, details) => logs.push({ message, details }),
+      agent: { gateway, maxRounds: 3, maxToolCalls: 3, maxParallelCalls: 1, turnTimeoutMs: 1000, maxToolResultBytes: 2000, diagnosticToolArguments: true },
+    });
+    await rt.enqueue({ ...msg("irrelevant-replay-number"), content: "Benchmark professional Zerg versus Protoss at 5:00." }); await Bun.sleep(40);
+    expect(gatewayCalls).toBe(1);
+    const modelSchema = requests[0].tools[0].parameters;
+    expect(modelSchema.properties.replay_number).toBeUndefined();
+    expect(modelSchema.required ?? []).not.toContain("replay_number");
+    const feedback = requests[1].input.find((message: any) => message.type === "function_call_output")?.output ?? "";
+    expect(feedback).toContain("invalid_argument");
+    expect(feedback).toContain("corpus-wide query. Omit replay_number");
+    expect(logs.filter((entry) => entry.message === "tool argument diagnostic")[0]?.details).toMatchObject({ replayNumberKind: "positive_integer" });
+    expect(JSON.stringify(logs)).not.toContain('"replay_number":7');
+    expect(store.completed).toEqual(["irrelevant-replay-number"]);
+  });
+
   it("reuses a repeated identical unfiltered aggregate result across model rounds", async () => {
     const store = new FakeStore();
     let gatewayCalls = 0;
