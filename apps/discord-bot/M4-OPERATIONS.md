@@ -54,13 +54,19 @@ and resource ceilings are installed by the service units. The deployment renders
 `ReadWritePaths` from the validated bot state and community upload registry, and
 `ReadOnlyPaths` from every registered read-only corpus. Inspect those directives
 with `systemctl show bw-forge-discord-bot -p ReadWritePaths -p ReadOnlyPaths`.
+On an existing host, apply the independent community worker policy with
+`Deploy-BwForge.ps1 -DeployCommunityWorker -Restart CommunityWorker`; this
+regenerates that unit from the community root/database configuration and restarts
+only the community worker. Verify its resulting `ProtectSystem` and
+`ReadWritePaths` values as well.
 The manual unit template needs the same paths rendered with
 `bun dist/service-policy.js` before it can start under strict confinement.
 Verify the account ACLs and the unit policy after every deployment:
 
 ```sh
-sudo -u bw-forge test -r /srv/bw-forge/pro/db/corpus.sqlite
-sudo -u bw-forge test ! -w /srv/bw-forge/pro/db/corpus.sqlite
+BOT_USER=$(systemctl show --value -p User bw-forge-discord-bot)
+sudo -u "$BOT_USER" test -r /srv/bw-forge/pro/db/corpus.sqlite
+sudo -u "$BOT_USER" test ! -w /srv/bw-forge/pro/db/corpus.sqlite
 ```
 
 The first live acceptance checklist is intentionally safe and uses no provider
