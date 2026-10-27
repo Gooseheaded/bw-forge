@@ -24,7 +24,7 @@ const TOOLS = new Set([
   "get_player_replay_card",
 ]);
 const CODES = new Set([
-  "UNKNOWN", "network", "timeout", "rate_limit", "invalid_request", "provider_error", "mcp_tool_error", "unknown_player_group", "unknown_query_scope",
+  "UNKNOWN", "network", "timeout", "rate_limit", "invalid_request", "provider_error", "mcp_tool_error", "unknown_player_group", "unknown_query_scope", "replay_player_not_found",
   "MCP_TIMEOUT", "MCP_CANCELLED", "MCP_PROCESS_CLOSED", "http_400", "http_408", "http_409", "http_429", "http_500", "http_502", "http_503", "http_504", "oversized_response", "invalid_response", "cancelled", "provider_failed", "SQLITE_BUSY", "SQLITE_CORRUPT", "SQLITE_NOTADB",
   "SQLITE_CANTOPEN", "SQLITE_IOERR", "SQLITE_ERROR", "SQLITE_CONSTRAINT", "REPLAY_STAGING_INVALID",
   "SQLITE_OPEN_OR_MIGRATION",

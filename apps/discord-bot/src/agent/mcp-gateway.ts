@@ -357,10 +357,10 @@ export class McpGateway {
       // participant name supplied by the session replay inventory.
       for (const key of ["player_group", "opponent_group", "scope"]) delete properties[key];
       if (properties.player && typeof properties.player === "object") {
-        properties.player.description = "Exact observed player name from the selected replay; this is not a player-group key.";
+        properties.player.description = "Exact observed player name from the selected replay, including literal punctuation. Preserve the replay card's name exactly; do not add Markdown escape backslashes before backticks or other characters. This is not a player-group key.";
       }
       if (name === "get_economy") {
-        copy.description = `${typeof copy.description === "string" ? copy.description : "Get economy at the requested time."} Use the exact observed player name in player. Do not pass player_group, opponent_group, or scope filters to this replay query.`;
+        copy.description = `${typeof copy.description === "string" ? copy.description : "Get economy at the requested time."} Use the exact observed player name in player, preserving literal punctuation and omitting Markdown escape backslashes. Do not pass player_group, opponent_group, or scope filters to this replay query.`;
       }
     }
     properties.corpus_id = { type: "string", enum: corpusIds };
@@ -430,6 +430,7 @@ function classifyMcpToolError(result: McpCallResult): string {
     .filter((value): value is string => typeof value === "string").join("\n");
   const categories: Array<[RegExp, string]> = [
     [/Covered economy segment has no baseline/i, "economy_coverage_invariant"],
+    [/No replay\/player row found for player/i, "replay_player_not_found"],
     [/Unknown player group:/i, "unknown_player_group"],
     [/Unknown query scope:/i, "unknown_query_scope"],
     [/Invalid played_(?:from|before)|played_from must be earlier than played_before/i, "invalid_chronology_filter"],
