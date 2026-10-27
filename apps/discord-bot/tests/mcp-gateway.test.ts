@@ -1,5 +1,44 @@
 import { describe, expect, test } from "bun:test";
-import { McpGateway, type McpTransport } from "../src/agent/mcp-gateway.ts";
+import { McpGateway, StdioMcpTransport, type McpTransport } from "../src/agent/mcp-gateway.ts";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
+import { unlink } from "node:fs/promises";
+
+const fixtureSource = String.raw`const mode = process.env.MCP_FIXTURE_MODE || "normal";
+let initialized = false;
+process.stdin.setEncoding("utf8");
+let buffer = "";
+process.stdin.on("data", (chunk) => {
+  buffer += chunk;
+  let i;
+  while ((i = buffer.indexOf("\n")) >= 0) {
+    const line = buffer.slice(0, i); buffer = buffer.slice(i + 1);
+    if (!line.trim()) continue;
+    if (mode === "malformed") { process.stdout.write("{not-json}\n"); continue; }
+    if (mode === "null") { process.stdout.write("null\n"); continue; }
+    if (mode === "invalid-envelope") { process.stdout.write(JSON.stringify({ id: req.id, result: {} }) + "\n"); continue; }
+    const req = JSON.parse(line);
+    if (mode === "crash") process.exit(17);
+    if (mode === "huge") { process.stdout.write("x".repeat(300000) + "\n"); continue; }
+    if (mode === "hang" || (mode === "hangcall" && req.method === "tools/call") || (mode === "slowinit" && req.method === "initialize")) continue;
+    if (req.method === "initialize") initialized = true;
+    if (req.id === undefined) continue;
+    const result = req.method === "tools/list" ? { tools: [{ name: "get_economy_distribution", inputSchema: { type: "object", properties: { timeSeconds: { type: "number" } } } }] } : { content: [{ type: "text", text: "ok" }] };
+    const emit = () => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: req.id, result }) + "\n");
+    if (mode === "delaycall" && req.method === "tools/call") setTimeout(emit, 100); else emit();
+  }
+});`;
+
+async function fixture(mode: string): Promise<{ path: string; cleanup: () => Promise<void> }> {
+  const path = join(tmpdir(), `bw-forge-mcp-${randomUUID()}.mjs`);
+  await Bun.write(path, fixtureSource);
+  return { path, cleanup: () => unlink(path).catch(() => undefined) };
+}
+
+function stdio(path: string, mode: string) {
+  return new StdioMcpTransport({ command: process.execPath, args: ["run", path], env: { MCP_FIXTURE_MODE: mode } });
+}
 
 class FakeTransport implements McpTransport {
   readonly calls: { method: string; params: any }[] = [];
@@ -155,5 +194,87 @@ describe("MCP analytical gateway", () => {
     await Promise.all([gateway.listTools("community"), gateway.listTools("community")]);
     expect(connects).toBe(1);
     await gateway.close();
+  });
+
+  test("stdio transport recovers after a timed out request and does not leak server errors", async () => {
+      const f = await fixture("delaycall");
+    try {
+      const transport = stdio(f.path, "delaycall");
+      await transport.connect();
+      await expect(transport.request("tools/call", {}, 20)).rejects.toThrow(/timed out/i);
+      await transport.close();
+      const recovered = stdio(f.path, "normal");
+      await recovered.connect();
+      const recoveredResult = await recovered.request("tools/call", {}, 1000).catch((error) => error);
+      expect(recoveredResult).not.toBeInstanceOf(Error);
+      await recovered.close();
+    } finally { await f.cleanup(); }
+  });
+
+  test("stdio transport cancels and terminates a hanging child", async () => {
+    const f = await fixture("hangcall");
+    try {
+      const transport = stdio(f.path, "hangcall");
+      const controller = new AbortController();
+      await transport.connect();
+      const child = (transport as any).child;
+      const request = transport.request("tools/call", {}, 5000, controller.signal);
+      await Bun.sleep(10);
+      controller.abort();
+      await expect(request).rejects.toThrow(/cancelled/i);
+      await transport.close();
+      await Bun.sleep(50);
+      expect(child.exitCode !== null || child.signalCode !== null).toBe(true);
+    } finally { await f.cleanup(); }
+  });
+
+  test("gateway reconnects a read-only call after its MCP child is killed", async () => {
+    const f = await fixture("normal");
+    try {
+      const transport = stdio(f.path, "normal");
+      const gateway = new McpGateway([{ id: "community", transport }], { requestTimeoutMs: 1000 });
+      await gateway.listTools("community");
+      const firstPid = (transport as any).child?.pid;
+      (transport as any).child?.kill("SIGTERM");
+      await Bun.sleep(40);
+      const result = await gateway.call({ corpusId: "community", name: "get_economy_distribution", arguments: { timeSeconds: 300 }, allowedReplayRefs: [] });
+      expect((result.content?.[0] as { text?: unknown } | undefined)?.text).toBe("ok");
+      expect((transport as any).child?.pid).not.toBe(firstPid);
+      await gateway.close();
+    } finally { await f.cleanup(); }
+  });
+
+  test("stdio transport rejects malformed and oversized stdout", async () => {
+    for (const mode of ["malformed", "huge", "null", "invalid-envelope"]) {
+      const f = await fixture(mode);
+      try {
+        const transport = stdio(f.path, mode);
+        await expect(transport.connect()).rejects.toThrow();
+        await transport.close();
+      } finally { await f.cleanup(); }
+    }
+  });
+
+  test("stdio transport does not write a pre-cancelled request", async () => {
+    const f = await fixture("normal");
+    try {
+      const transport = stdio(f.path, "normal");
+      await transport.connect();
+      const controller = new AbortController(); controller.abort();
+      await expect(transport.request("tools/call", {}, 1000, controller.signal)).rejects.toThrow(/cancelled/i);
+      await transport.close();
+    } finally { await f.cleanup(); }
+  });
+
+  test("gateway closes an MCP process that is still initializing", async () => {
+    const f = await fixture("slowinit");
+    try {
+      const gateway = new McpGateway([{ id: "community", command: process.execPath, args: ["run", f.path], env: { MCP_FIXTURE_MODE: "slowinit" } }]);
+      const listing = gateway.listTools("community");
+      const observed = listing.then(() => undefined, (error) => error);
+      await Bun.sleep(30);
+      await gateway.close();
+      await expect(observed).resolves.toBeInstanceOf(Error);
+    } finally { await f.cleanup(); }
   });
 });

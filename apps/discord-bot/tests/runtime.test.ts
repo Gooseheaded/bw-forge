@@ -16,6 +16,7 @@ class FakeStore implements RuntimeStore {
   completed: string[] = [];
   failed: string[] = [];
   skipped: string[] = [];
+  reservations: Array<{ reservedTokens: number; maxTurnTokens?: number }> = [];
   async getReplayInventory(): Promise<Array<{ replayNumber: number; corpusId: string; replaySha256: string; displayName: string | null; analysisAvailable: boolean }>> { return []; }
   async enqueueMessage(message: RuntimeMessage) {
     const turn: RuntimeTurn = {
@@ -69,6 +70,11 @@ class FakeStore implements RuntimeStore {
     if (t) t.status = "skipped";
   }
   async recoverRunningTurns() {}
+  async startProviderRequest(_turnId: string, reservation?: { reservedTokens: number; maxTurnTokens?: number }) {
+    if (reservation) this.reservations.push(reservation);
+    return this.reservations.length;
+  }
+  async finishProviderRequest() {}
 }
 const msg = (id: string, sessionId = "1"): RuntimeMessage => ({
   messageId: id,
@@ -567,5 +573,46 @@ describe("TurnRuntime", () => {
     );
     await Bun.sleep(300);
     expect(completed).toBe(8);
+  });
+
+  it("reserves a conservative provider budget for every paid request even when usage is absent", async () => {
+    const store = new FakeStore();
+    const rt = new TurnRuntime({
+      store, maxConcurrent: 1, requestTimeoutMs: 1000, maxTurnTokens: 2000,
+      maxOutputTokens: 100,
+      provider: { generate: async () => ({ text: "ok", provider: "p", model: "m" }) },
+      authorization: { authorize: async () => true },
+      delivery: { send: async () => {}, failure: async () => {} },
+    });
+    await rt.enqueue(msg("budget"));
+    await Bun.sleep(50);
+    expect(store.reservations.length).toBe(1);
+    expect(store.reservations[0]!.reservedTokens).toBeGreaterThan(100);
+    expect(store.reservations[0]!.maxTurnTokens).toBe(2000);
+  });
+
+  it("does not let a per-user concurrency wait block another user's turn", async () => {
+    const store = new FakeStore();
+    const first = msg("same-1", "same");
+    const second = msg("same-2", "same");
+    const other = { ...msg("other-1", "other"), authorId: "other-user" };
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const delivered: string[] = [];
+    const rt = new TurnRuntime({
+      store, maxConcurrent: 2, maxConcurrentPerUser: 1, requestTimeoutMs: 1000,
+      provider: { generate: async ({ messages }) => { if (messages.some((m) => m.content === "same-1")) await gate; return { text: "ok", provider: "p", model: "m" }; } },
+      authorization: { authorize: async () => true },
+      delivery: { send: async ({ turnId }) => { delivered.push(turnId); }, failure: async () => {} },
+    });
+    await rt.enqueue(first);
+    await Bun.sleep(10);
+    await rt.enqueue(second);
+    await rt.enqueue(other);
+    await Bun.sleep(60);
+    expect(delivered).toContain("other-1");
+    release();
+    await Bun.sleep(80);
+    await rt.stop();
   });
 });

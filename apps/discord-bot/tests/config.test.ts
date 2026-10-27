@@ -96,4 +96,10 @@ describe("configuration", () => {
       expect(String(error)).not.toContain(secret);
     }
   });
+  test("requires complete finite non-negative pricing for cost budgets", () => {
+    expect(() => loadConfig({ ...base, LLM_MAX_TURN_COST_USD: "1" })).toThrow("Cost budgets require");
+    expect(() => loadConfig({ ...base, LLM_INPUT_USD_PER_MILLION: "-1" })).toThrow("finite non-negative");
+    expect(() => loadConfig({ ...base, LLM_OUTPUT_USD_PER_MILLION: "NaN" })).toThrow("finite non-negative");
+    expect(loadConfig({ ...base, LLM_INPUT_USD_PER_MILLION: "1", LLM_OUTPUT_USD_PER_MILLION: "2", LLM_MAX_TURN_COST_USD: "1" }).llm.maxTurnCostUsd).toBe(1);
+  });
 });

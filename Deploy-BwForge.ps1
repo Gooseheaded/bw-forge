@@ -242,11 +242,11 @@ try {
             try {
                 & bun install --frozen-lockfile --production --ignore-scripts --filter "@bw-forge/discord-bot"
                 if ($LASTEXITCODE -ne 0) { throw "Local Discord dependency install failed" }
-                & bun build ./apps/discord-bot/src/main.ts ./apps/discord-bot/src/discord/register.ts --target=bun --packages=bundle --outdir=discord-dist
+                & bun build ./apps/discord-bot/src/main.ts ./apps/discord-bot/src/discord/register.ts ./apps/discord-bot/src/health.ts ./apps/discord-bot/src/service-policy.ts --target=bun --packages=bundle --outdir=discord-dist
                 if ($LASTEXITCODE -ne 0) { throw "Local Discord bundle build failed" }
-                if (-not (Test-Path "discord-dist/main.js") -or -not (Test-Path "discord-dist/discord/register.js")) { throw "Discord bundle outputs are missing" }
+                if (-not (Test-Path "discord-dist/main.js") -or -not (Test-Path "discord-dist/discord/register.js") -or -not (Test-Path "discord-dist/health.js") -or -not (Test-Path "discord-dist/service-policy.js")) { throw "Discord bundle outputs are missing" }
                 $BundleTemp = "$DiscordBundle.tmp-$([guid]::NewGuid().ToString('N'))"
-                & tar -czf $BundleTemp -C discord-dist main.js discord/register.js
+                & tar -czf $BundleTemp -C discord-dist main.js discord/register.js health.js service-policy.js
                 if ($LASTEXITCODE -ne 0) { throw "Failed to archive Discord bundle" }
                 Move-Item -Force $BundleTemp $DiscordBundle
             }
@@ -521,11 +521,30 @@ if [ "$DEPLOY_DISCORD" = "1" ]; then
   fi
   BUN_BIN=$(command -v bun)
   SERVICE_TMP="$BUILD/bw-forge-discord-bot.service"
+  BOT_POLICY=""
+  if [ "$DISCORD_CONFIGURED" = "1" ]; then
+    # Derive policy from the same validated registry used by the bot. This
+    # emits only escaped systemd path directives, never credentials or IDs.
+    BOT_POLICY=$(sudo systemd-run --quiet --wait --pipe --collect \
+      -p User="$USER_NAME" \
+      -p WorkingDirectory="$APP_ROOT/app/apps/discord-bot" \
+      -p EnvironmentFile="$DISCORD_ENV" \
+      /usr/bin/env "DISCORD_BOT_DATABASE_PATH=$DISCORD_STATE/bot.sqlite" "$BUN_BIN" "$APP_ROOT/app/apps/discord-bot/src/service-policy.ts")
+  fi
   sed -e "s#^User=.*#User=$USER_NAME#" \
       -e "s#^WorkingDirectory=.*#WorkingDirectory=$APP_ROOT/app/apps/discord-bot#" \
       -e "s#^EnvironmentFile=.*#EnvironmentFile=$DISCORD_ENV#" \
       -e "s#^ExecStart=.*#ExecStart=/usr/bin/env BW_FORGE_REPO_ROOT=$APP_ROOT/app DISCORD_BOT_DATABASE_PATH=$DISCORD_STATE/bot.sqlite $BUN_BIN $APP_ROOT/app/apps/discord-bot/dist/main.js#" \
-      "$APP_ROOT/app/apps/discord-bot/bw-forge-discord-bot.service" > "$SERVICE_TMP"
+      "$APP_ROOT/app/apps/discord-bot/bw-forge-discord-bot.service" \
+      | sed '/^ReadWritePaths=/d; /^ReadOnlyPaths=/d' > "$SERVICE_TMP.base"
+  if [ -n "$BOT_POLICY" ]; then
+    sed '/^\[Install\]/,$d' "$SERVICE_TMP.base" > "$SERVICE_TMP"
+    printf '%s\n' "$BOT_POLICY" >> "$SERVICE_TMP"
+    sed -n '/^\[Install\]/,$p' "$SERVICE_TMP.base" >> "$SERVICE_TMP"
+    rm -f "$SERVICE_TMP.base"
+  else
+    mv "$SERVICE_TMP.base" "$SERVICE_TMP"
+  fi
   sudo install -o root -g root -m 644 "$SERVICE_TMP" /etc/systemd/system/bw-forge-discord-bot.service
   sudo systemctl daemon-reload
   if [ "$DISCORD_CONFIGURED" = "1" ]; then

@@ -141,6 +141,14 @@ export class ReplayCoordinator {
     const existing = this.options.store.getReplayUploadByAttachment(input.messageId, input.attachment.id);
     if (existing) return existing;
     if (this.stopped) throw new Error("Replay intake is stopping.");
+    if (!Number.isSafeInteger(input.sessionId) || input.sessionId <= 0 || !input.messageId || !input.userId
+      || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(input.corpusId)) {
+      throw new PermanentUploadError("Replay upload metadata is invalid.");
+    }
+    const session = this.options.store.getSession(input.sessionId);
+    if (!session || session.status !== "active" || session.threadId !== input.threadId) {
+      throw new PermanentUploadError("This replay upload is no longer associated with an active session.");
+    }
     if (!input.authorize || !(await input.authorize())) throw new PermanentUploadError("You are not authorized to upload replays.");
     const pending = this.options.store.listReplayUploads(["received", "validating", "registering", "queued", "running"]);
     if (pending.length >= 256 || pending.filter(item => item.sessionId === input.sessionId).length >= (this.options.maxPendingPerSession ?? 8)) {
@@ -158,7 +166,8 @@ export class ReplayCoordinator {
   private due(date?: string | null) { return !date || Date.parse(date) <= this.now(); }
   private next(attempt: number) { return new Date(this.now() + Math.min(300000, (this.options.retryBaseMs ?? 1000) * 2 ** Math.min(attempt, 8))).toISOString(); }
   private log(event: string, upload?: ReplayUpload) {
-    this.options.log?.(event, upload ? { uploadId: upload.id, sessionId: upload.sessionId, corpusId: upload.corpusId, replaySha256: upload.replaySha256, jobId: upload.jobId } : {});
+    this.options.log?.(event, upload ? { uploadId: upload.id, sessionId: upload.sessionId, corpusId: upload.corpusId,
+      replayIdentityPresent: Boolean(upload.replaySha256), jobId: upload.jobId } : {});
   }
   private async authorized(upload: ReplayUpload) {
     const session = this.options.store.getSession(upload.sessionId);

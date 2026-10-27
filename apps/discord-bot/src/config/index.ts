@@ -21,10 +21,18 @@ export interface BotConfig {
     maxOutputTokens: number;
     contextBudget: number;
     requestTimeoutMs: number;
+    maxTurnTokens?: number;
+    maxSessionTokens?: number;
+    maxTurnCostUsd?: number;
+    maxSessionCostUsd?: number;
+    inputUsdPerMillion?: number;
+    outputUsdPerMillion?: number;
+    retryBaseDelayMs?: number;
+    retryMaxDelayMs?: number;
     temperature?: number;
   };
   storage: { databasePath: string };
-  queue: { maxConcurrent: number; maxPerThread: number };
+  queue: { maxConcurrent: number; maxPerThread: number; maxConcurrentPerUser?: number; maxRequestsPerMinute?: number };
   agent: {
     enabled: boolean;
     diagnosticToolArguments: boolean;
@@ -208,6 +216,19 @@ export function loadConfig(
   }
   if (agentEnabled && !mcpCommand) throw new ConfigError("BW_FORGE_MCP_COMMAND is required when BW_FORGE_AGENT_ENABLED is enabled");
   if (agentEnabled && !readableCorpora.length) throw new ConfigError("BW_FORGE_READABLE_CORPORA must include at least one corpus when analytical tools are enabled");
+  const retryBaseDelayMs = boundedOptional("LLM_RETRY_BASE_DELAY_MS", 250, 0, 60000);
+  const retryMaxDelayMs = boundedOptional("LLM_RETRY_MAX_DELAY_MS", 5000, 0, 300000);
+  if (retryMaxDelayMs < retryBaseDelayMs) throw new ConfigError("LLM_RETRY_MAX_DELAY_MS must be >= LLM_RETRY_BASE_DELAY_MS");
+  const decimalOptional = (key: string, fallback?: number) => {
+    const raw = env[key]?.trim(); if (!raw) return fallback;
+    const value = Number(raw); if (!Number.isFinite(value) || value < 0 || value > 1_000_000) throw new ConfigError(`${key} must be a finite non-negative number no greater than 1000000`); return value;
+  };
+  const inputUsdPerMillion = decimalOptional("LLM_INPUT_USD_PER_MILLION");
+  const outputUsdPerMillion = decimalOptional("LLM_OUTPUT_USD_PER_MILLION");
+  const maxTurnCostUsd = decimalOptional("LLM_MAX_TURN_COST_USD");
+  const maxSessionCostUsd = decimalOptional("LLM_MAX_SESSION_COST_USD");
+  if ((maxTurnCostUsd !== undefined || maxSessionCostUsd !== undefined) && (inputUsdPerMillion === undefined || outputUsdPerMillion === undefined))
+    throw new ConfigError("Cost budgets require LLM_INPUT_USD_PER_MILLION and LLM_OUTPUT_USD_PER_MILLION");
   return {
     discord: {
       token: required(env, "DISCORD_BOT_TOKEN"),
@@ -223,12 +244,19 @@ export function loadConfig(
       maxOutputTokens: integer(env, "LLM_MAX_OUTPUT_TOKENS", 16, 131072),
       contextBudget: integer(env, "LLM_CONTEXT_BUDGET", 1024, 1_000_000),
       requestTimeoutMs: integer(env, "LLM_REQUEST_TIMEOUT_MS", 1000, 300000),
+      maxTurnTokens: boundedOptional("LLM_MAX_TURN_TOKENS", 128000, 0, 1_000_000),
+      maxSessionTokens: boundedOptional("LLM_MAX_SESSION_TOKENS", 1000000, 0, 5_000_000),
+      maxTurnCostUsd, maxSessionCostUsd, inputUsdPerMillion, outputUsdPerMillion,
+      retryBaseDelayMs,
+      retryMaxDelayMs,
       temperature,
     },
     storage: { databasePath: required(env, "DISCORD_BOT_DATABASE_PATH") },
     queue: {
       maxConcurrent: integer(env, "LLM_MAX_CONCURRENT_TURNS", 1, 64),
       maxPerThread: integer(env, "MAX_MESSAGES_QUEUED_PER_THREAD", 1, 1000),
+      maxConcurrentPerUser: boundedOptional("LLM_MAX_CONCURRENT_TURNS_PER_USER", 2, 0, 64),
+      maxRequestsPerMinute: boundedOptional("LLM_MAX_REQUESTS_PER_USER_PER_MINUTE", 30, 0, 600),
     },
     agent: {
       enabled: agentEnabled,

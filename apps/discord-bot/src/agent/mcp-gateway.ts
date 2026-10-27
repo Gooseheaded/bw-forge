@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { StringDecoder } from "node:string_decoder";
 
 export type CorpusReplayRef = { corpusId: string; replaySha256: string; replayNumber?: number };
 export type McpTool = { name: string; description?: string; inputSchema?: Record<string, unknown> };
@@ -16,8 +17,9 @@ export type StdioMcpTransportOptions = { command: string; args?: string[]; cwd?:
 export class StdioMcpTransport implements McpTransport {
   private child?: ChildProcessWithoutNullStreams;
   private stdoutBuffer = "";
+  private readonly stdoutDecoder = new StringDecoder("utf8");
   private nextId = 1;
-  private readonly pending = new Map<number, { resolve: (value: any) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>();
+  private readonly pending = new Map<number, { resolve: (value: any) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout>; signal?: AbortSignal; abort?: () => void }>();
   private closed = false;
   constructor(private readonly options: StdioMcpTransportOptions) {}
   async connect(): Promise<void> {
@@ -25,27 +27,56 @@ export class StdioMcpTransport implements McpTransport {
     this.closed = false;
     const child = spawn(this.options.command, this.options.args ?? [], { cwd: this.options.cwd, env: { ...mcpProcessEnvironment(), ...this.options.env }, stdio: ["pipe", "pipe", "pipe"] });
     this.child = child;
-    child.stdout.on("data", (chunk: Buffer) => this.handleChunk(chunk));
+    child.stdout.on("data", (chunk: Buffer) => { if (this.child === child) this.handleChunk(chunk); });
     child.stderr.on("data", () => { /* drain diagnostics; never mix stderr into JSON-RPC */ });
-    child.on("error", (error) => this.failPending(error instanceof Error ? error : new Error(String(error))));
-    child.on("close", (code, signal) => { this.closed = true; this.failPending(new Error(`MCP process closed (${signal ?? code ?? "unknown"})`)); });
+    child.on("error", (error) => {
+      if (this.child !== child) return;
+      this.closed = true;
+      this.failPending(error instanceof Error ? error : new Error("MCP process error"));
+    });
+    child.on("close", (code, signal) => {
+      if (this.child !== child) return;
+      this.closed = true;
+      if (this.pending.size) this.failPending(new Error(`MCP process closed (${signal ?? code ?? "unknown"})`));
+    });
     await this.request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "bw-forge-discord-agent", version: "1.0.0" } });
     await this.notify("notifications/initialized", {});
   }
   async request(method: string, params?: unknown, timeoutMs = 10_000, signal?: AbortSignal): Promise<any> {
     const child = this.child;
     if (!child || this.closed) throw new Error("MCP transport is not connected");
+    if (signal?.aborted) throw new Error("MCP request cancelled");
     const id = this.nextId++;
-    child.stdin.write(JSON.stringify({ jsonrpc: "2.0", id, method, ...(params === undefined ? {} : { params }) }) + "\n");
     return await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { this.pending.delete(id); reject(new Error(`MCP request timed out: ${method}`)); }, timeoutMs);
-      this.pending.set(id, { resolve, reject, timer });
-      const abort = () => {
-        this.pending.delete(id); clearTimeout(timer); reject(new Error("MCP request cancelled"));
+      let settled = false;
+      const cleanup = () => {
+        const current = this.pending.get(id);
+        if (current) this.pending.delete(id);
+        clearTimeout(timer);
+        if (signal && abort) signal.removeEventListener("abort", abort);
       };
+      const finishReject = (error: Error) => { if (settled) return; settled = true; cleanup(); reject(error); };
+      const finishResolve = (value: any) => { if (settled) return; settled = true; cleanup(); resolve(value); };
+      const timer = setTimeout(() => {
+        finishReject(new Error(`MCP request timed out: ${method}`));
+        // A timed-out request may still be executing in the server. Tear down
+        // the session so the next call cannot consume a stale response.
+        void this.close();
+      }, timeoutMs);
+      const abort = () => {
+        finishReject(new Error("MCP request cancelled"));
+        void this.close();
+      };
+      this.pending.set(id, { resolve: finishResolve, reject: finishReject, timer, signal, abort });
       if (signal) {
-        if (signal.aborted) abort();
+        if (signal.aborted) { abort(); return; }
         else signal.addEventListener("abort", abort, { once: true });
+      }
+      try {
+        child.stdin.write(JSON.stringify({ jsonrpc: "2.0", id, method, ...(params === undefined ? {} : { params }) }) + "\n");
+      } catch (error) {
+        finishReject(error instanceof Error ? error : new Error("MCP request could not be sent"));
+        void this.close();
       }
     });
   }
@@ -58,7 +89,7 @@ export class StdioMcpTransport implements McpTransport {
       void this.close();
       return;
     }
-    this.stdoutBuffer += chunk.toString("utf8");
+    this.stdoutBuffer += this.stdoutDecoder.write(chunk);
     let newline = this.stdoutBuffer.indexOf("\n");
     while (newline >= 0) {
       const line = this.stdoutBuffer.slice(0, newline).replace(/\r$/, "");
@@ -69,13 +100,35 @@ export class StdioMcpTransport implements McpTransport {
   }
   private handleLine(line: string): void {
     if (!line.trim()) return;
-    let value: any; try { value = JSON.parse(line); } catch { return; }
-    if (typeof value.id !== "number") return;
+    let value: any; try { value = JSON.parse(line); } catch {
+      this.closed = true;
+      this.failPending(new Error("MCP returned malformed JSON"));
+      void this.close();
+      return;
+    }
+    if (!value || typeof value !== "object" || value.jsonrpc !== "2.0") {
+      this.closed = true;
+      this.failPending(new Error("MCP returned an invalid JSON-RPC response"));
+      void this.close();
+      return;
+    }
+    if (typeof value.id !== "number" || !Number.isSafeInteger(value.id)) return;
     const pending = this.pending.get(value.id); if (!pending) return;
     this.pending.delete(value.id); clearTimeout(pending.timer);
-    if (value.error) pending.reject(new Error(value.error.message ?? "MCP request failed")); else pending.resolve(value.result);
+    if (pending.signal && pending.abort) pending.signal.removeEventListener("abort", pending.abort);
+    // Never pass server-controlled error text across the gateway boundary.
+    if (value.error && typeof value.error === "object") pending.reject(new Error("MCP request failed"));
+    else if (Object.prototype.hasOwnProperty.call(value, "result")) pending.resolve(value.result);
+    else pending.reject(new Error("MCP returned an invalid JSON-RPC response"));
   }
-  private failPending(error: Error): void { for (const [id, pending] of this.pending) { clearTimeout(pending.timer); pending.reject(error); this.pending.delete(id); } }
+  private failPending(error: Error): void {
+    for (const [id, pending] of this.pending) {
+      clearTimeout(pending.timer);
+      if (pending.signal && pending.abort) pending.signal.removeEventListener("abort", pending.abort);
+      pending.reject(error);
+      this.pending.delete(id);
+    }
+  }
   async close(): Promise<void> {
     this.closed = true; this.stdoutBuffer = ""; this.failPending(new Error("MCP transport closed"));
     const child = this.child; this.child = undefined;
@@ -121,7 +174,8 @@ export class McpGateway {
   private readonly discovered = new Map<string, GatewayToolDefinition[]>();
   private readonly schemas = new Map<string, Record<string, unknown>>();
   private readonly unavailable = new Map<string, string>();
-  private calls = 0;
+  private shuttingDown = false;
+  private readonly calls = new Map<string, number>();
   private readonly limits: Required<GatewayLimits>;
   constructor(endpoints: CorpusEndpoint[], limits: GatewayLimits = {}) {
     this.limits = { requestTimeoutMs: limits.requestTimeoutMs ?? 10_000, maxResultBytes: limits.maxResultBytes ?? 32_000, maxCallsPerTurn: limits.maxCallsPerTurn ?? 8 };
@@ -161,9 +215,13 @@ export class McpGateway {
   }
   /** Operator-safe availability diagnostics; excludes commands, paths, and credentials. */
   getUnavailableCorpora(): string[] { return [...this.unavailable.keys()]; }
-  resetTurnBudget(): void { this.calls = 0; }
-  async call(input: { corpusId: string; name: string; arguments?: Record<string, unknown>; allowedReplayRefs?: CorpusReplayRef[]; signal?: AbortSignal }): Promise<McpCallResult> {
-    if (++this.calls > this.limits.maxCallsPerTurn) throw new Error("MCP tool-call budget exhausted");
+  resetTurnBudget(turnKey = "default"): void { this.calls.set(turnKey, 0); }
+  releaseTurnBudget(turnKey = "default"): void { this.calls.delete(turnKey); }
+  async call(input: { corpusId: string; name: string; arguments?: Record<string, unknown>; allowedReplayRefs?: CorpusReplayRef[]; signal?: AbortSignal; turnKey?: string }): Promise<McpCallResult> {
+    const turnKey = input.turnKey ?? "default";
+    const calls = (this.calls.get(turnKey) ?? 0) + 1;
+    this.calls.set(turnKey, calls);
+    if (calls > this.limits.maxCallsPerTurn) throw new Error("MCP tool-call budget exhausted");
     const endpoint = this.requireEndpoint(input.corpusId);
     if (!ALLOWED_TOOLS.has(input.name) || MUTATING_NAMES.test(input.name)) throw new Error(`MCP tool is not allowed: ${input.name}`);
     if (!(await this.discover(endpoint)).some((tool) => tool.name === input.name)) throw new Error(`MCP tool is unavailable for corpus ${input.corpusId}`);
@@ -175,7 +233,7 @@ export class McpGateway {
       result = await transport.request("tools/call", { name: input.name, arguments: args }, this.limits.requestTimeoutMs, input.signal);
     } catch (error) {
       if (input.signal?.aborted || /cancelled/i.test(String((error as Error)?.message))) throw error;
-      this.connections.delete(endpoint.id);
+      if (this.connections.get(endpoint.id) === transport) this.connections.delete(endpoint.id);
       await transport.close().catch(() => undefined);
       transport = await this.connection(endpoint);
       result = await transport.request("tools/call", { name: input.name, arguments: args }, this.limits.requestTimeoutMs, input.signal);
@@ -189,17 +247,31 @@ export class McpGateway {
     if (Buffer.byteLength(JSON.stringify(safeResult), "utf8") > this.limits.maxResultBytes) throw new Error("MCP tool result exceeds configured size limit");
     return safeResult as McpCallResult;
   }
-  async close(): Promise<void> { await Promise.all([...this.connections.values()].map((transport) => transport.close().catch(() => undefined))); this.connections.clear(); }
+  async close(): Promise<void> {
+    this.shuttingDown = true;
+    const transports = [...this.connections.values()];
+    const openings = [...this.connecting.values()];
+    await Promise.all([
+      ...transports.map((transport) => transport.close().catch(() => undefined)),
+      ...openings.map((opening) => opening.then((transport) => transport.close().catch(() => undefined)).catch(() => undefined)),
+    ]);
+    this.connections.clear();
+    this.connecting.clear();
+  }
   private requireEndpoint(id: string): CorpusEndpoint { const endpoint = this.endpoints.get(id); if (!endpoint) throw new Error(`Unknown or unreadable corpus: ${id}`); return endpoint; }
   private async connection(endpoint: CorpusEndpoint): Promise<McpTransport> {
+    if (this.shuttingDown) throw new Error("MCP gateway is closed");
     let transport = this.connections.get(endpoint.id);
     if (transport && !this.connecting.has(endpoint.id)) return transport;
     const pending = this.connecting.get(endpoint.id);
     if (pending) return pending;
     transport ??= endpoint.transport ?? new StdioMcpTransport({ command: endpoint.command!, args: endpoint.args, cwd: endpoint.cwd, env: endpoint.env });
     this.connections.set(endpoint.id, transport);
-    const opening = transport.connect().then(() => transport!).catch(async (error) => {
-      this.connections.delete(endpoint.id);
+    const opening = transport.connect().then(() => {
+      if (this.shuttingDown) throw new Error("MCP gateway is closed");
+      return transport!;
+    }).catch(async (error) => {
+      if (this.connections.get(endpoint.id) === transport) this.connections.delete(endpoint.id);
       await transport!.close().catch(() => undefined);
       throw error;
     }).finally(() => this.connecting.delete(endpoint.id));
@@ -208,7 +280,17 @@ export class McpGateway {
   }
   private async discover(endpoint: CorpusEndpoint): Promise<GatewayToolDefinition[]> {
     const cached = this.discovered.get(endpoint.id); if (cached) return cached;
-    const response = await (await this.connection(endpoint)).request("tools/list", {}, this.limits.requestTimeoutMs);
+    let transport = await this.connection(endpoint);
+    let response: any;
+    try {
+      response = await transport.request("tools/list", {}, this.limits.requestTimeoutMs);
+    } catch (error) {
+      if (/cancelled/i.test(String((error as Error)?.message))) throw error;
+      if (this.connections.get(endpoint.id) === transport) this.connections.delete(endpoint.id);
+      await transport.close().catch(() => undefined);
+      transport = await this.connection(endpoint);
+      response = await transport.request("tools/list", {}, this.limits.requestTimeoutMs);
+    }
     const result = (Array.isArray(response?.tools) ? response.tools : []).filter((tool: any) => {
       if (typeof tool?.name !== "string" || !ALLOWED_TOOLS.has(tool.name) || MUTATING_NAMES.test(tool.name)) return false;
       if (!tool.inputSchema || typeof tool.inputSchema !== "object" || tool.inputSchema.type !== "object" || typeof tool.inputSchema.properties !== "object") return false;

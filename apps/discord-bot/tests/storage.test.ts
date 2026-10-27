@@ -6,6 +6,59 @@ import { Database } from "bun:sqlite";
 import { BotStore } from "../src/storage/store.ts";
 
 describe("BotStore", () => {
+  test("provider reservations enforce durable rate and session budgets across reopen", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bwf-provider-budget-"));
+    const path = join(dir, "bot.sqlite");
+    const first = new BotStore({ dbPath: path });
+    const session = first.reserveSession({ guildId: "g", parentChannelId: "p", creatorUserId: "u", title: "x", creationKey: "k" });
+    first.db.query("UPDATE sessions SET thread_id='t' WHERE id=?").run(session.id);
+    const queued = first.enqueueUserMessage({ sessionId: session.id, discordMessageId: "m", authorUserId: "u", content: "x" });
+    const running = first.claimNextTurn(session.id);
+    expect(running).toBeTruthy();
+    first.startProviderRequest(running!.id, { reservedTokens: 10, reservedCostMicros: 4, maxSessionTokens: 20, maxRequestsPerMinute: 2 });
+    expect((first.db.query("SELECT reserved_tokens,reserved_cost_micros FROM provider_requests WHERE turn_id=?").all(running!.id) as any[])).toHaveLength(1);
+    first.close();
+    const reopened = new BotStore({ dbPath: path });
+    const same = reopened.getTurn(running!.id);
+    expect(same).toBeTruthy();
+    reopened.close();
+  });
+
+  test("provider reservations enforce turn and session token/cost ceilings before insertion", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bwf-provider-caps-"));
+    const store = new BotStore({ dbPath: join(dir, "bot.sqlite") });
+    const session = store.reserveSession({ guildId: "g", parentChannelId: "p", creatorUserId: "u", creationKey: "caps" });
+    store.db.query("UPDATE sessions SET thread_id='t' WHERE id=?").run(session.id);
+    const first = store.enqueueUserMessage({ sessionId: session.id, discordMessageId: "cap-1", authorUserId: "u", content: "one" });
+    const running = store.claimNextTurn(session.id)!;
+    store.startProviderRequest(running.id, { reservedTokens: 10, reservedCostMicros: 5, maxTurnTokens: 20, maxTurnCostMicros: 10, maxSessionTokens: 100, maxSessionCostMicros: 100 });
+    expect(() => store.startProviderRequest(running.id, { reservedTokens: 11, reservedCostMicros: 6, maxTurnTokens: 20, maxTurnCostMicros: 10 })).toThrow("budget");
+    store.finishProviderRequest(running.id, 1, "completed");
+    store.completeTurn(running.id);
+    const second = store.enqueueUserMessage({ sessionId: session.id, discordMessageId: "cap-2", authorUserId: "u", content: "two" });
+    const running2 = store.claimNextTurn(session.id)!;
+    expect(() => store.startProviderRequest(running2.id, { reservedTokens: 91, reservedCostMicros: 96, maxSessionTokens: 100, maxSessionCostMicros: 100 })).toThrow("budget");
+    store.close();
+  });
+
+  test("provider requests keep distinct round IDs and nullable partial usage", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bwf-provider-rounds-"));
+    const store = new BotStore({ dbPath: join(dir, "bot.sqlite") });
+    const session = store.reserveSession({ guildId: "g", parentChannelId: "p", creatorUserId: "u", creationKey: "rounds" });
+    store.db.query("UPDATE sessions SET thread_id='t' WHERE id=?").run(session.id);
+    const turn = store.enqueueUserMessage({ sessionId: session.id, discordMessageId: "round-1", authorUserId: "u", content: "x" }).turn;
+    const running = store.claimNextTurn(session.id)!;
+    const first = store.startProviderRequest(running.id, { reservedTokens: 20 });
+    store.finishProviderRequest(running.id, first, "completed", undefined, { inputTokens: 3 }, 4);
+    const second = store.startProviderRequest(running.id, { reservedTokens: 20 });
+    store.finishProviderRequest(running.id, second, "failed", "provider request failed", undefined, 5);
+    const rows = store.db.query("SELECT attempt,input_tokens,output_tokens,total_tokens,status FROM provider_requests WHERE turn_id=? ORDER BY attempt").all(running.id) as any[];
+    expect(rows.map((row) => row.attempt)).toEqual([1, 2]);
+    expect(rows[0].input_tokens).toBe(3);
+    expect(rows[0].output_tokens).toBeNull();
+    expect(rows[1].input_tokens).toBeNull();
+    store.close();
+  });
   test("rejects a corpus database without modifying its contents", () => {
     const dir = mkdtempSync(join(tmpdir(), "bwf-separate-db-"));
     const path = join(dir, "corpus.sqlite");

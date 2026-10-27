@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "bun --watch src/main.ts",
     "start": "bun src/main.ts",
-    "build": "bun build src/main.ts src/discord/register.ts --target=bun --outdir=dist --packages=external",
+    "build": "bun build src/main.ts src/discord/register.ts src/health.ts src/service-policy.ts --target=bun --outdir=dist --packages=external",
     "start:production": "bun dist/main.js",
     "register": "bun src/discord/register.ts",
+    "health": "bun src/health.ts",
     "probe:tools": "bun scripts/probe-tool-calling.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "bun test tests"

@@ -18,6 +18,9 @@ describe("Discord deployment script", () => {
     expect(installer).toContain("community-worker.env");
     expect(installer).toContain("bw-forge-community-worker.service");
     expect(installer).toContain("community corpus must be distinct");
+    expect(installer).toContain("ProtectSystem=strict");
+    expect(installer).toContain("ReadWritePaths=%s %s");
+    expect(installer).toContain("systemd_path");
   });
 
   it("does not install dependencies from the registry on the offline target", () => {
@@ -26,6 +29,15 @@ describe("Discord deployment script", () => {
       /\$remoteScript = @'\r?\n([\s\S]*?)\r?\n'@/,
     )![1];
     expect(remote).not.toMatch(/\bbun\s+install\b/);
+  });
+
+  it("renders strict bot confinement from state and community paths", () => {
+    const source = readFileSync(join(root, "Deploy-BwForge.ps1"), "utf8");
+    const unit = readFileSync(join(root, "apps/discord-bot/bw-forge-discord-bot.service"), "utf8");
+    expect(unit).toContain("ProtectSystem=strict");
+    expect(source).toContain('src/service-policy.ts');
+    expect(source).toContain('BOT_POLICY=$(sudo systemd-run');
+    expect(source).not.toContain("ReadWritePaths=$CORPUS_ROOT");
   });
   const powershell =
     process.platform === "win32"
@@ -114,6 +126,8 @@ describe("Discord deployment script", () => {
             "build",
             "./apps/discord-bot/src/main.ts",
             "./apps/discord-bot/src/discord/register.ts",
+            "./apps/discord-bot/src/health.ts",
+            "./apps/discord-bot/src/service-policy.ts",
             "--target=bun",
             "--packages=bundle",
             `--outdir=${dist}`,
@@ -124,7 +138,7 @@ describe("Discord deployment script", () => {
         const archive = join(directory, "discord-bot-bundle.tar.gz");
         const packed = spawnSync(
           "tar",
-          ["-czf", archive, "-C", dist, "main.js", "discord/register.js"],
+          ["-czf", archive, "-C", dist, "main.js", "discord/register.js", "health.js", "service-policy.js"],
           { encoding: "utf8", windowsHide: true },
         );
         expect(packed.status, packed.stderr).toBe(0);

@@ -20,6 +20,19 @@ type ApiResponse = {
   usage?: Record<string, unknown>;
 };
 
+function usageCount(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+}
+
+function normalizeUsage(usage: Record<string, unknown>) {
+  const inputTokens = usageCount(usage.input_tokens);
+  const outputTokens = usageCount(usage.output_tokens);
+  const totalTokens = usageCount(usage.total_tokens);
+  return inputTokens === undefined && outputTokens === undefined && totalTokens === undefined
+    ? undefined
+    : { inputTokens, outputTokens, totalTokens };
+}
+
 function responseInput(request: LlmRequest): unknown[] {
   const input: unknown[] = [];
   for (const message of request.messages) {
@@ -101,7 +114,7 @@ function retryableFailure(data: ApiResponse): boolean {
   return true;
 }
 
-async function bodyText(response: Response, limit: number): Promise<string> {
+async function bodyText(response: Response, limit: number, signal?: AbortSignal): Promise<string> {
   const declared = Number(response.headers.get("content-length") ?? "0");
   if (declared > limit)
     throw new LlmProviderError(
@@ -109,13 +122,18 @@ async function bodyText(response: Response, limit: number): Promise<string> {
       "oversized_response",
       true,
     );
-  if (!response.body) return response.text();
+  if (!response.body) {
+    const text = await response.text();
+    if (Buffer.byteLength(text, "utf8") > limit)
+      throw new LlmProviderError("LLM provider response was too large", "oversized_response", true);
+    return text;
+  }
   const reader = response.body.getReader();
   const parts: Uint8Array[] = [];
   let total = 0;
   try {
     while (true) {
-      const next = await reader.read();
+      const next = await readWithCancellation(reader, signal);
       if (next.done) break;
       total += next.value.byteLength;
       if (total > limit) {
@@ -129,6 +147,7 @@ async function bodyText(response: Response, limit: number): Promise<string> {
       parts.push(next.value);
     }
   } finally {
+    void reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
   const bytes = new Uint8Array(total);
@@ -138,6 +157,24 @@ async function bodyText(response: Response, limit: number): Promise<string> {
     offset += p.byteLength;
   }
   return new TextDecoder().decode(bytes);
+}
+
+async function readWithCancellation(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  signal?: AbortSignal,
+): Promise<Awaited<ReturnType<typeof reader.read>>> {
+  if (!signal) return reader.read();
+  if (signal.aborted) throw new LlmProviderError("LLM request was cancelled", "cancelled", true);
+  let abort!: () => void;
+  const cancelled = new Promise<never>((_, reject) => {
+    abort = () => reject(new LlmProviderError("LLM request was cancelled", "cancelled", true));
+    signal.addEventListener("abort", abort, { once: true });
+  });
+  try {
+    return await Promise.race([reader.read(), cancelled]);
+  } finally {
+    signal.removeEventListener("abort", abort);
+  }
 }
 
 export class ResponsesProvider implements LlmProvider {
@@ -197,7 +234,7 @@ export class ResponsesProvider implements LlmProvider {
         body.tool_choice = request.toolChoice ?? "auto";
       }
       const operation = (async () => {
-        let response: Response;
+        let response!: Response;
         try {
           response = await this.fetchImpl(this.endpoint, {
             method: "POST",
@@ -210,6 +247,7 @@ export class ResponsesProvider implements LlmProvider {
           });
         } catch (e) {
           if (e instanceof LlmProviderError) throw e;
+          void response.body?.cancel().catch(() => undefined);
           throw new LlmProviderError(
             "LLM request could not be sent",
             "network",
@@ -234,6 +272,7 @@ export class ResponsesProvider implements LlmProvider {
             await bodyText(
               response,
               Math.max(4096, request.maxOutputTokens * 64),
+              controller.signal,
             ),
           ) as ApiResponse;
         } catch (e) {
@@ -292,18 +331,7 @@ export class ResponsesProvider implements LlmProvider {
             true,
           );
         const u = data.usage;
-        const usage = u
-          ? {
-              inputTokens:
-                typeof u.input_tokens === "number" ? u.input_tokens : undefined,
-              outputTokens:
-                typeof u.output_tokens === "number"
-                  ? u.output_tokens
-                  : undefined,
-              totalTokens:
-                typeof u.total_tokens === "number" ? u.total_tokens : undefined,
-            }
-          : undefined;
+        const usage = u ? normalizeUsage(u) : undefined;
         return {
           text,
           toolCalls: toolCalls.length ? toolCalls : undefined,

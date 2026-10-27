@@ -89,6 +89,13 @@ validate_text() {
   [ -n "$value" ] || die "$name must not be empty"
   case "$value" in *$'\n'*|*$'\r'*) die "$name contains a newline" ;; esac
 }
+systemd_path() {
+  local value=$1
+  case "$value" in /*) ;; *) die "systemd path must be absolute: $value" ;; esac
+  case "$value" in *$'\n'*|*$'\r'*) die "systemd path contains a newline" ;; esac
+  value=${value//\\/\\x5c}; value=${value// /\\x20}; value=${value//\"/\\x22}; value=${value//\'/\\x27}; value=${value//%/%%}
+  printf '"%s"' "$value"
+}
 absolute_path() { case "$2" in /*) ;; *) die "$1 must be an absolute path: $2" ;; esac; }
 for pair in "app root|$APP_ROOT" "corpus root|$CORPUS_ROOT" "inbox|$INBOX" "database|$DB_PATH"; do
   name=${pair%%|*}; value=${pair#*|}; validate_text "$name" "$value"; absolute_path "$name" "$value"
@@ -251,6 +258,10 @@ NODE
   sed -e 's/bw-forge-worker/bw-forge-community-worker/g' \
       -e 's#EnvironmentFile=.*#EnvironmentFile=/etc/bw-forge/community-worker.env#' \
       "$STAGING/bw-forge-worker.service" > "$UNIT_DIR/bw-forge-community-worker.service"
+  {
+    printf 'ProtectSystem=strict\n'
+    printf 'ReadWritePaths=%s %s\n' "$(systemd_path "$COMMUNITY_ROOT")" "$(systemd_path "$COMMUNITY_DB_DIR")"
+  } >> "$UNIT_DIR/bw-forge-community-worker.service"
 fi
 if [ -f "$UNIT_DIR/bw-forge-community-worker.service" ]; then
   sed 's/Wants=/Wants=bw-forge-community-worker.service /; s/After=/After=bw-forge-community-worker.service /' \

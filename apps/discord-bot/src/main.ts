@@ -15,6 +15,7 @@ import { CorpusCore } from "./corpus/core.ts";
 import { McpGateway } from "./agent/mcp-gateway.ts";
 import { ReplayCoordinator, validateStagingDirectory, type UploadAttachment } from "./ingestion/coordinator.ts";
 import { dirname, join } from "node:path";
+import { createSafeLogger } from "./observability.ts";
 
 /** Production entry point. The process owns one SQLite database and one Discord client. */
 export async function startBot(
@@ -54,6 +55,12 @@ export async function startBot(
   const runtimeStore = new SqliteRuntimeStore(store, config.llm.contextBudget,
     corpusCore ? (ref) => corpusCore.describeReplay(ref) : undefined);
   const provider = createLlmProvider(config.llm);
+  const safeLog = createSafeLogger((event) => console.error(JSON.stringify(event)), {
+    diagnostic: config.agent.diagnosticToolArguments,
+    provider: config.llm.provider,
+    model: config.llm.model,
+    corpusIds: config.corpus?.readableCorpora ?? [],
+  });
   const mcpGateway = config.agent.enabled && registry
     ? new McpGateway(config.corpus!.readableCorpora.map((id) => ({
         id, dbPath: registry.get(id).database, readable: true,
@@ -77,7 +84,7 @@ export async function startBot(
       maxDeliveryAttempts: corpusConfig.deliveryRetryLimit,
       maxDownloads: corpusConfig.maxDownloads,
       maxPendingPerSession: corpusConfig.maxPendingPerSession,
-      log: (event, details) => console.error(JSON.stringify({ event, ...details })),
+      log: safeLog,
       resolveAttachment: async (upload) => {
         const session = store.getSession(upload.sessionId); if (!session?.threadId) return null;
         const channel = await client.channels.fetch(session.threadId);
@@ -129,7 +136,7 @@ export async function startBot(
             result.state === "failed" ? rejected++ : accepted++;
           } catch {
             rejected++;
-            console.error(JSON.stringify({ event: "upload_rejected", sessionId: input.sessionId, attachmentId: attachment.id }));
+            safeLog("replay_ingestion_failed", { event: "replay_ingestion_failed", sessionId: input.sessionId, attachmentId: attachment.id });
           }
         }
         return { accepted, rejected };
@@ -140,7 +147,17 @@ export async function startBot(
   }
   const runtime = new TurnRuntime({
     maxConcurrent: config.queue.maxConcurrent,
+    maxConcurrentPerUser: config.queue.maxConcurrentPerUser,
+    maxRequestsPerMinute: config.queue.maxRequestsPerMinute,
     requestTimeoutMs: config.llm.requestTimeoutMs,
+    retryBaseDelayMs: config.llm.retryBaseDelayMs,
+    retryMaxDelayMs: config.llm.retryMaxDelayMs,
+    maxTurnTokens: config.llm.maxTurnTokens,
+    maxSessionTokens: config.llm.maxSessionTokens,
+    maxTurnCostUsd: config.llm.maxTurnCostUsd,
+    maxSessionCostUsd: config.llm.maxSessionCostUsd,
+    inputUsdPerMillion: config.llm.inputUsdPerMillion,
+    outputUsdPerMillion: config.llm.outputUsdPerMillion,
     model: config.llm.model,
     maxOutputTokens: config.llm.maxOutputTokens,
     temperature: config.llm.temperature,
@@ -154,7 +171,7 @@ export async function startBot(
     store: runtimeStore,
     authorization,
     delivery,
-    log: (message, details) => console.error(message, details ?? {}),
+    log: safeLog,
   });
   const adapter = new DiscordAdapter({
     client,

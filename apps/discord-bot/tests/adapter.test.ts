@@ -61,6 +61,31 @@ test("authorized collaborators upload multiple attachments independently of chat
   } finally { store.close(); Bun.gc(true); rmSync(root, { recursive: true, force: true }); }
 });
 
+test("replay acknowledgement reflects durable intake results", async () => {
+  const root = mkdtempSync(join(tmpdir(), "bwf-m2-ack-"));
+  const store = new BotStore({ dbPath: join(root, "bot.sqlite") });
+  try {
+    const session = store.reserveSession({ guildId: "guild", parentChannelId: "parent", creatorUserId: "creator", creationKey: "ack" });
+    store.attachThread(session.id, "thread");
+    const member = { roles: { cache: new Map([["role", true]]) } };
+    const guild = { id: "guild", members: { fetch: async () => member } };
+    const notices: any[] = [];
+    const thread = { id: "thread", parentId: "parent", isThread: () => true, send: async (input: any) => { notices.push(input); return { id: "ack" }; } };
+    const client: any = { on: () => client, user: { id: "bot" }, guilds: { fetch: async () => guild } };
+    let intake = { accepted: 1, rejected: 1 };
+    const adapter = new DiscordAdapter({ client, config: config(), store, runtime: { enqueue: async () => undefined } as any,
+      replayIngestor: { accept: async () => intake } });
+    const message = { id: "mixed", author: { id: "collaborator", bot: false }, guild, channel: thread, webhookId: null, content: "", createdTimestamp: Date.now(),
+      attachments: new Map([["a", { id: "a", name: "one.rep", size: 100, url: "https://cdn.discordapp.com/attachments/1/2/one.rep" }], ["b", { id: "b", name: "two.txt", size: 100, url: "https://cdn.discordapp.com/attachments/1/3/two.txt" }]]) };
+    await (adapter as any).onMessage(message);
+    expect(notices[0].content).toContain("1 accepted, 1 rejected");
+    notices.length = 0;
+    intake = { accepted: 0, rejected: 2 };
+    await (adapter as any).onMessage({ ...message, id: "all-failed" });
+    expect(notices[0].content).toBe("No valid .rep attachments were accepted.");
+  } finally { store.close(); Bun.gc(true); rmSync(root, { recursive: true, force: true }); }
+});
+
 describe("Discord authorization", () => {
   test("authorizes current role and denies revocation or lookup failure", async () => {
     const member = { roles: { cache: new Map([["role", true]]) } };

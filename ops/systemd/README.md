@@ -144,6 +144,13 @@ the three long-running services plus the report-index timer into boot through
 The conservative hardening is `NoNewPrivileges=true`, `PrivateTmp=true`,
 `UMask=0027`, an empty capability bounding set, and `RestrictSUIDSGID=true`. Corpus,
 SQLite/WAL, replay, work, runtime, and temporary-directory access remains available.
+The Discord unit additionally uses `ProtectSystem=strict`, private devices,
+kernel/control-group protection, and bounded `MemoryMax`/`TasksMax` values. Its
+deployment script renders `ReadWritePaths` only for bot state and the configured
+community tree; the professional corpus is intentionally absent. The existing
+Corpus worker units retain their established access model. Verify the professional
+ACL after installation because systemd cannot infer ownership policy from corpus
+metadata.
 Because `PrivateTmp` gives each service a private `/tmp`, do not configure the app,
 Corpus, database, or inbox beneath the host's `/tmp`; use persistent appliance paths
 such as `/srv/bw-forge`. Stdout and stderr go only to journald.

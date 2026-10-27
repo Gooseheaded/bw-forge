@@ -485,23 +485,27 @@ export class DiscordAdapter {
             url: a.url,
             contentType: a.contentType,
           }));
-          const candidates = attachments.filter((a) => /\.rep$/i.test(a.name));
-          const rejected = attachments.length - candidates.length;
-          await (message.channel as TextChannel).send({
-            content: candidates.length > 0
-              ? `Replay received (${candidates.length} accepted${rejected ? `, ${rejected} rejected` : ""}). Analysis will run asynchronously and the HTML report will be posted here.`
-              : "No valid .rep attachments were accepted.",
-            allowedMentions: { parse: [], repliedUser: false },
-          });
-          void this.options.replayIngestor.accept({
-            sessionId: session.id,
-            threadId: message.channel.id,
-            messageId: message.id,
-            userId: message.author.id,
-            attachments,
-            authorized: true,
-            authorize: () => this.authorization.authorize({ guildId: message.guild!.id, userId: message.author.id }),
-          }).catch((error) => console.error("Replay ingestion failed", { sessionId: session.id, messageId: message.id, error: error instanceof Error ? error.message : String(error) }));
+          try {
+            const result = await this.options.replayIngestor.accept({
+              sessionId: session.id,
+              threadId: message.channel.id,
+              messageId: message.id,
+              userId: message.author.id,
+              attachments,
+              authorized: true,
+              authorize: () => this.authorization.authorize({ guildId: message.guild!.id, userId: message.author.id }),
+            });
+            const accepted = result.accepted;
+            await (message.channel as TextChannel).send({
+              content: accepted > 0
+                ? `Replay received (${accepted} accepted${result.rejected ? `, ${result.rejected} rejected` : ""}). Analysis will run asynchronously and the HTML report will be posted here.`
+                : "No valid .rep attachments were accepted.",
+              allowedMentions: { parse: [], repliedUser: false },
+            });
+          } catch (error) {
+            console.error(JSON.stringify({ event: "replay_ingestion_failed", code: safeErrorCode(error) }));
+            await (message.channel as TextChannel).send({ content: "Replay uploads could not be accepted; please try again later.", allowedMentions: { parse: [], repliedUser: false } });
+          }
           if (!message.content.trim()) return;
         }
         if (message.attachments.size > 0 && !this.options.replayIngestor) {
@@ -545,4 +549,9 @@ export function createDiscordClient(): Client {
     ],
     partials: [Partials.Channel],
   });
+}
+
+function safeErrorCode(error: unknown): string | number {
+  const value = (error as { code?: unknown; name?: unknown } | null)?.code ?? (error as Error | null)?.name;
+  return typeof value === "number" ? value : typeof value === "string" && /^[A-Za-z_0-9-]{1,80}$/.test(value) ? value : "UNKNOWN";
 }

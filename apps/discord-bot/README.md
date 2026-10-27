@@ -54,6 +54,12 @@ All current settings are environment variables. Startup validates configuration 
 | `LLM_CONTEXT_BUDGET` | Conservative input budget accounted as UTF-8 bytes plus envelope overhead |
 | `LLM_REQUEST_TIMEOUT_MS` | Hosted request deadline |
 | `LLM_MAX_CONCURRENT_TURNS` | Global active turn limit |
+| `LLM_MAX_CONCURRENT_TURNS_PER_USER` | Active turns per user (default 2; 0 disables the additional cap) |
+| `LLM_MAX_REQUESTS_PER_USER_PER_MINUTE` | Durable provider request limit per user (default 30; 0 disables it) |
+| `LLM_RETRY_BASE_DELAY_MS`, `LLM_RETRY_MAX_DELAY_MS` | Bounded exponential delay for transient turn retries (defaults 250 ms and 5 s) |
+| `LLM_MAX_TURN_TOKENS`, `LLM_MAX_SESSION_TOKENS` | Conservative durable input-byte plus output-token reservations (defaults 128,000 and 1,000,000; 0 disables) |
+| `LLM_INPUT_USD_PER_MILLION`, `LLM_OUTPUT_USD_PER_MILLION` | Optional configured model prices used only for estimated cost accounting |
+| `LLM_MAX_TURN_COST_USD`, `LLM_MAX_SESSION_COST_USD` | Optional estimated cost ceilings; require both prices above |
 | `MAX_MESSAGES_QUEUED_PER_THREAD` | Maximum waiting turns per thread |
 | `DISCORD_BOT_DATABASE_PATH` | Persistent bot-specific SQLite file |
 | `BW_FORGE_LLM_TEMPERATURE` | Optional temperature; omit when unsupported by model |
@@ -124,6 +130,8 @@ On the appliance, test in an authorized Discord thread: upload a replay and ask 
 The provider tool-call compatibility probe is optional and requires the configured key/model. From the bot directory, run `bun run probe:tools` with `BW_FORGE_LLM_PROVIDER`, `LLM_API_KEY`, and `LLM_MODEL` set in the environment. It asks for a harmless `get_corpus_summary` function call without starting Discord or executing the function; exit code 0 means the model returned the expected structured request, 2 means it returned no expected call or an incomplete response, and 1 means a provider error. Do not record secrets or reasoning traces. Automated fixtures cover protocol parsing; no live provider probe or Discord acceptance is claimed by this implementation session.
 
 Successful tool provenance is logged as `analytical tool call completed` with turn/session IDs, tool call ID, tool name, corpus ID, and result byte count. MCP query errors use `analytical tool call failed` with a sanitized `mcpErrorCode` category; validation or authorization failures use `analytical tool call rejected` with bounded error codes. The logs omit tool argument values, replay numbers and hashes, database paths, credentials, and model reasoning. Inspect the bot's `journalctl` stream alongside the bot database's turns and provider request rows when troubleshooting.
+
+Production events use the allowlisted JSON logger. It carries bounded lifecycle IDs, configured provider/model/corpus labels, durations, request outcomes, reported usage and safe error categories. Tool-call IDs are replaced by short stable references. Token ceilings reserve UTF-8 bytes plus the configured output cap for every provider call, including retries and analytical rounds; actual provider-reported token counts remain separate and may be absent. Cost limits and cost summaries are estimates only, require explicit per-million input/output prices, and do not represent billing records. Session reservation totals persist for the life of each session; start a new thread to begin a fresh session budget.
 
 Attachments are accepted only from Discord's attachment metadata, are checked case-insensitively for `.rep`, downloaded to generated temporary paths with bounded size, timeout, and concurrency, then removed after registration or terminal failure. Filenames never become paths. Duplicate Discord events preserve upload provenance while reusing content-addressed Corpus v2 work. Pending uploads and report deliveries are stored in the bot SQLite database and reconciled after restart; a crash between registration and checkpoint is repaired by deterministic replay identity.
 
@@ -229,6 +237,15 @@ Live checks require operator-provided credentials and are separate from mocked a
 ## M2 operational acceptance
 
 See [M2 operations](M2-OPERATIONS.md) for exact environment-file quoting, first-time community provisioning, offline deployment, isolation, recovery commands and manual smoke testing.
+
+M4 health, service confinement, usage inspection, backup/rollback, reproducible
+fixture verification and live acceptance procedures are documented in
+[M4 operations](M4-OPERATIONS.md). The health command is read-only and makes no
+provider requests; `--mcp-check` performs only local MCP initialization and tool
+discovery. The deployment renders Discord service filesystem access from the
+validated corpus registry. Confirm the active unit's `ReadWritePaths` excludes
+every professional-corpus path after deployment. Where the appliance service
+account is shared, filesystem ACLs must still keep those paths non-writable.
 
 Before enabling uploads, provision both corpus roots and confirm the professional
 database checksum against the operator's known-good copy. Configure the JSON

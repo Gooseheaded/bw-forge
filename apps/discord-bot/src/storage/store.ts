@@ -168,7 +168,7 @@ export class BotStore {
     const version = (
       this.db.query("SELECT version FROM schema_version").get() as any
     ).version as number;
-    if (version > 4)
+    if (version > 6)
       throw new Error(`Unsupported bot database schema version ${version}`);
     if (version < 1) {
       this.db.transaction(() =>
@@ -246,6 +246,22 @@ export class BotStore {
         ALTER TABLE replay_uploads ADD COLUMN failure_notified INTEGER NOT NULL DEFAULT 0;
         UPDATE schema_version SET version = 4;
       `))();
+    }
+    if (version < 5) {
+      this.db.transaction(() => {
+        const columns = new Set((this.db.query("PRAGMA table_info(provider_requests)").all() as Array<{ name: string }>).map((row) => row.name));
+        for (const [name, type] of [["input_tokens", "INTEGER"], ["output_tokens", "INTEGER"], ["total_tokens", "INTEGER"], ["duration_ms", "INTEGER"]] as const)
+          if (!columns.has(name)) this.db.exec(`ALTER TABLE provider_requests ADD COLUMN ${name} ${type}`);
+        this.db.query("UPDATE schema_version SET version = 5").run();
+      })();
+    }
+    if (version < 6) {
+      this.db.transaction(() => {
+        const columns = new Set((this.db.query("PRAGMA table_info(provider_requests)").all() as Array<{ name: string }>).map((row) => row.name));
+        for (const [name, type] of [["reserved_tokens", "INTEGER"], ["reserved_cost_micros", "INTEGER"], ["correlation_id", "TEXT"], ["reported_input_tokens", "INTEGER"], ["reported_output_tokens", "INTEGER"], ["reported_total_tokens", "INTEGER"], ["reported_cost_micros", "INTEGER"]] as const)
+          if (!columns.has(name)) this.db.exec(`ALTER TABLE provider_requests ADD COLUMN ${name} ${type}`);
+        this.db.query("UPDATE schema_version SET version = 6").run();
+      })();
     }
     this.db
       .query(
@@ -590,12 +606,12 @@ export class BotStore {
       )
       .run(now(), tokenUsage ?? null, turnId);
   }
-  failTurn(turnId: number, error: string, retry = true) {
+  failTurn(turnId: number, error: string, retry = true, maxAttempts = 3) {
     const row = this.db
-      .query("SELECT attempt_count FROM turns WHERE id=?")
+      .query("SELECT attempt_count,session_id FROM turns WHERE id=?")
       .get(turnId) as any;
     if (!row) return;
-    const retryable = retry && row.attempt_count < 3;
+    const retryable = retry && row.attempt_count < maxAttempts;
     this.db
       .query(
         "UPDATE turns SET status=?,completed_at=?,error=? WHERE id=? AND status='running'",
@@ -607,17 +623,37 @@ export class BotStore {
         turnId,
       );
   }
-  startProviderRequest(turnId: number): number {
+  startProviderRequest(turnId: number, reservation: { reservedTokens: number; reservedCostMicros?: number; maxTurnTokens?: number; maxSessionTokens?: number; maxTurnCostMicros?: number; maxSessionCostMicros?: number; maxRequestsPerMinute?: number; correlationId?: string } = { reservedTokens: 0 }): number {
     const row = this.db
-      .query("SELECT attempt_count FROM turns WHERE id=?")
+      .query("SELECT session_id FROM turns WHERE id=?")
       .get(turnId) as any;
     if (!row) throw new Error("turn not found");
-    const attempt = row.attempt_count;
+    const attemptRow = this.db.query("SELECT COALESCE(MAX(attempt),0)+1 AS next_attempt FROM provider_requests WHERE turn_id=?").get(turnId) as { next_attempt: number };
+    const attempt = attemptRow.next_attempt;
+    const totals = this.db.query(`SELECT
+      COALESCE(SUM(pr.reserved_tokens),0) AS turn_reserved,
+      COALESCE(SUM(pr.reserved_cost_micros),0) AS turn_cost,
+      COALESCE((SELECT SUM(pr2.reserved_tokens) FROM provider_requests pr2 JOIN turns t2 ON t2.id=pr2.turn_id WHERE t2.session_id=?),0) AS session_reserved,
+      COALESCE((SELECT SUM(pr2.reserved_cost_micros) FROM provider_requests pr2 JOIN turns t2 ON t2.id=pr2.turn_id WHERE t2.session_id=?),0) AS session_cost
+      FROM provider_requests pr WHERE pr.turn_id=?`).get(row.session_id, row.session_id, turnId) as { turn_reserved: number; turn_cost: number; session_reserved: number; session_cost: number };
+    const author = this.db.query("SELECT m.author_user_id FROM turns t JOIN messages m ON m.id=t.triggering_message_id WHERE t.id=?").get(turnId) as { author_user_id: string } | null;
+    if (reservation.maxRequestsPerMinute && author && (this.db.query("SELECT COUNT(*) AS count FROM provider_requests pr JOIN turns t ON t.id=pr.turn_id JOIN messages m ON m.id=t.triggering_message_id WHERE m.author_user_id=? AND datetime(replace(pr.started_at,'T',' ')) >= datetime('now','-60 seconds')").get(author.author_user_id) as { count: number }).count >= reservation.maxRequestsPerMinute) {
+      const error = new Error("provider request rate limit exceeded"); (error as Error & { code?: string }).code = "rate_limited"; throw error;
+    }
+    if ((reservation.maxTurnTokens !== undefined && totals.turn_reserved + reservation.reservedTokens > reservation.maxTurnTokens) ||
+        (reservation.maxSessionTokens !== undefined && totals.session_reserved + reservation.reservedTokens > reservation.maxSessionTokens) ||
+        (reservation.maxTurnCostMicros !== undefined && totals.turn_cost + (reservation.reservedCostMicros ?? 0) > reservation.maxTurnCostMicros) ||
+        (reservation.maxSessionCostMicros !== undefined && totals.session_cost + (reservation.reservedCostMicros ?? 0) > reservation.maxSessionCostMicros)) {
+      const error = new Error("provider usage budget exceeded");
+      (error as Error & { code?: string; retryable?: boolean }).code = "budget_exceeded";
+      (error as Error & { retryable?: boolean }).retryable = false;
+      throw error;
+    }
     this.db
       .query(
-        "INSERT INTO provider_requests(turn_id,attempt,started_at,status) VALUES(?,?,?,'running')",
+        "INSERT INTO provider_requests(turn_id,attempt,started_at,status,reserved_tokens,reserved_cost_micros,correlation_id) VALUES(?,?,?,'running',?,?,?)",
       )
-      .run(turnId, attempt, now());
+      .run(turnId, attempt, now(), reservation.reservedTokens, reservation.reservedCostMicros ?? null, reservation.correlationId ?? `turn-${turnId}-attempt-${attempt}`);
     return attempt;
   }
   finishProviderRequest(
@@ -625,12 +661,18 @@ export class BotStore {
     attempt: number,
     status: "completed" | "failed",
     error?: string,
+    usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number },
+    durationMs?: number,
+    estimatedCostMicros?: number,
   ) {
     this.db
       .query(
-        "UPDATE provider_requests SET status=?,completed_at=?,error=? WHERE turn_id=? AND attempt=?",
+        "UPDATE provider_requests SET status=?,completed_at=?,error=?,input_tokens=?,output_tokens=?,total_tokens=?,duration_ms=?,reported_input_tokens=?,reported_output_tokens=?,reported_total_tokens=?,reported_cost_micros=? WHERE turn_id=? AND attempt=?",
       )
-      .run(status, now(), error?.slice(0, 2000) ?? null, turnId, attempt);
+      .run(status, now(), error?.slice(0, 2000) ?? null,
+        usage?.inputTokens ?? null, usage?.outputTokens ?? null, usage?.totalTokens ?? null,
+        durationMs ?? null, usage?.inputTokens ?? null, usage?.outputTokens ?? null,
+        usage?.totalTokens ?? null, estimatedCostMicros ?? null, turnId, attempt);
   }
   cancelTurn(turnId: number, reason = "authorization revoked") {
     this.db

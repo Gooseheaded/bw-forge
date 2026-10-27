@@ -2,9 +2,30 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm, readFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { BotStore } from "../src/storage/store.ts";
-import { downloadReplayAttachment } from "../src/ingestion/coordinator.ts";
+import { downloadReplayAttachment, ReplayCoordinator } from "../src/ingestion/coordinator.ts";
 
 describe("replay ingestion durability", () => {
+  test("accept enforces the active session thread and redacts replay identities from diagnostics", async () => {
+    const root = await mkdtemp(join(process.env.TEMP ?? ".", "bwf-boundary-"));
+    const store = new BotStore({ dbPath: join(root, "bot.sqlite") });
+    try {
+      const session = store.reserveSession({ guildId: "1", parentChannelId: "2", creatorUserId: "3", creationKey: "boundary" });
+      store.attachThread(session.id, "thread");
+      let authorized = false;
+      const coordinator = new ReplayCoordinator({
+        store,
+        gateway: { registerReplay: async () => ({ jobId: "job" }) },
+        download: { maxBytes: 100, timeoutMs: 100, tempRoot: root },
+        log: (_event, details) => {
+          expect(JSON.stringify(details)).not.toContain("a".repeat(64));
+          expect(details).not.toHaveProperty("replaySha256");
+        },
+      });
+      await expect(coordinator.accept({ sessionId: session.id, threadId: "other-thread", messageId: "msg", userId: "3", corpusId: "community", authorize: async () => { authorized = true; return true; }, attachment: { id: "a", name: "x.rep", url: "https://cdn.discordapp.com/attachments/1/2/x.rep" } })).rejects.toThrow("active session");
+      expect(authorized).toBe(false);
+      (coordinator as any).log("replay_validated", { id: 1, sessionId: session.id, corpusId: "community", replaySha256: "a".repeat(64), jobId: "job" });
+    } finally { store.close(); await rm(root, { recursive: true, force: true }); }
+  });
   test("deduplicates attachment events and preserves upload identity", async () => {
     const root = await mkdtemp(join(process.env.TEMP ?? ".", "bwf-ingest-"));
     const db = join(root, "bot.sqlite");

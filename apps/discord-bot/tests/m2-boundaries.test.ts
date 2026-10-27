@@ -166,5 +166,5 @@ test("M1 sessions and conversations survive migrations from the original schema"
   expect(store.getSession(sessionId)?.threadId).toBe("thread");
   expect(store.getMessageByDiscordId("old-message")?.content).toBe("M1 conversation");
   expect(store.getPendingTurns()).toHaveLength(1);
-  expect(store.db.query("SELECT version FROM schema_version").get()).toEqual({ version: 4 });
+  expect(store.db.query("SELECT version FROM schema_version").get()).toEqual({ version: 6 });
 });

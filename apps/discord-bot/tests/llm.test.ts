@@ -236,4 +236,27 @@ describe("OpenAI provider", () => {
       code: "empty_response",
     });
   });
+  test("bounds opaque response text and preserves only valid usage counts", async () => {
+    const oversized = new OpenAiResponsesProvider("secret", "x", request(async () => ({
+      ok: true, status: 200, headers: new Headers(), body: null,
+      text: async () => JSON.stringify({ output_text: "x", usage: { input_tokens: -1, output_tokens: 1.5, total_tokens: 4 } }),
+    } as Response)));
+    const result = await oversized.generate(req);
+    expect(result.usage).toEqual({ inputTokens: undefined, outputTokens: undefined, totalTokens: 4 });
+    const huge = new OpenAiResponsesProvider("secret", "x", request(async () => ({
+      ok: true, status: 200, headers: new Headers(), body: null,
+      text: async () => JSON.stringify({ output_text: "x" }) + "x".repeat(20000),
+    } as Response)));
+    await expect(huge.generate({ ...req, maxOutputTokens: 20 })).rejects.toMatchObject({ code: "oversized_response" });
+  });
+  test("does not wait for a provider body cancel that never settles", async () => {
+    const stalled = new ReadableStream<Uint8Array>({
+      start() {},
+      cancel() { return new Promise<void>(() => {}); },
+    });
+    const p = new OpenAiResponsesProvider("secret", "x", request(async () => new Response(stalled)));
+    const started = Date.now();
+    await expect(p.generate({ ...req, timeoutMs: 5 })).rejects.toMatchObject({ code: "timeout" });
+    expect(Date.now() - started).toBeLessThan(500);
+  });
 });
