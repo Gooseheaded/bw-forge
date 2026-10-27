@@ -48,7 +48,7 @@ class FakeTransport implements McpTransport {
   async request(method: string, params?: unknown) {
     this.calls.push({ method, params });
     if (method === "tools/list") return { tools: [
-      { name: "get_economy", description: "economy", inputSchema: { type: "object", properties: { player: { type: "string" }, at_seconds: { type: "number" }, replay_ids: { type: "array", items: { type: "string" }, maxItems: 100 } } } },
+      { name: "get_economy", description: "economy", inputSchema: { type: "object", properties: { player: { type: "string" }, at_seconds: { type: "number" }, player_group: { type: "string" }, opponent_group: { type: "string" }, scope: { type: "string" }, replay_ids: { type: "array", items: { type: "string" }, maxItems: 100 } }, required: ["player", "at_seconds"] } },
       { name: "get_economy_distribution", description: "aggregate economy", inputSchema: { type: "object", properties: { player: { type: "string" }, opponent: { type: "string" }, race: { type: "string" }, opponentRace: { type: "string" }, matchup: { type: "string" }, map: { type: "string" }, timeSeconds: { type: "number" }, limitExamples: { type: "integer", maximum: 25 }, replay_ids: { type: "array", items: { type: "string" } } } } },
       { name: "get_player_replay_card", description: "replay card", inputSchema: { type: "object", properties: { replayId: { type: "string" }, player: { type: "string" } }, required: ["replayId", "player"] } },
       { name: "execute_query_plan", description: "mutating", inputSchema: { type: "object", properties: {} } }
@@ -75,6 +75,29 @@ describe("MCP analytical gateway", () => {
     expect(aggregateSchema.properties.replay_number).toBeUndefined();
     expect(aggregateSchema.required ?? []).not.toContain("replay_number");
     expect(aggregateSchema.properties.replay_ids).toBeUndefined();
+  });
+
+  test("replay economy asks for the exact observed player instead of identity-group filters", async () => {
+    const transport = new FakeTransport();
+    const gateway = new McpGateway([{ id: "community", transport }]);
+    const tools = await gateway.listTools("community");
+    const economy = tools.find((tool) => tool.name === "get_economy")!;
+    const schema = economy.inputSchema as any;
+    expect(schema.properties.player.description).toMatch(/exact.*observed player name/i);
+    expect(schema.properties.player_group).toBeUndefined();
+    expect(schema.properties.opponent_group).toBeUndefined();
+    expect(schema.properties.scope).toBeUndefined();
+    expect(schema.required).toContain("player");
+    expect(schema.required).toContain("replay_number");
+  });
+
+  test("rejects identity-group keys on replay-scoped Discord calls before MCP execution", async () => {
+    const transport = new FakeTransport();
+    const gateway = new McpGateway([{ id: "community", transport }]);
+    await expect(gateway.call({ corpusId: "community", name: "get_economy", arguments: {
+      player: "ZergOne", player_group: "ZergOne", at_seconds: 300, replay_number: 1,
+    }, allowedReplayRefs: [ref] })).rejects.toThrow(/exact observed player name.*group filters/i);
+    expect(transport.calls.some((call) => call.method === "tools/call")).toBe(false);
   });
 
   test("routes a canonical replay number and strips model db paths", async () => {
@@ -159,9 +182,9 @@ describe("MCP analytical gateway", () => {
       { corpusId: "community", replaySha256: "a".repeat(64), replayNumber: 2 },
       { corpusId: "community", replaySha256: "b".repeat(64), replayNumber: 7 }
     ];
-    await gateway.call({ corpusId: "community", name: "get_economy", arguments: { replay_number: 7 }, allowedReplayRefs: refs });
+    await gateway.call({ corpusId: "community", name: "get_economy", arguments: { replay_number: 7, player: "z", at_seconds: 300 }, allowedReplayRefs: refs });
     expect(transport.calls.at(-1)?.params.arguments.replay_ids).toEqual(["b".repeat(64)]);
-    await expect(gateway.call({ corpusId: "community", name: "get_economy", arguments: { replay_number: 7, injected: "x" }, allowedReplayRefs: refs })).rejects.toThrow("schema");
+    await expect(gateway.call({ corpusId: "community", name: "get_economy", arguments: { replay_number: 7, player: "z", at_seconds: 300, injected: "x" }, allowedReplayRefs: refs })).rejects.toThrow("schema");
     const tools = await gateway.listTools("community");
     expect((tools[0].inputSchema as any).properties.replay_number).toBeDefined();
   });

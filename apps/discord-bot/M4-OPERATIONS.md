@@ -39,6 +39,11 @@ provider is unavailable; saved responses and queued turns remain in SQLite:
 sudo systemctl restart bw-forge-discord-bot
 ```
 
+Replay-scoped Discord economy calls identify a participant with the exact
+observed `player` name. Identity groups are configured catalog keys and are not
+accepted as player names on those calls. If a safe `unknown_player_group` event
+appears, verify the deployed bot bundle includes the replay-tool schema fix.
+
 If replay jobs accumulate, restart only the community worker and inspect its
 journal. Do not delete the bot database, corpus database, WAL/SHM files, staged
 uploads, or report artifacts. If a report delivery is terminally failed, correct

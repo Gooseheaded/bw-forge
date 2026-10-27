@@ -35,7 +35,13 @@ describe("MCP gateway with the real corpus query server", () => {
       args: [join(queryRoot, "node_modules/tsx/dist/cli.mjs"), "src/mcp/server.ts", "--db", dbPath, "--transport", "stdio"], cwd: queryRoot });
     const gateway = new McpGateway([endpoint("community", communityDb), endpoint("pro", proDb)], { requestTimeoutMs: 15000, maxCallsPerTurn: 3 });
     try {
-      expect((await gateway.listTools()).some((tool) => tool.name === "get_economy_distribution" && tool.corpusIds?.includes("pro"))).toBe(true);
+      const availableTools = await gateway.listTools();
+      expect(availableTools.some((tool) => tool.name === "get_economy_distribution" && tool.corpusIds?.includes("pro"))).toBe(true);
+      const economySchema = availableTools.find((tool) => tool.name === "get_economy" && tool.corpusId === "community")!.inputSchema as any;
+      expect(economySchema.properties.player.description).toMatch(/exact.*observed player name/i);
+      expect(economySchema.properties.player_group).toBeUndefined();
+      expect(economySchema.properties.opponent_group).toBeUndefined();
+      expect(economySchema.properties.scope).toBeUndefined();
       const result = await gateway.call({ corpusId: "community", name: "get_economy",
         arguments: { player: "FixtureZerg", at_seconds: 300, replay_number: 1 },
         allowedReplayRefs: [{ replayNumber: 1, corpusId: "community", replaySha256: communityReplay }] });

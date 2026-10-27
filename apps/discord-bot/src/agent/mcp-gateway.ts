@@ -308,6 +308,9 @@ export class McpGateway {
       const unexpected = Object.keys(raw).filter((key) => key !== "corpus_id" && !MODEL_ECONOMY_DISTRIBUTION_KEYS.has(key));
       if (unexpected.length) throw new Error("get_economy_distribution in the Discord agent only accepts corpus_id, timeSeconds, race, opponentRace, and matchup. Omit additional arguments; advanced filters remain available through the direct MCP interface.");
     }
+    if (REPLAY_SCOPED_TOOLS.has(name) && ["player_group", "opponent_group", "scope"].some((key) => key in raw)) {
+      throw new Error(`${name} in the Discord agent requires an exact observed player name; group filters are unavailable for replay-scoped calls.`);
+    }
     if (REPLAY_SCOPED_TOOLS.has(name) && !("replay_number" in args)) throw new Error(`${name} requires a replay_number from this session`);
     const schema = this.schemas.get(`${endpoint.id}:${name}`);
     const schemaProperties = (schema?.properties && typeof schema.properties === "object" ? schema.properties : {}) as Record<string, unknown>;
@@ -348,6 +351,18 @@ export class McpGateway {
     for (const key of ["replay_id", "replay_ids", "replaySha256", "replayId"]) delete properties[key];
     if (replaySpecific) properties.replay_number = { type: "integer", minimum: 1, maximum: 10000, description: "Session-local replay number" };
     if (name === "get_player_replay_card") delete properties.filenameContains;
+    if (replaySpecific) {
+      // Identity groups are configured catalog keys, not player display names.
+      // Hide them from replay-scoped Discord calls so the model uses the exact
+      // participant name supplied by the session replay inventory.
+      for (const key of ["player_group", "opponent_group", "scope"]) delete properties[key];
+      if (properties.player && typeof properties.player === "object") {
+        properties.player.description = "Exact observed player name from the selected replay; this is not a player-group key.";
+      }
+      if (name === "get_economy") {
+        copy.description = `${typeof copy.description === "string" ? copy.description : "Get economy at the requested time."} Use the exact observed player name in player. Do not pass player_group, opponent_group, or scope filters to this replay query.`;
+      }
+    }
     properties.corpus_id = { type: "string", enum: corpusIds };
     if (name === "get_economy_distribution") (copy.properties as Record<string, unknown>).corpus_id = properties.corpus_id;
     if (name !== "get_economy_distribution") copy.properties = properties;

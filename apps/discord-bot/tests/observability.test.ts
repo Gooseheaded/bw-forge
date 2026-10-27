@@ -27,3 +27,8 @@ test("unknown event names are normalized without retaining attacker input", () =
   const value = sanitizeEvent("evil\nsecret", { event: "evil\nsecret", corpusId: "SECRET", model: "SECRET" }, { corpusIds: ["community"], model: "provider/model" });
   expect(value).toEqual({ event: "unknown_event" });
 });
+
+test("safe logger preserves the bounded unknown-player-group error category", () => {
+  const value = sanitizeEvent("tool_call_failed", { event: "tool_call_failed", code: "mcp_tool_error", mcpErrorCode: "unknown_player_group" });
+  expect(value).toMatchObject({ event: "tool_call_failed", code: "mcp_tool_error", mcpErrorCode: "unknown_player_group" });
+});
